@@ -1,22 +1,28 @@
 Source: drvfgpdb
 Priority: optional
 Maintainer: Martin Konrad <konrad@frib.msu.edu>
-Build-Depends: debhelper (>=9)
-Standards-Version: 3.9.8
+Build-Depends: debhelper (>=9), epics-debhelper (>= 8.14~), epics-dev,
+               epics-asyn-dev, google-mock
+Standards-Version: 3.9.6
 Section: libs
-Homepage: <insert the upstream URL, if relevant>
-#Vcs-Git: git://anonscm.debian.org/collab-maint/drvfgpdb.git
-#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/drvfgpdb.git
+Vcs-Git: https://stash.frib.msu.edu/scm/rf/drvfgpdb.git
+Vcs-Browser: https://stash.frib.msu.edu/projects/RF/repos/drvfgpdb
 
 Package: drvfgpdb-dev
 Section: libdevel
 Architecture: any
-Depends: drvfgpdbBROKEN (= ${binary:Version}), ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Depends: libdrvfgpdb (= ${binary:Version}), ${misc:Depends}
+Description: EPICS support for FRIB General Purpose Digital Board
+ Generic EPICS support for FRIB General Purpose Digital Board.
+ .
+ This package provides the files required to build IOC applications using this
+ support module.
 
-Package: drvfgpdbBROKEN
+Package: libdrvfgpdb
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: EPICS support for FRIB General Purpose Digital Board
+ Generic EPICS support for FRIB General Purpose Digital Board.
+ .
+ This package provides the support library required to run IOC applications
+ using this support module.
