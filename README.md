@@ -20,6 +20,12 @@ You can run the tests by issuing the following command
 ./drvFGPDBApp/src/drvFGPDBTests
 ```
 
+### Debug Build
+Use the following command to build with debugging symbols:
+```
+cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=DEBUG ..
+```
+
 Building a Debian Package
 -------------------------
 A Debian package can be build using git build package:
