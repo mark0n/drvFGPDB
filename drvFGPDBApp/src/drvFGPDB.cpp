@@ -94,11 +94,10 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //  cout << endl;
 
 
-  // If parameter already exists, return its index in the list
+  // If parameter already in the list, return its index
   int  index;
-  asynStatus stat = findParamByName(fields[0], &index);
-  if (stat == asynSuccess)  {
-    pasynUser->reason = numParams;  return (asynSuccess); }
+  if (findParamByName(fields[0], &index) == asynSuccess)  {
+    pasynUser->reason = index;  return (asynSuccess); }
 
   // If we already reached the max # params, return an error
   if (numParams >= MaxParams)  return asynError;
