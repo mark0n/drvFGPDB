@@ -9,20 +9,24 @@ using namespace std;
 
 
 //-----------------------------------------------------------------------------
-TEST(drvFGPDB, canBeConstructedWithoutAnyErrors) {
+class drvFGPDB_test: public Test {
+
+  public:
+    drvFGPDB *testDrv;
+};
+
+//-----------------------------------------------------------------------------
+TEST_F(drvFGPDB_test, canBeConstructedWithoutAnyErrors) {
   const string drvPortName = "testDriver";
-  drvFGPDB testDrv(drvPortName);
+  testDrv = new drvFGPDB(drvPortName);
 }
 
 //-----------------------------------------------------------------------------
-TEST(drvFGPDB, canCreateIncompleteParameter) {
-  const string drvPortName = "testDriver2";
-  drvFGPDB testDrv(drvPortName);
-
+TEST_F(drvFGPDB_test, canCreateIncompleteParameter) {
   asynUser  *pasynUser= pasynManager->createAsynUser(NULL, NULL);
 
   const char *paramInfo = { "paramName" };
-  auto stat = testDrv.drvUserCreate(pasynUser, paramInfo, NULL, NULL);
+  auto stat = testDrv->drvUserCreate(pasynUser, paramInfo, NULL, NULL);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
 }

@@ -90,6 +90,8 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 
   split(fields, s, is_any_of(" "), token_compress_on);
 
+  cout << "portName: [" << portName << "]" << endl;
+
 //  for (size_t n=0; n<fields.size(); n++)  cout << "[" << fields[n] << "] ";
 //  cout << endl;
 
