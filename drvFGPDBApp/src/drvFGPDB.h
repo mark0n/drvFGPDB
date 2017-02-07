@@ -71,29 +71,31 @@ enum class SyncMode {
 };
 
 
-
+// Information the driver keeps about each parameter.  This list is generated
+// during IOC startup from the data in the INP/OUT fields in the EPICS records
+// that are linked to these parameters.
 class ParamInfo {
   public:
     ParamInfo()  {
-      group = ParamGroup::NotDefined;
-      lcpRegNum  = 0;
-      asynType   = asynParamNotDefined;
-      ctlrFmt    = CtlrDataFmt::NotDefined;
-      syncMode   = SyncMode::NotDefined;
+      group    = ParamGroup::NotDefined;
+      regNum   = 0;
+      asynType = asynParamNotDefined;
+      ctlrFmt  = CtlrDataFmt::NotDefined;
+      syncMode = SyncMode::NotDefined;
     };
 
     ParamInfo(const ParamInfo &info) {
-      name       = info.name;
-      group      = info.group;
-      lcpRegNum  = info.lcpRegNum;
-      asynType   = info.asynType;
-      ctlrFmt    = info.ctlrFmt;
-      syncMode   = info.syncMode;
+      name     = info.name;
+      group    = info.group;
+      regNum   = info.regNum;
+      asynType = info.asynType;
+      ctlrFmt  = info.ctlrFmt;
+      syncMode = info.syncMode;
     };
 
     string         name;
     ParamGroup     group;      // what group the param belongs to
-    uint           lcpRegNum;  // reg # for LCP_xx group parameters
+    uint           regNum;     // reg # for LCP_xx group params
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
     SyncMode       syncMode;   // relation between set and read values
@@ -128,8 +130,7 @@ class drvFGPDB : public asynPortDriver {
     asynStatus extractProperties(vector <string> &properties,
                                  ParamInfo &paramInfo);
 
-    bool propertyConflicts(const ParamInfo &curParam,
-                           const ParamInfo &newParam);
+    asynStatus updateParam(int paramID, const ParamInfo &newParam);
 
 
   private:

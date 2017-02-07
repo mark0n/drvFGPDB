@@ -53,7 +53,7 @@ TEST(drvFGPDB, canCreateIncompleteParam) {
 // Add properties to the existing testParam
 //-----------------------------------------------------------------------------
 TEST(drvFGPDB, canAddPropertiesToExistingParam) {
-  const char *paramDesc = { "testParam LCP_RO 0x10000 U32 Int32" };
+  const char *paramDesc = { "testParam LCP_RO 0x10000 Int32 U32" };
 
   pasynUser->reason = -1;
   auto stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);

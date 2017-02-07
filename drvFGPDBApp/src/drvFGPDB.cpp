@@ -26,14 +26,14 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
 
 //-----------------------------------------------------------------------------
 //  Search the driver's list of parameters for an entry with the given name.
-//  Note that, unlike asynPortDriver::findParam(), this function will work
-//  during IOC startup, before the actual asyn parameters are generated from
-//  the driver's list.
+//  Note that, unlike asynPortDriver::findParam(), this function works during
+//  IOC startup, before the actual asyn parameters are generated from the
+//  driver's list.
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::findParamByName(const string &name, int *index)
+asynStatus drvFGPDB::findParamByName(const string &name, int *paramID)
 {
   for (int i=0; i<numParams; ++i)
-    if (paramList[i].name == name)  { *index = i;  return (asynSuccess); }
+    if (paramList[i].name == name)  { *paramID = i;  return (asynSuccess); }
 
   return asynError;
 }
@@ -114,11 +114,11 @@ SyncMode drvFGPDB::strToSyncMode(const string &modeName)
 asynStatus drvFGPDB::extractProperties(vector <string> &properties,
                                        ParamInfo &param)
 {
-  ParamGroup  group;
-  uint  regNum;
-  asynParamType asynType;
-  CtlrDataFmt ctlrFmt;
-  SyncMode  syncMode;
+  ParamGroup  group = ParamGroup::NotDefined;
+  uint  regNum = 0;
+  asynParamType asynType = asynParamNotDefined;
+  CtlrDataFmt ctlrFmt = CtlrDataFmt::NotDefined;
+  SyncMode  syncMode = SyncMode::NotDefined;
 
   int numFields = properties.size();
 
@@ -132,12 +132,27 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
   group = strToParamGroup(properties[1]);
   if (group == ParamGroup::NotDefined)  return asynError;  //msg
 
-  param.group = group;
-
 
   // Parameter for LCP Read-Only register value
-  // format:  name LCP_RO 0x##### asynType ctlrFmt syncMode
+  // format:  name LCP_RO 0x1#### asynType ctlrFmt
   if (group == ParamGroup::LCP_RO)  {
+    if (numFields < 5)  return asynError;  //msg
+
+    regNum = stoul(properties[2], nullptr, 16);
+    if ((regNum < 0x10000) or (regNum > 0x1FFFF))  return asynError;  //msg
+
+    asynType = strToAsynType(properties[3]);
+    if (asynType == asynParamNotDefined)  return asynError;  //msg
+
+    ctlrFmt = strToCtlrFmt(properties[4]);
+    if (ctlrFmt == CtlrDataFmt::NotDefined)  return asynError;  //msg
+
+  } else
+
+
+  // Parameter for LCP Write-Anytime register value
+  // format:  name LCP_WA 0x2#### asynType ctlrFmt syncMode
+  if (group == ParamGroup::LCP_WA)  {
     if (numFields < 6)  return asynError;  //msg
 
     regNum = stoul(properties[2], nullptr, 16);
@@ -151,17 +166,12 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
 
     syncMode = strToSyncMode(properties[5]);
     if (syncMode == SyncMode::NotDefined)  return asynError;  //msg
-  } else
-
-
-  // Parameter for LCP Write-Anytime register value
-  // format:  name LCP_WA 0x##### asynType ctlrFmt syncMode
-  if (group == ParamGroup::LCP_WA)  {
-
   } //...
 
+cout << "  param.xx = ..." << endl;  //tdebug
 
-  param.lcpRegNum = regNum;
+  param.group = group;
+  param.regNum = regNum;
   param.asynType = asynType;
   param.ctlrFmt = ctlrFmt;
   param.syncMode = syncMode;
@@ -170,22 +180,41 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
 }
 
 //-----------------------------------------------------------------------------
-//  Compare a new parameter definition with an existing one.
+//  Update the properties for an existing parameter.
 //
-//  Returns true if the new definition contains property values that conflict
-//  with the existing one, false if it can safely replace the existing one.
+//  Checks for conflicts and updates any missing property values using ones
+//  from the new set of properties.
 //-----------------------------------------------------------------------------
-bool drvFGPDB::propertyConflicts(const ParamInfo &curParam,
-                                 const ParamInfo &newParam)
+asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 {
+  cout << "updateParam(" << paramID << ", ...)" << endl;  //tdebug
 
-  return true;
+  if ((uint)paramID >= (uint)MaxParams)  return asynError;  //msg
+
+  ParamInfo  &curParam = paramList[paramID];
+
+  if (curParam.name != newParam.name)  return asynError;
+
+#define UpdateProp(prop, NotDef)  \
+  if (curParam.prop == (NotDef))  \
+    curParam.prop = newParam.prop;  \
+  else  \
+    if ((newParam.prop != (NotDef)) and (curParam.prop != newParam.prop))  \
+      return asynError;  //msg
+
+  UpdateProp(group, ParamGroup::NotDefined);
+  UpdateProp(regNum, 0);
+  UpdateProp(asynType, asynParamNotDefined);
+  UpdateProp(ctlrFmt, CtlrDataFmt::NotDefined);
+  UpdateProp(syncMode, SyncMode::NotDefined);
+
+  return asynSuccess;
 }
 
 
 //-----------------------------------------------------------------------------
-// Called by clients to get an index in to the list of parameters for a given
-// "port" (device) and "addr" (sub-device).
+// Called by clients to get the ID for a parameter for a given "port" (device)
+// and "addr" (sub-device).
 //
 // To allow the list of parameters to be determined at run time (rather than
 // compiled in to the code), this driver uses these calls to construct a list
@@ -193,20 +222,22 @@ bool drvFGPDB::propertyConflicts(const ParamInfo &curParam,
 // that the drvInfo string comes from an EPICS record's INP or OUT string
 // (everything after the "@asyn(port, addr, timeout)" prefix required for
 // records linked to asyn parameter values) and will include the name for the
-// parameter and (*optionally*) the properties for the parameter.
+// parameter and (in at least one of the records that references a parameter)
+// the properties for the parameter.
 //
 // Because multiple records can refer to the same parameter, this function may
 // be called multiple times during IOC initialization for the same parameter.
 // And because we want to avoid redundancy (and the errors that often result),
 // only ONE of the records is expected to include all the property values for
-// the paramter.  NOTE that it is NOT an error for multiple records to include
-// some or all the property values, so long as the values are the same for all
-// calls for the same parameter.
+// the paramter.  NOTE that, although it is discouraged, it is NOT an error if
+// multiple records include the property values, so long as the values are the
+// same for all calls for the same parameter.
 //
-// We also don't want to require records be loaded in a specific order, so this
-// function does not actually create the asyn parameters.  That is done by the
-// driver during a later phase of the IOC initialization, when we can be sure
-// that no additional calls to this function for new parameters will occur.
+// We also don't want to require that records be loaded in a specific order, so
+// this function does not actually create the asyn parameters.  That is done by
+// the driver during a later phase of the IOC initialization, when we can be
+// sure that no additional calls to this function for new parameters will
+// occur.
 //
 // NOTE that this flexibility assumes and requires the following:
 //
@@ -222,7 +253,9 @@ bool drvFGPDB::propertyConflicts(const ParamInfo &curParam,
 //     layer for each parameter is the same as its position in the driver's
 //     list.  The driver checks for this and will fail and report an error if
 //     they are not the same (although a consistent offset could also be easily
-//     accomodated if necessary),
+//     accomodated if necessary).  NOTE that the value of such an offset would
+//     have to be known before the first call to this function returns, so the
+//     value returned in pasynUser->reason is correct.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                    const char **pptypeName, size_t *psize)
@@ -242,29 +275,26 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //    cout << "[" << properties[n] << "] ";
 //  cout << endl;
 
-  // Process the property values provided in this call
+  // Extract the property values provided in this call
   stat = extractProperties(properties, param);
   if (stat != asynSuccess)  return stat;
 
   // If the parameter is not already in the list, then add it
-  int  index;
-  if (findParamByName(properties[0], &index) != asynSuccess)  {
+  int  paramID;
+  if (findParamByName(properties[0], &paramID) != asynSuccess)  {
     // If we already reached the max # params, return an error
     if (numParams >= MaxParams)  return asynError;
     paramList[numParams] = param;
     pasynUser->reason = numParams;  ++numParams;  return asynSuccess;
   }
 
-  // If just the name, then simply return the index
-  if (properties.size() < 2) { pasynUser->reason = index;  return asynSuccess; }
+  pasynUser->reason = paramID;
 
-  // Check for conflicting property values
-  if (propertyConflicts(paramList[index], param))  return asynError;
+  // If only the name is given, then just return the index
+  if (properties.size() < 2)  return asynSuccess;
 
-  // Replace existing info with new one in case the old one was incomplete
-  paramList[index] = param;
-
-  return asynSuccess;
+  // Update the existing entry (in case the old one was incomplete)
+  return updateParam(paramID, param);
 }
 
 //-----------------------------------------------------------------------------
