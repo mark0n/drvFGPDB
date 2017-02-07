@@ -156,7 +156,7 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
     if (numFields < 6)  return asynError;  //msg
 
     regNum = stoul(properties[2], nullptr, 16);
-    if ((regNum < 0x10000) or (regNum > 0x1FFFF))  return asynError;  //msg
+    if ((regNum < 0x20000) or (regNum > 0x2FFFF))  return asynError;  //msg
 
     asynType = strToAsynType(properties[3]);
     if (asynType == asynParamNotDefined)  return asynError;  //msg
@@ -168,7 +168,7 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
     if (syncMode == SyncMode::NotDefined)  return asynError;  //msg
   } //...
 
-cout << "  param.xx = ..." << endl;  //tdebug
+
 
   param.group = group;
   param.regNum = regNum;
@@ -187,7 +187,7 @@ cout << "  param.xx = ..." << endl;  //tdebug
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 {
-  cout << "updateParam(" << paramID << ", ...)" << endl;  //tdebug
+//  cout << "updateParam(" << paramID << ", ...)" << endl;
 
   if ((uint)paramID >= (uint)MaxParams)  return asynError;  //msg
 

@@ -5,7 +5,7 @@
 #include <asynPortDriver.h>
 
 
-using namespace std;
+//using namespace std;
 
 
 
@@ -93,7 +93,7 @@ class ParamInfo {
       syncMode = info.syncMode;
     };
 
-    string         name;
+    std::string    name;
     ParamGroup     group;      // what group the param belongs to
     uint           regNum;     // reg # for LCP_xx group params
     asynParamType  asynType;   // format of value used by driver
@@ -106,7 +106,7 @@ class ParamInfo {
 class drvFGPDB : public asynPortDriver {
 
   public:
-    drvFGPDB(const string &drvPortName);
+    drvFGPDB(const std::string &drvPortName);
 
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
@@ -114,20 +114,20 @@ class drvFGPDB : public asynPortDriver {
 
 
     // functions unique to this driver
-    asynStatus findParamByName(const string &name, int *paramID);
+    asynStatus findParamByName(const std::string &name, int *paramID);
 
     asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);
 
 
-    ParamGroup strToParamGroup(const string &groupName);
+    ParamGroup strToParamGroup(const std::string &groupName);
 
-    asynParamType strToAsynType(const string &typeName);
+    asynParamType strToAsynType(const std::string &typeName);
 
-    CtlrDataFmt strToCtlrFmt(const string &fmtName);
+    CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
 
-    SyncMode strToSyncMode(const string &modeName);
+    SyncMode strToSyncMode(const std::string &modeName);
 
-    asynStatus extractProperties(vector <string> &properties,
+    asynStatus extractProperties(std::vector <std::string> &properties,
                                  ParamInfo &paramInfo);
 
     asynStatus updateParam(int paramID, const ParamInfo &newParam);
