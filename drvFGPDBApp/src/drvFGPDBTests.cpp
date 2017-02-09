@@ -19,6 +19,30 @@ public:
   drvFGPDB testDrv = drvFGPDB(drvPortName);
 };
 
+TEST(AParamInfoObject, defaultsToTheCorrectValues) {
+  ParamInfo pi;
+
+  ASSERT_THAT(pi.regAddr, Eq(0));
+  ASSERT_THAT(pi.asynType, Eq(asynParamNotDefined));
+  ASSERT_THAT(pi.ctlrFmt, Eq(CtlrDataFmt::NotDefined));
+}
+
+TEST(AParamInfoObject, canBeConstructedFromAValidString) {
+  const string paramName("paramName");
+  const string regAddr("0x01234");
+  const string asynTypeName("UInt32Digital");
+  const string ctlrFmtName("U32");
+  const string validParamStr(paramName + " " + regAddr + " " + asynTypeName +
+                             " " + ctlrFmtName);
+
+  ParamInfo pi(validParamStr);
+
+  ASSERT_THAT(pi.name, Eq(paramName));
+  ASSERT_THAT(pi.regAddr, Eq(0x1234));
+  ASSERT_THAT(pi.asynType, Eq(asynParamUInt32Digital));
+  ASSERT_THAT(pi.ctlrFmt, Eq(CtlrDataFmt::U32));
+}
+
 //=============================================================================
 // *** WARNING ***
 //
@@ -54,7 +78,7 @@ TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
 // Add properties to the existing testParam
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
-  const char *paramDesc = { "testParam LCP_RO 0x10000 Int32 U32" };
+  const char *paramDesc = { "testParam 0x10000 Int32 U32" };
 
   pasynUser->reason = -1;
   auto stat = testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL);

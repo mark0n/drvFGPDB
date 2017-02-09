@@ -1,12 +1,22 @@
 
 #include "drvFGPDB.h"
 
-#include <boost/algorithm/string.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <sstream>
 
 using namespace std;
+
+ParamInfo::ParamInfo(const string paramStr) {
+  stringstream paramStream(paramStr);
+  string asynTypeName, ctlrFmtName;
+  paramStream >> this->name >> hex >> this->regAddr >> asynTypeName
+              >> ctlrFmtName;
+
+  this->asynType = strToAsynType(asynTypeName);
+  this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
+}
 
 //-----------------------------------------------------------------------------
 drvFGPDB::drvFGPDB(const string &drvPortName) :
@@ -45,7 +55,7 @@ asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
 //-----------------------------------------------------------------------------
 //  Return the asynParamType associated with a string
 //-----------------------------------------------------------------------------
-asynParamType drvFGPDB::strToAsynType(const string &typeName)
+asynParamType ParamInfo::strToAsynType(const string &typeName)
 {
   if (typeName == "Int32")          return asynParamInt32;
   if (typeName == "UInt32Digital")  return asynParamUInt32Digital;
@@ -63,7 +73,7 @@ asynParamType drvFGPDB::strToAsynType(const string &typeName)
 //-----------------------------------------------------------------------------
 //  Return the CtlrDataFmt associated with a string
 //-----------------------------------------------------------------------------
-CtlrDataFmt drvFGPDB::strToCtlrFmt(const string &fmtName)
+CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 {
   if (fmtName == "S32")     return CtlrDataFmt::S32;
   if (fmtName == "U32")     return CtlrDataFmt::U32;
@@ -72,44 +82,6 @@ CtlrDataFmt drvFGPDB::strToCtlrFmt(const string &fmtName)
   if (fmtName == "PHASE")   return CtlrDataFmt::PHASE;
 
   return CtlrDataFmt::NotDefined;
-}
-
-//-----------------------------------------------------------------------------
-//  Initialize a ParamInfo object with whatever property information is
-//  provided in the properties agrument.
-//-----------------------------------------------------------------------------
-asynStatus drvFGPDB::extractProperties(vector <string> &properties,
-                                       ParamInfo &param)
-{
-  uint regAddr = 0;
-  asynParamType asynType = asynParamNotDefined;
-  CtlrDataFmt ctlrFmt = CtlrDataFmt::NotDefined;
-
-  int numFields = properties.size();
-
-  // Must have at least the name
-  if (numFields < 1)  return asynError;  //msg
-
-  param.name = properties[0];
-  if (numFields < 2)  return asynSuccess;
-
-  // Anything more than the name currently requires all the related properties
-
-  if (numFields < 4)  return asynError;  //msg
-
-  regAddr = stoul(properties[2], nullptr, 16);
-
-  asynType = strToAsynType(properties[3]);
-  if (asynType == asynParamNotDefined)  return asynError;  //msg
-
-  ctlrFmt = strToCtlrFmt(properties[4]);
-  if (ctlrFmt == CtlrDataFmt::NotDefined)  return asynError;  //msg
-
-  param.regAddr = regAddr;
-  param.asynType = asynType;
-  param.ctlrFmt = ctlrFmt;
-
-  return asynSuccess;
 }
 
 //-----------------------------------------------------------------------------
@@ -191,28 +163,12 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                    const char **pptypeName, size_t *psize)
 {
-
-//  cout << "portName: [" << portName << "]" << endl;
-
-  vector <string> properties;
-  string s = string(drvInfo);
-  ParamInfo  param;
-  asynStatus  stat;
-
-
-  boost::split(properties, s, boost::is_any_of(" "), boost::token_compress_on);
-
-//  for (size_t n=0; n<properties.size(); n++)
-//    cout << "[" << properties[n] << "] ";
-//  cout << endl;
-
-  // Extract the property values provided in this call
-  stat = extractProperties(properties, param);
-  if (stat != asynSuccess)  return stat;
+  string paramConfStr = string(drvInfo);
+  ParamInfo  param(paramConfStr);
 
   // If the parameter is not already in the list, then add it
   int  paramID;
-  if (findParamByName(properties[0], &paramID) != asynSuccess)  {
+  if (findParamByName(param.name, &paramID) != asynSuccess)  {
     // If we already reached the max # params, return an error
     if (numParams >= MaxParams)  return asynError;
     paramList[numParams] = param;
@@ -220,9 +176,6 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   }
 
   pasynUser->reason = paramID;
-
-  // If only the name is given, then just return the index
-  if (properties.size() < 2)  return asynSuccess;
 
   // Update the existing entry (in case the old one was incomplete)
   return updateParam(paramID, param);

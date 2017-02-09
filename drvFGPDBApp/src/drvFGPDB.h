@@ -23,13 +23,16 @@ class ParamInfo {
       asynType = asynParamNotDefined;
       ctlrFmt  = CtlrDataFmt::NotDefined;
     };
-
     ParamInfo(const ParamInfo &info) {
       name     = info.name;
       regAddr  = info.regAddr;
       asynType = info.asynType;
       ctlrFmt  = info.ctlrFmt;
     };
+    ParamInfo(const std::string paramStr);
+
+    static asynParamType strToAsynType(const std::string &typeName);
+    static CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
 
     std::string    name;
     uint           regAddr;    // register address for parameter
@@ -53,12 +56,6 @@ class drvFGPDB : public asynPortDriver {
     asynStatus findParamByName(const std::string &name, int *paramID);
 
     asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);
-
-
-    asynParamType strToAsynType(const std::string &typeName);
-
-    CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
-
     asynStatus extractProperties(std::vector <std::string> &properties,
                                  ParamInfo &paramInfo);
 
