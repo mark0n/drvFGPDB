@@ -29,7 +29,7 @@ class ParamInfo {
   public:
     ParamInfo()  {
       group    = ParamGroup::NotDefined;
-      regNum   = 0;
+      regAddr  = 0;
       asynType = asynParamNotDefined;
       ctlrFmt  = CtlrDataFmt::NotDefined;
     };
@@ -37,14 +37,14 @@ class ParamInfo {
     ParamInfo(const ParamInfo &info) {
       name     = info.name;
       group    = info.group;
-      regNum   = info.regNum;
+      regAddr  = info.regAddr;
       asynType = info.asynType;
       ctlrFmt  = info.ctlrFmt;
     };
 
     std::string    name;
     ParamGroup     group;      // what group the param belongs to
-    uint           regNum;     // reg # for LCP_xx group params
+    uint           regAddr;    // register address for parameter
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
 };

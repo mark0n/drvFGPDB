@@ -96,7 +96,7 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
                                        ParamInfo &param)
 {
   ParamGroup  group = ParamGroup::NotDefined;
-  uint  regNum = 0;
+  uint regAddr = 0;
   asynParamType asynType = asynParamNotDefined;
   CtlrDataFmt ctlrFmt = CtlrDataFmt::NotDefined;
 
@@ -118,8 +118,8 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
   if (group == ParamGroup::LCP_RO)  {
     if (numFields < 5)  return asynError;  //msg
 
-    regNum = stoul(properties[2], nullptr, 16);
-    if ((regNum < 0x10000) or (regNum > 0x1FFFF))  return asynError;  //msg
+    regAddr = stoul(properties[2], nullptr, 16);
+    if ((regAddr < 0x10000) or (regAddr > 0x1FFFF))  return asynError;  //msg
 
     asynType = strToAsynType(properties[3]);
     if (asynType == asynParamNotDefined)  return asynError;  //msg
@@ -135,8 +135,8 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
   if (group == ParamGroup::LCP_WA)  {
     if (numFields < 6)  return asynError;  //msg
 
-    regNum = stoul(properties[2], nullptr, 16);
-    if ((regNum < 0x20000) or (regNum > 0x2FFFF))  return asynError;  //msg
+    regAddr = stoul(properties[2], nullptr, 16);
+    if ((regAddr < 0x20000) or (regAddr > 0x2FFFF))  return asynError;  //msg
 
     asynType = strToAsynType(properties[3]);
     if (asynType == asynParamNotDefined)  return asynError;  //msg
@@ -148,7 +148,7 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
 
 
   param.group = group;
-  param.regNum = regNum;
+  param.regAddr = regAddr;
   param.asynType = asynType;
   param.ctlrFmt = ctlrFmt;
 
@@ -179,7 +179,7 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
       return asynError;  //msg
 
   UpdateProp(group, ParamGroup::NotDefined);
-  UpdateProp(regNum, 0);
+  UpdateProp(regAddr, 0);
   UpdateProp(asynType, asynParamNotDefined);
   UpdateProp(ctlrFmt, CtlrDataFmt::NotDefined);
 
