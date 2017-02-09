@@ -89,19 +89,6 @@ CtlrDataFmt drvFGPDB::strToCtlrFmt(const string &fmtName)
 }
 
 //-----------------------------------------------------------------------------
-//  Return the SyncMode associated with a string
-//-----------------------------------------------------------------------------
-SyncMode drvFGPDB::strToSyncMode(const string &modeName)
-{
-  if (modeName == "SM_DN")  return SyncMode::SM_DN;
-  if (modeName == "SM_EQ")  return SyncMode::SM_EQ;
-  if (modeName == "SM_CM")  return SyncMode::SM_CM;
-  if (modeName == "SM_IM")  return SyncMode::SM_IM;
-
-  return SyncMode::NotDefined;
-}
-
-//-----------------------------------------------------------------------------
 //  Initialize a ParamInfo object with whatever property information is
 //  provided in the properties agrument.
 //-----------------------------------------------------------------------------
@@ -112,7 +99,6 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
   uint  regNum = 0;
   asynParamType asynType = asynParamNotDefined;
   CtlrDataFmt ctlrFmt = CtlrDataFmt::NotDefined;
-  SyncMode  syncMode = SyncMode::NotDefined;
 
   int numFields = properties.size();
 
@@ -157,9 +143,6 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
 
     ctlrFmt = strToCtlrFmt(properties[4]);
     if (ctlrFmt == CtlrDataFmt::NotDefined)  return asynError;  //msg
-
-    syncMode = strToSyncMode(properties[5]);
-    if (syncMode == SyncMode::NotDefined)  return asynError;  //msg
   } //...
 
 
@@ -168,7 +151,6 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
   param.regNum = regNum;
   param.asynType = asynType;
   param.ctlrFmt = ctlrFmt;
-  param.syncMode = syncMode;
 
   return asynSuccess;
 }
@@ -200,7 +182,6 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
   UpdateProp(regNum, 0);
   UpdateProp(asynType, asynParamNotDefined);
   UpdateProp(ctlrFmt, CtlrDataFmt::NotDefined);
-  UpdateProp(syncMode, SyncMode::NotDefined);
 
   return asynSuccess;
 }
