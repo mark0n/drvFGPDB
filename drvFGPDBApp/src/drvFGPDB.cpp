@@ -7,8 +7,6 @@
 #include <vector>
 
 using namespace std;
-using namespace boost;
-
 
 //-----------------------------------------------------------------------------
 drvFGPDB::drvFGPDB(const string &drvPortName) :
@@ -265,7 +263,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   asynStatus  stat;
 
 
-  split(properties, s, is_any_of(" "), token_compress_on);
+  boost::split(properties, s, boost::is_any_of(" "), boost::token_compress_on);
 
 //  for (size_t n=0; n<properties.size(); n++)
 //    cout << "[" << properties[n] << "] ";
