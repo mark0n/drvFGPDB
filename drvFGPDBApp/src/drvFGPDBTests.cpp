@@ -10,10 +10,14 @@ using namespace std;
 
 //-----------------------------------------------------------------------------
 
-static drvFGPDB *testDrv;
 static int  testParamIdx;
 static asynUser *pasynUser;
 
+class AnFGPDBDriver: public testing::Test {
+public:
+  const string drvPortName = "testDriver";
+  drvFGPDB testDrv = drvFGPDB(drvPortName);
+};
 
 //=============================================================================
 // *** WARNING ***
@@ -25,10 +29,7 @@ static asynUser *pasynUser;
 //-----------------------------------------------------------------------------
 // Start by constructing
 //-----------------------------------------------------------------------------
-TEST(drvFGPDB, canBeConstructedWithoutAnyErrors) {
-  const string drvPortName = "testDriver";
-  testDrv = new drvFGPDB(drvPortName);
-
+TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
   pasynUser = pasynManager->createAsynUser(NULL, NULL);
 }
 
@@ -36,14 +37,14 @@ TEST(drvFGPDB, canBeConstructedWithoutAnyErrors) {
 // Add "testParam" to the list of parameters but don't provide any property
 // info for it.
 //-----------------------------------------------------------------------------
-TEST(drvFGPDB, canCreateIncompleteParam) {
+TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
   const char *paramDesc = { "testParam" };
 
   pasynUser = pasynManager->createAsynUser(NULL, NULL);  //tdebug
   pasynUser->reason = -1;
 
   asynStatus stat = asynError;
-  stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
+  stat = testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   testParamIdx = pasynUser->reason;
@@ -52,17 +53,17 @@ TEST(drvFGPDB, canCreateIncompleteParam) {
 //-----------------------------------------------------------------------------
 // Add properties to the existing testParam
 //-----------------------------------------------------------------------------
-TEST(drvFGPDB, canAddPropertiesToExistingParam) {
+TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
   const char *paramDesc = { "testParam LCP_RO 0x10000 Int32 U32" };
 
   pasynUser->reason = -1;
-  auto stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
+  auto stat = testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(pasynUser->reason, Eq(testParamIdx));
 
   ParamInfo param;
-  stat = testDrv->getParamInfo(pasynUser->reason, param);
+  stat = testDrv.getParamInfo(pasynUser->reason, param);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.asynType, Eq(asynParamInt32));
