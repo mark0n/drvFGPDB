@@ -43,20 +43,6 @@ asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
 }
 
 //-----------------------------------------------------------------------------
-//  Return the ParamGroup value associated with a string
-//-----------------------------------------------------------------------------
-ParamGroup drvFGPDB::strToParamGroup(const string &groupName)
-{
-  if (groupName == "LCP_RO")  return ParamGroup::LCP_RO;
-  if (groupName == "LCP_WA")  return ParamGroup::LCP_WA;
-  if (groupName == "LCP_WO")  return ParamGroup::LCP_WO;
-  if (groupName == "DRV_RO")  return ParamGroup::DRV_RO;
-  if (groupName == "DRV_RW")  return ParamGroup::DRV_RW;
-
-  return ParamGroup::NotDefined;
-}
-
-//-----------------------------------------------------------------------------
 //  Return the asynParamType associated with a string
 //-----------------------------------------------------------------------------
 asynParamType drvFGPDB::strToAsynType(const string &typeName)
@@ -95,7 +81,6 @@ CtlrDataFmt drvFGPDB::strToCtlrFmt(const string &fmtName)
 asynStatus drvFGPDB::extractProperties(vector <string> &properties,
                                        ParamInfo &param)
 {
-  ParamGroup  group = ParamGroup::NotDefined;
   uint regAddr = 0;
   asynParamType asynType = asynParamNotDefined;
   CtlrDataFmt ctlrFmt = CtlrDataFmt::NotDefined;
@@ -109,45 +94,17 @@ asynStatus drvFGPDB::extractProperties(vector <string> &properties,
   if (numFields < 2)  return asynSuccess;
 
   // Anything more than the name currently requires all the related properties
-  group = strToParamGroup(properties[1]);
-  if (group == ParamGroup::NotDefined)  return asynError;  //msg
 
+  if (numFields < 4)  return asynError;  //msg
 
-  // Parameter for LCP Read-Only register value
-  // format:  name LCP_RO 0x1#### asynType ctlrFmt
-  if (group == ParamGroup::LCP_RO)  {
-    if (numFields < 5)  return asynError;  //msg
+  regAddr = stoul(properties[2], nullptr, 16);
 
-    regAddr = stoul(properties[2], nullptr, 16);
-    if ((regAddr < 0x10000) or (regAddr > 0x1FFFF))  return asynError;  //msg
+  asynType = strToAsynType(properties[3]);
+  if (asynType == asynParamNotDefined)  return asynError;  //msg
 
-    asynType = strToAsynType(properties[3]);
-    if (asynType == asynParamNotDefined)  return asynError;  //msg
+  ctlrFmt = strToCtlrFmt(properties[4]);
+  if (ctlrFmt == CtlrDataFmt::NotDefined)  return asynError;  //msg
 
-    ctlrFmt = strToCtlrFmt(properties[4]);
-    if (ctlrFmt == CtlrDataFmt::NotDefined)  return asynError;  //msg
-
-  } else
-
-
-  // Parameter for LCP Write-Anytime register value
-  // format:  name LCP_WA 0x2#### asynType ctlrFmt syncMode
-  if (group == ParamGroup::LCP_WA)  {
-    if (numFields < 6)  return asynError;  //msg
-
-    regAddr = stoul(properties[2], nullptr, 16);
-    if ((regAddr < 0x20000) or (regAddr > 0x2FFFF))  return asynError;  //msg
-
-    asynType = strToAsynType(properties[3]);
-    if (asynType == asynParamNotDefined)  return asynError;  //msg
-
-    ctlrFmt = strToCtlrFmt(properties[4]);
-    if (ctlrFmt == CtlrDataFmt::NotDefined)  return asynError;  //msg
-  } //...
-
-
-
-  param.group = group;
   param.regAddr = regAddr;
   param.asynType = asynType;
   param.ctlrFmt = ctlrFmt;
@@ -178,7 +135,6 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
     if ((newParam.prop != (NotDef)) and (curParam.prop != newParam.prop))  \
       return asynError;  //msg
 
-  UpdateProp(group, ParamGroup::NotDefined);
   UpdateProp(regAddr, 0);
   UpdateProp(asynType, asynParamNotDefined);
   UpdateProp(ctlrFmt, CtlrDataFmt::NotDefined);

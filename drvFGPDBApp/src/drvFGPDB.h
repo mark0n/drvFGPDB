@@ -4,15 +4,6 @@
 
 #include <asynPortDriver.h>
 
-enum class ParamGroup {
-  NotDefined,
-  LCP_RO,  // Read-Only LCP register
-  LCP_WA,  // Write-Anytime LCP register
-  LCP_WO,  // Write-Once LCP register
-  DRV_RO,  // Read-Only driver value
-  DRV_RW,  // Read-Write driver value
-};
-
 enum class CtlrDataFmt {
   NotDefined,
   S32,       // signed 32-bit int
@@ -28,7 +19,6 @@ enum class CtlrDataFmt {
 class ParamInfo {
   public:
     ParamInfo()  {
-      group    = ParamGroup::NotDefined;
       regAddr  = 0;
       asynType = asynParamNotDefined;
       ctlrFmt  = CtlrDataFmt::NotDefined;
@@ -36,14 +26,12 @@ class ParamInfo {
 
     ParamInfo(const ParamInfo &info) {
       name     = info.name;
-      group    = info.group;
       regAddr  = info.regAddr;
       asynType = info.asynType;
       ctlrFmt  = info.ctlrFmt;
     };
 
     std::string    name;
-    ParamGroup     group;      // what group the param belongs to
     uint           regAddr;    // register address for parameter
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
@@ -66,8 +54,6 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);
 
-
-    ParamGroup strToParamGroup(const std::string &groupName);
 
     asynParamType strToAsynType(const std::string &typeName);
 
