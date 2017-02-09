@@ -4,11 +4,6 @@
 
 #include <asynPortDriver.h>
 
-
-//using namespace std;
-
-
-
 enum class ParamGroup {
   NotDefined,
   LCP_RO,  // Read-Only LCP register
