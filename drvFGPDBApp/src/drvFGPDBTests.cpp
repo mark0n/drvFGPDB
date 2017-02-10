@@ -43,6 +43,39 @@ TEST(AParamInfoObject, canBeConstructedFromAValidString) {
   ASSERT_THAT(pi.ctlrFmt, Eq(CtlrDataFmt::U32));
 }
 
+TEST(AParamInfoObject, throwsIfConstructedWithAnInvalidAddress) {
+  const string paramName("paramName");
+  const string invalidRegAddr("foo");
+  const string asynTypeName("UInt32Digital");
+  const string ctlrFmtName("U32");
+  const string validParamStr(paramName + " " + invalidRegAddr + " " +
+                             asynTypeName + " " + ctlrFmtName);
+
+  ASSERT_ANY_THROW(ParamInfo pi(validParamStr));
+}
+
+TEST(AParamInfoObject, throwsIfConstructedWithAnUnsupportedAsynType) {
+  const string paramName("paramName");
+  const string regAddr("0x01234");
+  const string asynTypeName("UInt32Invalid");
+  const string ctlrFmtName("U32");
+  const string validParamStr(paramName + " " + regAddr + " " + asynTypeName +
+                             " " + ctlrFmtName);
+
+  ASSERT_ANY_THROW(ParamInfo pi(validParamStr));
+}
+
+TEST(AParamInfoObject, throwsIfConstructedWithAnUnsupportedCtlrFmt) {
+  const string paramName("paramName");
+  const string regAddr("0x01234");
+  const string asynTypeName("UInt32Digital");
+  const string ctlrFmtName("U32Invalid");
+  const string validParamStr(paramName + " " + regAddr + " " + asynTypeName +
+                             " " + ctlrFmtName);
+
+  ASSERT_ANY_THROW(ParamInfo pi(validParamStr));
+}
+
 //=============================================================================
 // *** WARNING ***
 //

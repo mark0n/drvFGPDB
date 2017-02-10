@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <regex>
 
 #include <asynPortDriver.h>
 
@@ -29,8 +30,12 @@ class ParamInfo {
       asynType = info.asynType;
       ctlrFmt  = info.ctlrFmt;
     };
-    ParamInfo(const std::string paramStr);
+    ParamInfo(const std::string& paramStr);
 
+  std::regex generateParamStrRegex();
+  template <typename T>
+  std::string joinMapKeys(const std::unordered_map<std::string, T>& map,
+                          const std::string& separator);
     static asynParamType strToAsynType(const std::string &typeName);
     static CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
 

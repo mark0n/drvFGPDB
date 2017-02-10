@@ -22,7 +22,10 @@ const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "U16_16", CtlrDataFmt::U16_16 }
 };
 
-ParamInfo::ParamInfo(const string paramStr) {
+ParamInfo::ParamInfo(const string& paramStr) {
+  if(!regex_match(paramStr, generateParamStrRegex())) {
+    throw invalid_argument("Invalid argument for parameter.");
+  }
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
   paramStream >> this->name >> hex >> this->regAddr >> asynTypeName
@@ -30,6 +33,27 @@ ParamInfo::ParamInfo(const string paramStr) {
 
   this->asynType = strToAsynType(asynTypeName);
   this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
+}
+
+template <typename T>
+string ParamInfo::joinMapKeys(const unordered_map<string, T>& map,
+                              const string& separator) {
+  string joinedKeys;
+  bool first = true;
+  for(auto const& x : map) {
+    if(!first) {
+      joinedKeys += separator;
+    }
+    first = false;
+    joinedKeys += x.first;
+  }
+  return joinedKeys;
+}
+
+regex ParamInfo::generateParamStrRegex() {
+  string asynTypeNames = joinMapKeys(asynTypes, "|");
+  string ctlrFmtNames = joinMapKeys(ctlrFmts, "|");
+  return regex("\\w+\\s+0x[0-9a-fA-F]+\\s+(" + asynTypeNames + ")\\s+(" + ctlrFmtNames + ")");
 }
 
 //-----------------------------------------------------------------------------
