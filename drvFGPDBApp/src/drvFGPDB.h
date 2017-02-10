@@ -40,6 +40,7 @@ class ParamInfo {
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
 
   static const std::unordered_map<std::string, asynParamType> asynTypes;
+  static const std::unordered_map<std::string, CtlrDataFmt> ctlrFmts;
 };
 
 //-----------------------------------------------------------------------------

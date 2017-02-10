@@ -15,6 +15,13 @@ const std::unordered_map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Octet",         asynParamOctet         }
 };
 
+const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
+  { "S32",    CtlrDataFmt::S32    },
+  { "U32",    CtlrDataFmt::U32    },
+  { "F32",    CtlrDataFmt::F32    },
+  { "U16_16", CtlrDataFmt::U16_16 }
+};
+
 ParamInfo::ParamInfo(const string paramStr) {
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
@@ -73,13 +80,8 @@ asynParamType ParamInfo::strToAsynType(const string &typeName)
 //-----------------------------------------------------------------------------
 CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 {
-  if (fmtName == "S32")     return CtlrDataFmt::S32;
-  if (fmtName == "U32")     return CtlrDataFmt::U32;
-  if (fmtName == "F32")     return CtlrDataFmt::F32;
-  if (fmtName == "U16_16")  return CtlrDataFmt::U16_16;
-  if (fmtName == "PHASE")   return CtlrDataFmt::PHASE;
-
-  return CtlrDataFmt::NotDefined;
+  auto it = ctlrFmts.find(fmtName);
+  return it == ctlrFmts.end() ? CtlrDataFmt::NotDefined : it->second;
 }
 
 //-----------------------------------------------------------------------------
