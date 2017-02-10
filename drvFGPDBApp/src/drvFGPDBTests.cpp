@@ -61,7 +61,7 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 // Add "testParam" to the list of parameters but don't provide any property
 // info for it.
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
+TEST_F(AnFGPDBDriver, DISABLED_canCreateIncompleteParam) {
   const char *paramDesc = { "testParam" };
 
   pasynUser = pasynManager->createAsynUser(NULL, NULL);  //tdebug
@@ -77,7 +77,7 @@ TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
 //-----------------------------------------------------------------------------
 // Add properties to the existing testParam
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
+TEST_F(AnFGPDBDriver, DISABLED_canAddPropertiesToExistingParam) {
   const char *paramDesc = { "testParam 0x10000 Int32 U32" };
 
   pasynUser->reason = -1;
