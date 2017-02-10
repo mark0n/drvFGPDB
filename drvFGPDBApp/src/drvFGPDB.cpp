@@ -8,6 +8,13 @@
 
 using namespace std;
 
+const std::unordered_map<std::string, asynParamType> ParamInfo::asynTypes = {
+  { "Int32",         asynParamInt32         },
+  { "UInt32Digital", asynParamUInt32Digital },
+  { "Float64",       asynParamFloat64       },
+  { "Octet",         asynParamOctet         }
+};
+
 ParamInfo::ParamInfo(const string paramStr) {
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
@@ -57,17 +64,8 @@ asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
 //-----------------------------------------------------------------------------
 asynParamType ParamInfo::strToAsynType(const string &typeName)
 {
-  if (typeName == "Int32")          return asynParamInt32;
-  if (typeName == "UInt32Digital")  return asynParamUInt32Digital;
-  if (typeName == "Float64")        return asynParamFloat64;
-  if (typeName == "Octet")          return asynParamOctet;
-  if (typeName == "Int8Array")      return asynParamInt8Array;
-  if (typeName == "Int16Array")     return asynParamInt16Array;
-  if (typeName == "Int32Array")     return asynParamInt32Array;
-  if (typeName == "Float32Array")   return asynParamFloat32Array;
-  if (typeName == "Float64Array")   return asynParamFloat64Array;
-
-  return asynParamNotDefined;
+  auto it = asynTypes.find(typeName);
+  return it == asynTypes.end() ? asynParamNotDefined : it->second;
 }
 
 //-----------------------------------------------------------------------------

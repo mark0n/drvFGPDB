@@ -1,4 +1,4 @@
-
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -38,8 +38,9 @@ class ParamInfo {
     uint           regAddr;    // register address for parameter
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
-};
 
+  static const std::unordered_map<std::string, asynParamType> asynTypes;
+};
 
 //-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
