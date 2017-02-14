@@ -98,11 +98,7 @@ class ParamInfo {
 
 
   private:
-    std::regex generateParamStrRegex();
-
-    template <typename T>
-      std::string joinMapKeys(const std::unordered_map<std::string, T>& map,
-                              const std::string& separator);
+    static std::regex &generateParamStrRegex();
 
     static const std::unordered_map<std::string, asynParamType> asynTypes;
     static const std::unordered_map<std::string, CtlrDataFmt> ctlrFmts;

@@ -47,10 +47,10 @@ ParamInfo::ParamInfo(const string& paramStr) : ParamInfo()
 }
 
 //-----------------------------------------------------------------------------
-// Return a string with a list of the key values in an unordered_map
+// Return a string with the set of key values from an unordered_map
 //-----------------------------------------------------------------------------
 template <typename T>
-string ParamInfo::joinMapKeys(const unordered_map<string, T>& map,
+string joinMapKeys(const unordered_map<string, T>& map,
                               const string& separator)
 {
   string joinedKeys;
@@ -66,16 +66,22 @@ string ParamInfo::joinMapKeys(const unordered_map<string, T>& map,
 //-----------------------------------------------------------------------------
 // Generate a regex for validating strings that define a parameter
 //-----------------------------------------------------------------------------
-regex ParamInfo::generateParamStrRegex()
+regex & ParamInfo::generateParamStrRegex()
 {
-  string asynTypeNames = joinMapKeys(asynTypes, "|");
-  string ctlrFmtNames  = joinMapKeys(ctlrFmts,  "|");
-  return regex("\\w+("                        // param name
-               "\\s+0x[0-9a-fA-F]+"           // addr or param group
-               "\\s+(" + asynTypeNames + ")"  // asyn data type
-               "\\s+(" + ctlrFmtNames + ")"   // ctlr data format
-               ")*"
-              );
+  static std::regex  paramStrRegex("");
+
+  if (paramStrRegex.mark_count() < 2)  {
+    string asynTypeNames = joinMapKeys(asynTypes, "|");
+    string ctlrFmtNames  = joinMapKeys(ctlrFmts,  "|");
+    paramStrRegex = regex("\\w+("                        // param name
+                 "\\s+0x[0-9a-fA-F]+"           // addr or param group
+                 "\\s+(" + asynTypeNames + ")"  // asyn data type
+                 "\\s+(" + ctlrFmtNames + ")"   // ctlr data format
+                 ")*"
+                );
+  }
+
+  return paramStrRegex;
 }
 
 //-----------------------------------------------------------------------------
