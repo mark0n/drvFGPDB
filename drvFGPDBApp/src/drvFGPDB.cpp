@@ -246,13 +246,19 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::createAsynParams(void)
 {
-  cout << "create asyn params for: [" << portName << "]" << endl;  //tdebug
+  cout << endl
+       << "create asyn params for: [" << portName << "]" << endl;  //tdebug
 
-  auto it = paramList.begin();
-  while (it != paramList.end())  {
-    cout << "  [" << (*it).name << "]" << endl;  //tdebug
-    it++;
+  int paramID;
+  asynStatus stat;
+  auto param = paramList.begin();
+  while (param != paramList.end())  {
+    stat = createParam(param->name.c_str(), param->asynType, &paramID);
+    if (stat != asynSuccess)  return stat;
+    cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
+    param++;
   }
+  cout << endl;  //tdebug
 
   return asynSuccess;
 }

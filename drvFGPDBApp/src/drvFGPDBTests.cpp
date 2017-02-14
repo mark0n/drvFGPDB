@@ -13,15 +13,11 @@ using namespace std;
 
 static drvFGPDB  *testDrv = NULL;
 static asynUser  *pasynUser = NULL;
-static int  testParamIdx = -1;
+static int  testParam1ID = -1;
+static int  testParam2ID = -1;
 
 class AnFGPDBDriver: public ::testing::Test
 {
-  public:
-//    static drvFGPDB  *testDrv;
-//    static asynUser  *pasynUser;
-//    static int  testParamIdx;
-
   protected:
     static void SetUpTestCase()  { testDrv = new drvFGPDB("testDriver"); }
 
@@ -61,42 +57,57 @@ TEST_F(AnFGPDBDriver, rejectsInvalidParamDef) {
 // info for it.
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
-  const char *paramDesc = { "testParam" };
+  const char *param1Name = { "testParam1" };
 
   asynStatus stat = asynError;
-  stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
+  stat = testDrv->drvUserCreate(pasynUser, param1Name, NULL, NULL);
   ASSERT_THAT(stat, Eq(asynSuccess));
+  ASSERT_THAT(pasynUser->reason, Ge(0));
 
-  testParamIdx = pasynUser->reason;
+  testParam1ID = pasynUser->reason;
 }
 
 //-----------------------------------------------------------------------------
-// Add properties to the existing testParam
+// Add a 2nd parameter
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
-  const char *paramDesc = { "testParam 0x10000 Int32 U32" };
+TEST_F(AnFGPDBDriver, canAddAnotherParam) {
+  const char *param2Def = { "testParam2 0x10000 Float64 F32" };
 
   pasynUser->reason = -1;
-  auto stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
-
+  auto stat = testDrv->drvUserCreate(pasynUser, param2Def, NULL, NULL);
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(pasynUser->reason, Eq(testParamIdx));
+  ASSERT_THAT(pasynUser->reason, Gt(0));
+  testParam2ID = pasynUser->reason;
+}
 
-  ParamInfo param;
-  stat = testDrv->getParamInfo(pasynUser->reason, param);
+//-----------------------------------------------------------------------------
+// Add properties to an existing testParam
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
+  const char *param1Def = { "testParam1 0x10000 Int32 U32" };
 
+  pasynUser->reason = -1;
+  auto stat = testDrv->drvUserCreate(pasynUser, param1Def, NULL, NULL);
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(param.asynType, Eq(asynParamInt32));
+  ASSERT_THAT(pasynUser->reason, Eq(testParam1ID));
+
+  ParamInfo param1;
+  stat = testDrv->getParamInfo(pasynUser->reason, param1);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  ASSERT_THAT(param1.regAddr,  Eq(0x10000));
+  ASSERT_THAT(param1.asynType, Eq(asynParamInt32));
+  ASSERT_THAT(param1.ctlrFmt,  Eq(CtlrDataFmt::U32));
 }
 
 //-----------------------------------------------------------------------------
 // Test for rejection of conflicting properties for an existing param
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
-  const char *paramDesc = { "testParam 0x10000 Float64 F32" };
+  const char *param1Def = { "testParam1 0x10000 Float64 F32" };
 
   pasynUser->reason = -1;
-  auto stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
+  auto stat = testDrv->drvUserCreate(pasynUser, param1Def, NULL, NULL);
 
   ASSERT_THAT(stat, Eq(asynError));
 }
@@ -104,9 +115,14 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
 //-----------------------------------------------------------------------------
 // Test creation of asyn params
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, createAsynParams) {
+TEST_F(AnFGPDBDriver, createsAsynParams) {
+
   drvFGPDB_initHookFunc(initHookAfterInitDatabase);
 
+  int paramID;
+  auto stat = testDrv->findParam("testParam2", &paramID);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+  ASSERT_THAT(paramID, Eq(testParam2ID));
 }
 
 //-----------------------------------------------------------------------------
