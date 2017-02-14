@@ -73,12 +73,12 @@ regex & ParamInfo::generateParamStrRegex()
   if (paramStrRegex.mark_count() < 2)  {
     string asynTypeNames = joinMapKeys(asynTypes, "|");
     string ctlrFmtNames  = joinMapKeys(ctlrFmts,  "|");
-    paramStrRegex = regex("\\w+("                        // param name
-                 "\\s+0x[0-9a-fA-F]+"           // addr or param group
-                 "\\s+(" + asynTypeNames + ")"  // asyn data type
-                 "\\s+(" + ctlrFmtNames + ")"   // ctlr data format
-                 ")*"
-                );
+    paramStrRegex = regex(
+          "\\w+("                        // param name
+          "\\s+0x[0-9a-fA-F]+"           // addr or param group
+          "\\s+(" + asynTypeNames + ")"  // asyn data type
+          "\\s+(" + ctlrFmtNames + ")"   // ctlr data format
+          ")*" );
   }
 
   return paramStrRegex;
