@@ -6,8 +6,11 @@
 #include <vector>
 #include <sstream>
 
+
 using namespace std;
 
+
+//-----------------------------------------------------------------------------
 const std::unordered_map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Int32",         asynParamInt32         },
   { "UInt32Digital", asynParamUInt32Digital },
@@ -22,41 +25,79 @@ const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "U16_16", CtlrDataFmt::U16_16 }
 };
 
-ParamInfo::ParamInfo(const string& paramStr) {
-  if(!regex_match(paramStr, generateParamStrRegex())) {
-    throw invalid_argument("Invalid argument for parameter.");
-  }
+//-----------------------------------------------------------------------------
+// Construct a ParamInfo object from a string description of the form:
+//
+//  name addr asynType ctlrFmt
+//-----------------------------------------------------------------------------
+ParamInfo::ParamInfo(const string& paramStr) : ParamInfo()
+{
+  if (!regex_match(paramStr, generateParamStrRegex()))  return;
+
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
-  paramStream >> this->name >> hex >> this->regAddr >> asynTypeName
+
+  paramStream >> this->name
+              >> hex >> this->regAddr
+              >> asynTypeName
               >> ctlrFmtName;
 
   this->asynType = strToAsynType(asynTypeName);
   this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
 }
 
+//-----------------------------------------------------------------------------
+// Return a string with a list of the key values in an unordered_map
+//-----------------------------------------------------------------------------
 template <typename T>
 string ParamInfo::joinMapKeys(const unordered_map<string, T>& map,
-                              const string& separator) {
+                              const string& separator)
+{
   string joinedKeys;
   bool first = true;
-  for(auto const& x : map) {
-    if(!first) {
-      joinedKeys += separator;
-    }
+  for (auto const& x : map)  {
+    if (!first) joinedKeys += separator;
     first = false;
     joinedKeys += x.first;
   }
   return joinedKeys;
 }
 
-regex ParamInfo::generateParamStrRegex() {
+//-----------------------------------------------------------------------------
+// Generate a regex for validating strings that define a parameter
+//-----------------------------------------------------------------------------
+regex ParamInfo::generateParamStrRegex()
+{
   string asynTypeNames = joinMapKeys(asynTypes, "|");
-  string ctlrFmtNames = joinMapKeys(ctlrFmts, "|");
-  return regex("\\w+\\s+0x[0-9a-fA-F]+\\s+(" + asynTypeNames + ")\\s+(" + ctlrFmtNames + ")");
+  string ctlrFmtNames  = joinMapKeys(ctlrFmts,  "|");
+  return regex("\\w+("                        // param name
+               "\\s+0x[0-9a-fA-F]+"           // addr or param group
+               "\\s+(" + asynTypeNames + ")"  // asyn data type
+               "\\s+(" + ctlrFmtNames + ")"   // ctlr data format
+               ")*"
+              );
 }
 
 //-----------------------------------------------------------------------------
+//  Return the asynParamType associated with a string
+//-----------------------------------------------------------------------------
+asynParamType ParamInfo::strToAsynType(const string &typeName)
+{
+  auto it = asynTypes.find(typeName);
+  return it == asynTypes.end() ? asynParamNotDefined : it->second;
+}
+
+//-----------------------------------------------------------------------------
+//  Return the CtlrDataFmt associated with a string
+//-----------------------------------------------------------------------------
+CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
+{
+  auto it = ctlrFmts.find(fmtName);
+  return it == ctlrFmts.end() ? CtlrDataFmt::NotDefined : it->second;
+}
+
+
+//=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, MaxParams, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
@@ -64,7 +105,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
 {
 
 }
-
 
 //-----------------------------------------------------------------------------
 //  Search the driver's list of parameters for an entry with the given name.
@@ -88,24 +128,6 @@ asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
   if ((uint)paramID >= (uint)numParams)  return asynError;
 
   paramInfo = paramList[paramID];  return asynSuccess;
-}
-
-//-----------------------------------------------------------------------------
-//  Return the asynParamType associated with a string
-//-----------------------------------------------------------------------------
-asynParamType ParamInfo::strToAsynType(const string &typeName)
-{
-  auto it = asynTypes.find(typeName);
-  return it == asynTypes.end() ? asynParamNotDefined : it->second;
-}
-
-//-----------------------------------------------------------------------------
-//  Return the CtlrDataFmt associated with a string
-//-----------------------------------------------------------------------------
-CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
-{
-  auto it = ctlrFmts.find(fmtName);
-  return it == ctlrFmts.end() ? CtlrDataFmt::NotDefined : it->second;
 }
 
 //-----------------------------------------------------------------------------
@@ -134,6 +156,7 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
   UpdateProp(regAddr, 0);
   UpdateProp(asynType, asynParamNotDefined);
   UpdateProp(ctlrFmt, CtlrDataFmt::NotDefined);
+//UpdateProp(syncMode, SyncMode::NotDefined);
 
   return asynSuccess;
 }
@@ -187,8 +210,10 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                    const char **pptypeName, size_t *psize)
 {
-  string paramConfStr = string(drvInfo);
-  ParamInfo  param(paramConfStr);
+  string paramCfgStr = string(drvInfo);
+  ParamInfo  param(paramCfgStr);
+
+  if (param.name.empty())  return asynError;
 
   // If the parameter is not already in the list, then add it
   int  paramID;
