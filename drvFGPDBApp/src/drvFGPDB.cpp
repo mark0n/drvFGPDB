@@ -6,8 +6,6 @@
 #include <vector>
 #include <sstream>
 
-#include <initHooks.h>
-
 
 using namespace std;
 
@@ -26,22 +24,6 @@ const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "F32",    CtlrDataFmt::F32    },
   { "U16_16", CtlrDataFmt::U16_16 }
 };
-
-
-//-----------------------------------------------------------------------------
-//  Callback function for EPICS IOC initialization steps
-//-----------------------------------------------------------------------------
-static void myHookFunction(initHookState state)
-{
-  if (state == initHookAfterInitDatabase)  {
-    auto it = drvList.begin();
-    while (it != drvList.end())  {
-      cout << "create asyn params for: [" << (*it)->portName << "]" << endl;  //tdebug
-      it++;
-    }
-  }
-
-}
 
 
 //-----------------------------------------------------------------------------
@@ -128,7 +110,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     numParams(0)
 {
-  initHookRegister(myHookFunction);
+  initHookRegister(drvFGPDB_initHookFunc);
 
   drvList.push_back(this);
 }
@@ -255,6 +237,32 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 
   // Update the existing entry (in case the old one was incomplete)
   return updateParam(paramID, param);
+}
+
+//-----------------------------------------------------------------------------
+// Create the asyn params for the driver
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::createAsynParams(void)
+{
+  cout << "create asyn params for: [" << portName << "]" << endl;  //tdebug
+
+  for (int i=0; i<numParams; ++i)  {
+    ParamInfo *param = paramList + i;
+    cout << "  [" << param->name << "]" << endl;  //tdebug
+  }
+
+  return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
+//  Callback function for EPICS IOC initialization steps
+//-----------------------------------------------------------------------------
+void drvFGPDB_initHookFunc(initHookState state)
+{
+  if (state != initHookAfterInitDatabase)  return;
+
+  auto it = drvList.begin();
+  while (it != drvList.end())  { (*it)->createAsynParams();  it++; }
 }
 
 //-----------------------------------------------------------------------------

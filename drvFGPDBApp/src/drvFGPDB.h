@@ -5,6 +5,8 @@
 #include <list>
 
 #include <asynPortDriver.h>
+#include <initHooks.h>
+
 
 //-----------------------------------------------------------
 enum class CtlrDataFmt {
@@ -109,6 +111,9 @@ class ParamInfo {
 
 static std::list<drvFGPDB *> drvList;
 
+void drvFGPDB_initHookFunc(initHookState state);
+
+
 //-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
 
@@ -128,6 +133,8 @@ class drvFGPDB : public asynPortDriver {
                                  ParamInfo &paramInfo);
 
     asynStatus updateParam(int paramID, const ParamInfo &newParam);
+
+    asynStatus createAsynParams(void);
 
 
   private:

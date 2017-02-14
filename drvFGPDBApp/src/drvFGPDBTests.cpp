@@ -90,7 +90,7 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
 }
 
 //-----------------------------------------------------------------------------
-// Add properties to the existing testParam
+// Test for rejection of conflicting properties for an existing param
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
   const char *paramDesc = { "testParam 0x10000 Float64 F32" };
@@ -102,3 +102,13 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
 }
 
 //-----------------------------------------------------------------------------
+// Test creation of asyn params
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, createAsynParams) {
+  drvFGPDB_initHookFunc(initHookAfterInitDatabase);
+
+}
+
+//-----------------------------------------------------------------------------
+
+
