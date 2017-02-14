@@ -107,8 +107,7 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, MaxParams, InterfaceMask,
-                   InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
-    numParams(0)
+                   InterruptMask, AsynFlags, AutoConnect, Priority, StackSize)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -123,8 +122,12 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::findParamByName(const string &name, int *paramID)
 {
-  for (int i=0; i<numParams; ++i)
-    if (paramList[i].name == name)  { *paramID = i;  return (asynSuccess); }
+  auto it = paramList.begin();
+  while (it != paramList.end())  {
+    if ((*it).name == name)  {
+      *paramID = it - paramList.begin();  return (asynSuccess); }
+    it++;
+  }
 
   return asynError;
 }
@@ -134,9 +137,9 @@ asynStatus drvFGPDB::findParamByName(const string &name, int *paramID)
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
 {
-  if ((uint)paramID >= (uint)numParams)  return asynError;
+  if ((uint)paramID >= paramList.size())  return asynError;
 
-  paramInfo = paramList[paramID];  return asynSuccess;
+  paramInfo = paramList.at(paramID);  return asynSuccess;
 }
 
 //-----------------------------------------------------------------------------
@@ -151,7 +154,7 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 
   if ((uint)paramID >= (uint)MaxParams)  return asynError;  //msg
 
-  ParamInfo  &curParam = paramList[paramID];
+  ParamInfo  &curParam = paramList.at(paramID);
 
   if (curParam.name != newParam.name)  return asynError;
 
@@ -227,10 +230,9 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   // If the parameter is not already in the list, then add it
   int  paramID;
   if (findParamByName(param.name, &paramID) != asynSuccess)  {
-    // If we already reached the max # params, return an error
-    if (numParams >= MaxParams)  return asynError;
-    paramList[numParams] = param;
-    pasynUser->reason = numParams;  ++numParams;  return asynSuccess;
+    if (paramList.size() >= MaxParams)  return asynError;
+    paramList.push_back(param);
+    pasynUser->reason = paramList.size()-1;  return asynSuccess;
   }
 
   pasynUser->reason = paramID;
@@ -246,9 +248,10 @@ asynStatus drvFGPDB::createAsynParams(void)
 {
   cout << "create asyn params for: [" << portName << "]" << endl;  //tdebug
 
-  for (int i=0; i<numParams; ++i)  {
-    ParamInfo *param = paramList + i;
-    cout << "  [" << param->name << "]" << endl;  //tdebug
+  auto it = paramList.begin();
+  while (it != paramList.end())  {
+    cout << "  [" << (*it).name << "]" << endl;  //tdebug
+    it++;
   }
 
   return asynSuccess;

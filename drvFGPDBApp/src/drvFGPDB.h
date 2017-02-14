@@ -153,9 +153,7 @@ class drvFGPDB : public asynPortDriver {
     static const int StackSize = 0;
 
 
-    int  numParams;
-    ParamInfo  paramList[MaxParams];
-
+    std::vector<ParamInfo> paramList;
 };
 
 //-----------------------------------------------------------------------------
