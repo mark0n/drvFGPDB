@@ -6,6 +6,8 @@
 #include <vector>
 #include <sstream>
 
+#include <initHooks.h>
+
 
 using namespace std;
 
@@ -24,6 +26,23 @@ const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "F32",    CtlrDataFmt::F32    },
   { "U16_16", CtlrDataFmt::U16_16 }
 };
+
+
+//-----------------------------------------------------------------------------
+//  Callback function for EPICS IOC initialization steps
+//-----------------------------------------------------------------------------
+static void myHookFunction(initHookState state)
+{
+  if (state == initHookAfterInitDatabase)  {
+    auto it = drvList.begin();
+    while (it != drvList.end())  {
+      cout << "create asyn params for: [" << (*it)->portName << "]" << endl;  //tdebug
+      it++;
+    }
+  }
+
+}
+
 
 //-----------------------------------------------------------------------------
 // Construct a ParamInfo object from a string description of the form:
@@ -109,7 +128,9 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     numParams(0)
 {
+  initHookRegister(myHookFunction);
 
+  drvList.push_back(this);
 }
 
 //-----------------------------------------------------------------------------

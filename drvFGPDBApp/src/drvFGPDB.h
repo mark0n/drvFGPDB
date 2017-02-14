@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <list>
 
 #include <asynPortDriver.h>
 
@@ -106,6 +107,7 @@ class ParamInfo {
 
 
 
+static std::list<drvFGPDB *> drvList;
 
 //-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
@@ -146,6 +148,7 @@ class drvFGPDB : public asynPortDriver {
 
     int  numParams;
     ParamInfo  paramList[MaxParams];
+
 };
 
 //-----------------------------------------------------------------------------
