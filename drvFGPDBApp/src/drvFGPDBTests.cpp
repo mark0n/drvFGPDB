@@ -90,3 +90,15 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
 }
 
 //-----------------------------------------------------------------------------
+// Add properties to the existing testParam
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
+  const char *paramDesc = { "testParam 0x10000 Float64 F32" };
+
+  pasynUser->reason = -1;
+  auto stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
+
+  ASSERT_THAT(stat, Eq(asynError));
+}
+
+//-----------------------------------------------------------------------------
