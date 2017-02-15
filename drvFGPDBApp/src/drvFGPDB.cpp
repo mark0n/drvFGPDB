@@ -99,6 +99,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
+  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
   drvList.push_back(this);
 }
 

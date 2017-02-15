@@ -10,12 +10,16 @@ using namespace std;
 
 //-----------------------------------------------------------------------------
 
+static int testNum = 0;
 
 class AnFGPDBDriver: public ::testing::Test
 {
 public:
-  AnFGPDBDriver() : pasynUser(pasynManager->createAsynUser(nullptr, nullptr)) {};
-  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
+  AnFGPDBDriver()
+    : pasynUser(pasynManager->createAsynUser(nullptr, nullptr)) { };
+  ~AnFGPDBDriver() {
+    pasynManager->freeAsynUser(pasynUser); };
+
   int addParam(string paramStr) {
     asynStatus stat;
     pasynUser->reason = -1;
@@ -23,7 +27,7 @@ public:
     return (stat == asynSuccess) ? pasynUser->reason : -1;
   }
 
-  drvFGPDB testDrv = drvFGPDB("testDriver");
+  drvFGPDB testDrv = drvFGPDB("testDriver" + std::to_string(++testNum));
   asynUser *pasynUser;
 };
 
@@ -49,8 +53,7 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 TEST_F(AnFGPDBDriver, rejectsInvalidParamDef) {
   const char *paramDesc = { "  " };
 
-  asynStatus stat = testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL);
-  ASSERT_THAT(stat, Eq(asynError));
+  ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL));
 }
 
 //-----------------------------------------------------------------------------
@@ -112,14 +115,10 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, createsAsynParams) {
   addParam("testParam1 0x10001 Int32 U32");
-  int testParam2ID = addParam("testParam2 0x10002 Float64 F32");
+  addParam("testParam2 0x10002 Float64 F32");
 
-  drvFGPDB_initHookFunc(initHookAfterInitDatabase);
-
-  int paramID;
-  auto stat = testDrv.findParam("testParam2", &paramID);
+  auto stat = testDrv.createAsynParams();
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(paramID, Eq(testParam2ID));
 }
 
 //-----------------------------------------------------------------------------
