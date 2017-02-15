@@ -23,7 +23,7 @@ You can run the tests by issuing the following command
 ### Debug Build
 Use the following command to build with debugging symbols:
 ```
-cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=DEBUG ..
+cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=Debug ..
 ```
 
 Building a Debian Package
