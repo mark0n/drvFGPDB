@@ -58,3 +58,7 @@ function(add_unit_tests target)
 endfunction()
 
 add_unit_tests(drvFGPDBTests)
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests coverage '*Tests.cpp')
+endif(CMAKE_BUILD_TYPE MATCHES Debug)

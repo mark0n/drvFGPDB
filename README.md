@@ -23,8 +23,17 @@ You can run the tests by issuing the following command
 ### Debug Build
 Use the following command to build with debugging symbols:
 ```
-cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=DEBUG ..
+cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=Debug ..
 ```
+
+### Code Coverage
+To extract useful code coverage information the tool needs to be build without optimization:
+```
+mkdir build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make drvFGPDB_coverage
+```
+Coverage data can be found in `build/coverage/index.html`.
 
 Building a Debian Package
 -------------------------
