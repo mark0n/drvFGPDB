@@ -24,4 +24,9 @@ add_subdirectory(${GMOCK_SRC_DIR} ${CMAKE_BINARY_DIR}/gmock-build)
 
 enable_testing()
 
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -W -Wshadow -Wunused-variable -Wunused-parameter -Wunused-function -Wunused -Wno-system-headers -Wno-deprecated -Woverloaded-virtual -Wwrite-strings -fprofile-arcs -ftest-coverage")
+  include(CodeCoverage)
+endif(CMAKE_BUILD_TYPE MATCHES Debug)
+
 add_subdirectory(drvFGPDBApp)

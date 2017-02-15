@@ -26,6 +26,15 @@ Use the following command to build with debugging symbols:
 cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=Debug ..
 ```
 
+### Code Coverage
+To extract useful code coverage information the tool needs to be build without optimization:
+```
+mkdir build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make drvFGPDB_coverage
+```
+Coverage data can be found in `build/coverage/index.html`.
+
 Building a Debian Package
 -------------------------
 A Debian package can be build using git build package:
