@@ -1,4 +1,5 @@
-#include <unordered_map>
+
+#include <map>
 #include <string>
 #include <vector>
 #include <regex>
@@ -103,16 +104,34 @@ class ParamInfo {
   private:
     static std::regex &generateParamStrRegex();
 
-    static const std::unordered_map<std::string, asynParamType> asynTypes;
-    static const std::unordered_map<std::string, CtlrDataFmt> ctlrFmts;
+    static const std::map<std::string, asynParamType> asynTypes;
+    static const std::map<std::string, CtlrDataFmt> ctlrFmts;
 };
 
+
+//-----------------------------------------------------------------------------
+// Return a string with the set of key values from a map
+//-----------------------------------------------------------------------------
+template <typename T>
+std::string joinMapKeys(const std::map<std::string, T>& map,
+                        const std::string& separator) {
+  std::string joinedKeys;
+  bool first = true;
+  for(auto const& x : map) {
+    if(!first)  joinedKeys += separator;
+    first = false;
+    joinedKeys += x.first;
+  }
+  return joinedKeys;
+}
+
+
+//-----------------------------------------------------------------------------
 
 
 static std::list<drvFGPDB *> drvList;
 
 void drvFGPDB_initHookFunc(initHookState state);
-
 
 //-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
@@ -123,6 +142,9 @@ class drvFGPDB : public asynPortDriver {
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                      const char **pptypeName, size_t *psize);
+
+    virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
+
 
     // functions unique to this driver
     asynStatus findParamByName(const std::string &name, int *paramID);

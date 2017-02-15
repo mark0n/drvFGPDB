@@ -48,8 +48,7 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 TEST_F(AnFGPDBDriver, rejectsInvalidParamDef) {
   const char *paramDesc = { "  " };
 
-  asynStatus stat = testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL);
-  ASSERT_THAT(stat, Eq(asynError));
+  ASSERT_ANY_THROW(testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL));
 }
 
 //-----------------------------------------------------------------------------
@@ -123,6 +122,19 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
   auto stat = testDrv->findParam("testParam2", &paramID);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(paramID, Eq(testParam2ID));
+}
+
+//-----------------------------------------------------------------------------
+// Test ability to write to the asyn parameters
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, writeToParams) {
+
+  pasynUser->reason = testParam1ID;
+//  asynSetTraceMask(testDrv->portName, 0, ASYN_TRACEIO_DRIVER);
+  auto stat = testDrv->writeInt32(pasynUser, 123);
+//  asynSetTraceMask(testDrv->portName, 0, 0);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
 }
 
 //-----------------------------------------------------------------------------

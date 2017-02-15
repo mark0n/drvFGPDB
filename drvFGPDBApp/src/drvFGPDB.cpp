@@ -10,15 +10,19 @@
 using namespace std;
 
 
+// Should be set to the name of the C++ class
+static const char *DriverName = "drvFGPDB";
+
+
 //-----------------------------------------------------------------------------
-const std::unordered_map<std::string, asynParamType> ParamInfo::asynTypes = {
+const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Int32",         asynParamInt32         },
   { "UInt32Digital", asynParamUInt32Digital },
   { "Float64",       asynParamFloat64       },
   { "Octet",         asynParamOctet         }
 };
 
-const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
+const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "S32",    CtlrDataFmt::S32    },
   { "U32",    CtlrDataFmt::U32    },
   { "F32",    CtlrDataFmt::F32    },
@@ -33,7 +37,8 @@ const std::unordered_map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 //-----------------------------------------------------------------------------
 ParamInfo::ParamInfo(const string& paramStr) : ParamInfo()
 {
-  if (!regex_match(paramStr, generateParamStrRegex()))  return;
+  if (!regex_match(paramStr, generateParamStrRegex()))
+    throw invalid_argument("Invalid argument for parameter.");
 
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
@@ -45,23 +50,6 @@ ParamInfo::ParamInfo(const string& paramStr) : ParamInfo()
 
   this->asynType = strToAsynType(asynTypeName);
   this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
-}
-
-//-----------------------------------------------------------------------------
-// Return a string with the set of key values from an unordered_map
-//-----------------------------------------------------------------------------
-template <typename T>
-string joinMapKeys(const unordered_map<string, T>& map,
-                              const string& separator)
-{
-  string joinedKeys;
-  bool first = true;
-  for (auto const& x : map)  {
-    if (!first) joinedKeys += separator;
-    first = false;
-    joinedKeys += x.first;
-  }
-  return joinedKeys;
 }
 
 //-----------------------------------------------------------------------------
@@ -273,5 +261,35 @@ void drvFGPDB_initHookFunc(initHookState state)
   auto it = drvList.begin();
   while (it != drvList.end())  { (*it)->createAsynParams();  it++; }
 }
+
+
+//----------------------------------------------------------------------------
+// Process a request to write to one of the Int32 parameters
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
+{
+  const char  *funcName = "writeInt32";
+  asynStatus  stat = asynSuccess;
+  const char  *paramName;
+  int  paramID = pasynUser->reason;
+
+
+  getParamName(paramID, &paramName);
+
+
+  stat = asynError;  //tdebug
+
+  if (stat != asynSuccess)
+    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
+                  "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
+                  DriverName, funcName, stat, paramID, paramName, newVal);
+  else
+    asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+              "%s::%s():  paramID=%d, name=%s, value=%d\n",
+              DriverName, funcName, paramID, paramName, newVal);
+
+  return stat;
+}
+
 
 //-----------------------------------------------------------------------------
