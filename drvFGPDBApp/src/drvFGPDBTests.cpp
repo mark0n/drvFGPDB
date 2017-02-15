@@ -11,18 +11,20 @@ using namespace std;
 //-----------------------------------------------------------------------------
 
 
-static drvFGPDB  *testDrv = NULL;
-static asynUser  *pasynUser = NULL;
-static int  testParam1ID = -1;
-static int  testParam2ID = -1;
-
 class AnFGPDBDriver: public ::testing::Test
 {
-  protected:
-    static void SetUpTestCase()  { testDrv = new drvFGPDB("testDriver"); }
+public:
+  AnFGPDBDriver() : pasynUser(pasynManager->createAsynUser(nullptr, nullptr)) {};
+  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
+  int addParam(string paramStr) {
+    asynStatus stat;
+    pasynUser->reason = -1;
+    stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), NULL, NULL);
+    return (stat == asynSuccess) ? pasynUser->reason : -1;
+  }
 
-    static void TearDownTestCase()  { delete testDrv; }
-
+  drvFGPDB testDrv = drvFGPDB("testDriver");
+  asynUser *pasynUser;
 };
 
 
@@ -38,7 +40,6 @@ class AnFGPDBDriver: public ::testing::Test
 // Start by constructing
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
-  pasynUser = pasynManager->createAsynUser(NULL, NULL);
 }
 
 //-----------------------------------------------------------------------------
@@ -48,7 +49,8 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 TEST_F(AnFGPDBDriver, rejectsInvalidParamDef) {
   const char *paramDesc = { "  " };
 
-  ASSERT_ANY_THROW(testDrv->drvUserCreate(pasynUser, paramDesc, NULL, NULL));
+  asynStatus stat = testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL);
+  ASSERT_THAT(stat, Eq(asynError));
 }
 
 //-----------------------------------------------------------------------------
@@ -59,41 +61,35 @@ TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
   const char *param1Name = { "testParam1" };
 
   asynStatus stat = asynError;
-  stat = testDrv->drvUserCreate(pasynUser, param1Name, NULL, NULL);
+  stat = testDrv.drvUserCreate(pasynUser, param1Name, NULL, NULL);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(pasynUser->reason, Ge(0));
-
-  testParam1ID = pasynUser->reason;
 }
 
 //-----------------------------------------------------------------------------
 // Add a 2nd parameter
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddAnotherParam) {
-  const char *param2Def = { "testParam2 0x10000 Float64 F32" };
+  int id = addParam("testParam1");
+  ASSERT_THAT(id, Eq(0));
 
-  pasynUser->reason = -1;
-  auto stat = testDrv->drvUserCreate(pasynUser, param2Def, NULL, NULL);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(pasynUser->reason, Gt(0));
-  testParam2ID = pasynUser->reason;
+  id = addParam("testParam2 0x10000 Float64 F32");
+  ASSERT_THAT(id, Eq(1));
 }
 
 //-----------------------------------------------------------------------------
 // Add properties to an existing testParam
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
-  const char *param1Def = { "testParam1 0x10000 Int32 U32" };
+  int id = addParam("testParam1");
+  ASSERT_THAT(id, Eq(0));
 
-  pasynUser->reason = -1;
-  auto stat = testDrv->drvUserCreate(pasynUser, param1Def, NULL, NULL);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(pasynUser->reason, Eq(testParam1ID));
-
+  id = addParam("testParam1 0x10000 Int32 U32");
+  ASSERT_THAT(id, Eq(0));
   ParamInfo param1;
-  stat = testDrv->getParamInfo(pasynUser->reason, param1);
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  asynStatus stat = testDrv.getParamInfo(pasynUser->reason, param1);
 
+  ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param1.regAddr,  Eq(0x10000));
   ASSERT_THAT(param1.asynType, Eq(asynParamInt32));
   ASSERT_THAT(param1.ctlrFmt,  Eq(CtlrDataFmt::U32));
@@ -103,10 +99,10 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
 // Test for rejection of conflicting properties for an existing param
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
+  addParam("testParam1 0x10000 Int32 U32");
   const char *param1Def = { "testParam1 0x10000 Float64 F32" };
 
-  pasynUser->reason = -1;
-  auto stat = testDrv->drvUserCreate(pasynUser, param1Def, NULL, NULL);
+  auto stat = testDrv.drvUserCreate(pasynUser, param1Def, NULL, NULL);
 
   ASSERT_THAT(stat, Eq(asynError));
 }
@@ -115,26 +111,15 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
 // Test creation of asyn params
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, createsAsynParams) {
+  addParam("testParam1 0x10001 Int32 U32");
+  int testParam2ID = addParam("testParam2 0x10002 Float64 F32");
 
   drvFGPDB_initHookFunc(initHookAfterInitDatabase);
 
   int paramID;
-  auto stat = testDrv->findParam("testParam2", &paramID);
+  auto stat = testDrv.findParam("testParam2", &paramID);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(paramID, Eq(testParam2ID));
-}
-
-//-----------------------------------------------------------------------------
-// Test ability to write to the asyn parameters
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, writeToParams) {
-
-  pasynUser->reason = testParam1ID;
-//  asynSetTraceMask(testDrv->portName, 0, ASYN_TRACEIO_DRIVER);
-  auto stat = testDrv->writeInt32(pasynUser, 123);
-//  asynSetTraceMask(testDrv->portName, 0, 0);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
 }
 
 //-----------------------------------------------------------------------------
