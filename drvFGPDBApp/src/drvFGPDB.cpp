@@ -125,7 +125,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
 drvFGPDB::~drvFGPDB()
 {
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
-//  pasynManager->freeAsynUser(pAsynUserUDP);
+//  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 }
 
 //-----------------------------------------------------------------------------
