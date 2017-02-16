@@ -6,6 +6,8 @@
 #include <list>
 
 #include <asynPortDriver.h>
+#include <asynOctetSyncIO.h>
+
 #include <initHooks.h>
 
 
@@ -137,8 +139,9 @@ void drvFGPDB_initHookFunc(initHookState state);
 class drvFGPDB : public asynPortDriver {
 
   public:
-    drvFGPDB(const std::string &drvPortName, const std::string &comPortName,
+    drvFGPDB(const std::string &drvPortName, const std::string &udpPortName,
              int maxParams);
+    ~drvFGPDB();
 
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
@@ -177,6 +180,8 @@ class drvFGPDB : public asynPortDriver {
     int maxParams;
 
     std::vector<ParamInfo> paramList;
+
+    asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 };
 
 //-----------------------------------------------------------------------------

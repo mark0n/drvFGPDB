@@ -93,7 +93,7 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 
 
 //=============================================================================
-drvFGPDB::drvFGPDB(const string &drvPortName, const string &comPortName,
+drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
                    int maxParams_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, maxParams_, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
@@ -103,6 +103,29 @@ drvFGPDB::drvFGPDB(const string &drvPortName, const string &comPortName,
 
 //  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
   drvList.push_back(this);
+
+
+  // Create a pAsynUser and connect it to the asyn port that was created by
+  // the startup script for communicating with the PPG_Counter device
+  auto stat = pasynOctetSyncIO->connect(udpPortName.c_str(), 0,
+                                        &pAsynUserUDP, nullptr);
+
+  if (stat) {
+    cout << "  asyn driver for: " << drvPortName
+         << " unable to connect to asyn UDP port: " << udpPortName
+         << endl << endl;
+    throw invalid_argument("Invalid asyn UDP port name");
+  }
+
+  cout << "  asyn driver for: " << drvPortName
+       << " connected to asyn UDP port: " << udpPortName << endl;
+}
+
+//-----------------------------------------------------------------------------
+drvFGPDB::~drvFGPDB()
+{
+  pasynOctetSyncIO->disconnect(pAsynUserUDP);
+//  pasynManager->freeAsynUser(pAsynUserUDP);
 }
 
 //-----------------------------------------------------------------------------

@@ -13,28 +13,49 @@ using namespace std;
 
 static int testNum = 0;
 
+#define UDPPortName  "FGPDB_com"
+#define MaxParams    200
+
+
+//-----------------------------------------------------------------------------
+int createPortUDP(std::string &drvName)
+{
+  static int  stat = 0;
+
+  if (testNum == 1)
+    stat = drvAsynIPPortConfigure(UDPPortName, "127.0.0.1:2005 udp", 0, 0, 1);
+
+  return stat;
+}
+
+//-----------------------------------------------------------------------------
 class AnFGPDBDriver: public ::testing::Test
 {
-public:
-  AnFGPDBDriver()
-    : pasynUser(pasynManager->createAsynUser(nullptr, nullptr))
-  {
-    if (testNum == 0)
-      drvAsynIPPortConfigure("FGPDB_com", "127.0.0.1:2005 udp", 0, 0, 1);
-  };
+  public:
+    AnFGPDBDriver() :
+      pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
+      drvName("testDriver" + std::to_string(++testNum)),
+      // NOTE: asyn UDP port must be created before drvFGPDB object
+      udpPortStat(createPortUDP(drvName))
+    {
+      if (udpPortStat)
+        cout << drvName << " unable to create asyn UDP port: "  << UDPPortName
+             << endl << endl;
+    };
 
-  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
+    ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
 
-  int addParam(string paramStr) {
-    asynStatus stat;
-    pasynUser->reason = -1;
-    stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), NULL, NULL);
-    return (stat == asynSuccess) ? pasynUser->reason : -1;
-  }
+    int addParam(string paramStr) {
+      asynStatus stat;
+      pasynUser->reason = -1;
+      stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), NULL, NULL);
+      return (stat == asynSuccess) ? pasynUser->reason : -1;
+    }
 
-  drvFGPDB testDrv = drvFGPDB("testDriver" + std::to_string(++testNum),
-                              "FGPDB_com", 200);
-  asynUser *pasynUser;
+    asynUser  *pasynUser;
+    std::string  drvName;
+    int  udpPortStat;
+    drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, MaxParams);
 };
 
 
