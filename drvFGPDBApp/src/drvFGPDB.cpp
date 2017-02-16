@@ -106,7 +106,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
 
 
   // Create a pAsynUser and connect it to the asyn port that was created by
-  // the startup script for communicating with the PPG_Counter device
+  // the startup script for communicating with the LCP controller
   auto stat = pasynOctetSyncIO->connect(udpPortName.c_str(), 0,
                                         &pAsynUserUDP, nullptr);
 
