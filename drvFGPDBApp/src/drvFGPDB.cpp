@@ -99,7 +99,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName) :
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
-  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
+//  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
   drvList.push_back(this);
 }
 
@@ -235,8 +235,8 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::createAsynParams(void)
 {
-  cout << endl
-       << "create asyn params for: [" << portName << "]" << endl;  //tdebug
+//  cout << endl
+//       << "create asyn params for: [" << portName << "]" << endl;  //tdebug
 
   int paramID;
   asynStatus stat;
@@ -244,10 +244,10 @@ asynStatus drvFGPDB::createAsynParams(void)
   while (param != paramList.end())  {
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-    cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
+//    cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
     param++;
   }
-  cout << endl;  //tdebug
+//  cout << endl;  //tdebug
 
   return asynSuccess;
 }

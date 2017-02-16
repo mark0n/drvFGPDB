@@ -16,9 +16,9 @@ class AnFGPDBDriver: public ::testing::Test
 {
 public:
   AnFGPDBDriver()
-    : pasynUser(pasynManager->createAsynUser(nullptr, nullptr)) { };
-  ~AnFGPDBDriver() {
-    pasynManager->freeAsynUser(pasynUser); };
+    : pasynUser(pasynManager->createAsynUser(nullptr, nullptr))  { }
+
+  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
 
   int addParam(string paramStr) {
     asynStatus stat;
@@ -50,8 +50,8 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 // Add "testParam" to the list of parameters but don't provide any property
 // info for it.
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, rejectsInvalidParamDef) {
-  const char *paramDesc = { "  " };
+TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
+  const char *paramDesc = { " " };
 
   ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL));
 }
@@ -119,6 +119,11 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 
   auto stat = testDrv.createAsynParams();
   ASSERT_THAT(stat, Eq(asynSuccess));
+
+  int paramID;
+  stat = testDrv.findParam("testParam2", &paramID);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+  ASSERT_THAT(paramID, Eq(1));
 }
 
 //-----------------------------------------------------------------------------
