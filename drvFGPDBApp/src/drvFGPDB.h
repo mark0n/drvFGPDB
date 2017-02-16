@@ -137,7 +137,8 @@ void drvFGPDB_initHookFunc(initHookState state);
 class drvFGPDB : public asynPortDriver {
 
   public:
-    drvFGPDB(const std::string &drvPortName);
+    drvFGPDB(const std::string &drvPortName, const std::string &comPortName,
+             int maxParams);
 
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
@@ -161,7 +162,6 @@ class drvFGPDB : public asynPortDriver {
 
   private:
     static const int MaxAddr = 1;
-    static const int MaxParams = 200;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask |
@@ -174,6 +174,7 @@ class drvFGPDB : public asynPortDriver {
     static const int Priority = 0;
     static const int StackSize = 0;
 
+    int maxParams;
 
     std::vector<ParamInfo> paramList;
 };

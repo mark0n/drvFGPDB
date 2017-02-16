@@ -2,6 +2,7 @@
 #include "gmock/gmock.h"
 
 #include "drvFGPDB.h"
+#include "drvAsynIPPort.h"
 
 
 using namespace testing;
@@ -16,7 +17,11 @@ class AnFGPDBDriver: public ::testing::Test
 {
 public:
   AnFGPDBDriver()
-    : pasynUser(pasynManager->createAsynUser(nullptr, nullptr))  { }
+    : pasynUser(pasynManager->createAsynUser(nullptr, nullptr))
+  {
+    if (testNum == 0)
+      drvAsynIPPortConfigure("FGPDB_com", "127.0.0.1:2005 udp", 0, 0, 1);
+  };
 
   ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
 
@@ -27,7 +32,8 @@ public:
     return (stat == asynSuccess) ? pasynUser->reason : -1;
   }
 
-  drvFGPDB testDrv = drvFGPDB("testDriver" + std::to_string(++testNum));
+  drvFGPDB testDrv = drvFGPDB("testDriver" + std::to_string(++testNum),
+                              "FGPDB_com", 200);
   asynUser *pasynUser;
 };
 
@@ -127,5 +133,4 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 }
 
 //-----------------------------------------------------------------------------
-
 

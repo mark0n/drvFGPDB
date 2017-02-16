@@ -93,9 +93,11 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 
 
 //=============================================================================
-drvFGPDB::drvFGPDB(const string &drvPortName) :
-    asynPortDriver(drvPortName.c_str(), MaxAddr, MaxParams, InterfaceMask,
-                   InterruptMask, AsynFlags, AutoConnect, Priority, StackSize)
+drvFGPDB::drvFGPDB(const string &drvPortName, const string &comPortName,
+                   int maxParams_) :
+    asynPortDriver(drvPortName.c_str(), MaxAddr, maxParams_, InterfaceMask,
+                   InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
+    maxParams(maxParams_)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -141,7 +143,7 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 {
 //  cout << "updateParam(" << paramID << ", ...)" << endl;
 
-  if ((uint)paramID >= (uint)MaxParams)  return asynError;  //msg
+  if ((uint)paramID >= (uint)maxParams)  return asynError;  //msg
 
   ParamInfo  &curParam = paramList.at(paramID);
 
@@ -219,7 +221,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   // If the parameter is not already in the list, then add it
   int  paramID;
   if (findParamByName(param.name, &paramID) != asynSuccess)  {
-    if (paramList.size() >= MaxParams)  return asynError;
+    if (paramList.size() >= (uint)maxParams)  return asynError;
     paramList.push_back(param);
     pasynUser->reason = paramList.size()-1;  return asynSuccess;
   }
