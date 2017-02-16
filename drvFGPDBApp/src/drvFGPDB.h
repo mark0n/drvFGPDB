@@ -143,6 +143,7 @@ class drvFGPDB : public asynPortDriver {
              int maxParams);
     ~drvFGPDB();
 
+
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                      const char **pptypeName, size_t *psize);
@@ -150,7 +151,15 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
 
 
-    // functions unique to this driver
+    // WARNING: The following functions are public ONLY for the purpose of
+    // avoiding unnecessary complexity when writing tests.  These should NOT be
+    // used outside of this class EXCEPT by those tests (i.e. the authors will
+    // make changes to these functions as needed, so dependening on them to NOT
+    // change is dangerous and will likely result in broken clients.
+
+    asynStatus writeRegs(int firstParamID, int numParams);
+
+    // clients should use asynPortDriver::findParam() instead
     asynStatus findParamByName(const std::string &name, int *paramID);
 
     asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);

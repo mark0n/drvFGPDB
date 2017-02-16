@@ -39,7 +39,7 @@ class AnFGPDBDriver: public ::testing::Test
       udpPortStat(createPortUDP())
     {
       if (udpPortStat)
-        cout << drvName << " unable to create asyn UDP port: "  << UDPPortName
+        cout << drvName << " unable to create asyn UDP port: " << UDPPortName
              << endl << endl;
     };
 

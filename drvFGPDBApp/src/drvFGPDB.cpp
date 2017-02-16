@@ -1,3 +1,22 @@
+//----- drvFGPDB.cpp ----- 02/16/17 --- (01/24/17)----
+
+//-----------------------------------------------------------------------------
+//  asynPortDriver-based interface for controllers that support the FRIB LCP
+//  protocol.
+//
+//  Copyright (c) 2017, FRIB/NSCL, Michigan State University
+//
+//  Authors:
+//      Mark Davis (davism50@msu.edu)
+//      Martin Konrad (konrad@frib.msu.edu)
+//-----------------------------------------------------------------------------
+//  Release log (most recent 1st) (see git repository for more details)
+//
+//
+//  2017-01-24 - 2017-xx-xx:
+//       (initial development of completely new version)
+//
+//-----------------------------------------------------------------------------
 
 #include "drvFGPDB.h"
 
@@ -286,6 +305,25 @@ void drvFGPDB_initHookFunc(initHookState state)
 
   auto it = drvList.begin();
   while (it != drvList.end())  { (*it)->createAsynParams();  it++; }
+}
+
+
+//----------------------------------------------------------------------------
+// Send the driver's current value for one or more writeable LCP registers to
+// the LCP controller
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::writeRegs(int firstParamID, int numParams)
+{
+/*
+  status = pasynOctetSyncIO->write(pAsynUserDev_, cmdBuf_, cmdLen_, 1.0, &sent);
+  if (status != asynSuccess)  return status;
+
+  rcvd = 0;
+  pasynOctetSyncIO->read(pAsynUserDev_, (char *)rcvBuf_, sizeof(rcvBuf_),
+                         1.0, &rcvd, &eomReason);
+  if (!rcvd)  return asynError;
+*/
+  return asynError;
 }
 
 
