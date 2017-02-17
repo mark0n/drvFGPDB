@@ -150,7 +150,8 @@ drvFGPDB::~drvFGPDB()
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
 //  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 
-
+  for (auto it = drvList.begin(); it != drvList.end(); ++it)
+    if ((*it) == this) { drvList.erase(it);  break; }
 }
 
 //-----------------------------------------------------------------------------
@@ -285,8 +286,8 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::createAsynParams(void)
 {
-//  cout << endl
-//       << "create asyn params for: [" << portName << "]" << endl;  //tdebug
+  cout << endl
+       << "create asyn params for: [" << portName << "]" << endl;  //tdebug
 
   int paramID;
   asynStatus stat;
@@ -294,10 +295,10 @@ asynStatus drvFGPDB::createAsynParams(void)
   while (param != paramList.end())  {
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-//    cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
+    cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
     param++;
   }
-//  cout << endl;  //tdebug
+  cout << endl;  //tdebug
 
   return asynSuccess;
 }
@@ -309,8 +310,8 @@ void drvFGPDB_initHookFunc(initHookState state)
 {
   if (state != initHookAfterInitDatabase)  return;
 
-  auto it = drvList.begin();
-  while (it != drvList.end())  { (*it)->createAsynParams();  it++; }
+  for (auto it = drvList.begin(); it != drvList.end(); ++it)
+    (*it)->createAsynParams();
 }
 
 
