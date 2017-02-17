@@ -56,10 +56,12 @@ static const list<string> driverParamDefs = {
 };
 
 //=============================================================================
-drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
-                   int maxParams_) :
+drvFGPDB::drvFGPDB(const string &drvPortName,
+                   shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
+                   const string &udpPortName, int maxParams_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, maxParams_, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
+    syncIO(syncIOWrapper),
     maxParams(maxParams_),
     max_LCP_RO(0),
     max_LCP_WA(0),
@@ -473,6 +475,14 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
               typeid(this).name(), __func__, paramID, paramName, newVal);
 
+  char buffer[256];
+  strncpy(buffer, "test message", sizeof(buffer));
+  const double writeTimeout = 2.0;
+  size_t nwrite;
+  writeData outData;
+  outData.write_buffer = buffer;
+  outData.write_buffer_len = strlen(buffer);
+  asynStatus status = syncIO->write(pasynUser, outData, writeTimeout);
   return stat;
 }
 
