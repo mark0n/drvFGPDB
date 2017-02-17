@@ -155,12 +155,25 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 
 //-----------------------------------------------------------------------------
 // Test reading LCP register values
+// NOTE:  This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, readRegValues) {
   addParam("testParam1 0x10001 Int32 U32");
   addParam("testParam2 0x10002 Float64 F32");
 
   auto stat = testDrv.readRegs(0x10001, 2);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+}
+
+//-----------------------------------------------------------------------------
+// Test reading LCP register values
+// NOTE:  This requires the LCP simulator appl to be running on the same mach
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, writeRegValues) {
+  addParam("testParam1 0x20001 Int32 U32");
+  addParam("testParam2 0x20002 Float64 F32");
+
+  auto stat = testDrv.writeRegs(0x20001, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 

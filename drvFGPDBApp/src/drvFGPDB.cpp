@@ -358,16 +358,42 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 {
-/*
-  status = pasynOctetSyncIO->write(pAsynUserUDP_, cmdBuf_, cmdLen_, 1.0, &sent);
-  if (status != asynSuccess)  return status;
+  int  eomReason;
+  asynStatus stat;
+  size_t  pktSize, sent, rcvd;
+  char  *pBuf;
+  char  cmdBuf[1024];
+  char  respBuf[32];
+
+
+  uint maxNumRegs = sizeof(cmdBuf) / 4 - 4;
+
+  if (numRegs > maxNumRegs)  return asynError;
+
+  pBuf = cmdBuf;
+
+  *(U32 *)pBuf = htonl(packetID);    pBuf += 4;
+  *(U32 *)pBuf = htonl(WRITE_REGS);  pBuf += 4;
+  *(U32 *)pBuf = htonl(firstReg);    pBuf += 4;
+  *(U32 *)pBuf = htonl(numRegs);     pBuf += 4;
+
+  for (uint u=0; u<numRegs; ++u)  {
+    *(U32 *)pBuf = htonl(u);  pBuf += 4; }  //test-only
+
+  pktSize = pBuf - cmdBuf;
+
+  stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
+  if (stat != asynSuccess)  return stat;
+  if (sent != pktSize)  return asynError;
+
+  ++packetID;
 
   rcvd = 0;
-  pasynOctetSyncIO->read(pAsynUserUDP, (char *)rcvBuf_, sizeof(rcvBuf_),
-                         1.0, &rcvd, &eomReason);
-  if (!rcvd)  return asynError;
-*/
-  return asynError;
+  pasynOctetSyncIO->read(pAsynUserUDP, (char *)respBuf, sizeof(respBuf),
+                         2.0, &rcvd, &eomReason);
+  if (rcvd != 20)  return asynError;
+
+  return asynSuccess;
 }
 
 
