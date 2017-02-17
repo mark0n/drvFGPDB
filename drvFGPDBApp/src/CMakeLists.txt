@@ -20,6 +20,7 @@ include_directories("${PROJECT_BINARY_DIR}")
 set(LIB_COMPONENTS
   drvFGPDB.cpp
   ParamInfo.cpp
+  asynOctetSyncIOWrapper.cpp
 )
 add_library(drvFGPDBShared SHARED ${LIB_COMPONENTS})
 set_target_properties(drvFGPDBShared PROPERTIES
