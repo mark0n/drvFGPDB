@@ -11,6 +11,43 @@
 #include <initHooks.h>
 
 
+
+// Much more compact, easily read names for freq used types
+typedef  epicsInt8      I8;
+typedef  epicsInt16     I16;
+typedef  epicsInt32     I32;
+
+typedef  epicsUInt8     U8;
+typedef  epicsUInt16    U16;
+typedef  epicsUInt32    U32;
+
+typedef  epicsFloat32   F32;
+typedef  epicsFloat64   F64;
+
+typedef  unsigned int   uint;
+typedef  unsigned char  uchar;
+
+
+
+//--- LCP command codes ---
+#define  READ_REGS      1
+#define  WRITE_REGS     2
+#define  READ_WAVEFORM  3
+#define  ERASE_BLOCK    4
+#define  READ_BLOCK     5
+#define  WRITE_BLOCK    6
+
+//--- LCP status codes ---
+#define  STATUS_SUCCESS         0
+#define  STATUS_ACCESS_DENIED  -1
+#define  STATUS_INVALID_ID     -2
+#define  STATUS_INVALID_PARAM  -3
+#define  STATUS_MAX_CLIENTS    -4
+#define  STATUS_MAX_CMDS       -5
+#define  STATUS_INVALID_CMD    -6
+#define  STATUS_ERROR        -999  // unclassified error
+
+
 //-----------------------------------------------------------
 enum class CtlrDataFmt {
   NotDefined,
@@ -157,7 +194,9 @@ class drvFGPDB : public asynPortDriver {
     // make changes to these functions as needed, so dependening on them to NOT
     // change is dangerous and will likely result in broken clients.
 
-    asynStatus writeRegs(int firstParamID, int numParams);
+    asynStatus readRegs(U32 firstReg, uint numRegs);
+    asynStatus writeRegs(U32 firstReg, uint numRegs);
+
 
     // clients should use asynPortDriver::findParam() instead
     asynStatus findParamByName(const std::string &name, int *paramID);
@@ -187,6 +226,8 @@ class drvFGPDB : public asynPortDriver {
     static const int StackSize = 0;
 
     int maxParams;
+
+    U32  packetID;
 
     std::vector<ParamInfo> paramList;
 

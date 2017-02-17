@@ -25,6 +25,8 @@
 #include <vector>
 #include <sstream>
 
+#include <arpa/inet.h>
+
 
 using namespace std;
 
@@ -116,13 +118,13 @@ drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
                    int maxParams_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, maxParams_, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
-    maxParams(maxParams_)
+    maxParams(maxParams_),
+    packetID(0)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
 //  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
   drvList.push_back(this);
-
 
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
@@ -309,17 +311,59 @@ void drvFGPDB_initHookFunc(initHookState state)
 
 
 //----------------------------------------------------------------------------
+// Read the controller's current values for one or more LCP registers
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
+{
+  int  eomReason;
+  asynStatus stat;
+  size_t  pktSize, sent, rcvd;
+  char  *pBuf;
+  char  cmdBuf[32];
+  char  respBuf[1024];
+
+
+  size_t expectedRespSize = numRegs * 4 + 20;
+
+  if (expectedRespSize > sizeof(respBuf))  return asynError;
+
+  pBuf = cmdBuf;
+
+  *(U32 *)pBuf = htonl(packetID);   pBuf += 4;
+  *(U32 *)pBuf = htonl(READ_REGS);  pBuf += 4;
+  *(U32 *)pBuf = htonl(firstReg);   pBuf += 4;
+  *(U32 *)pBuf = htonl(numRegs);    pBuf += 4;
+  *(U32 *)pBuf = htonl(0);          pBuf += 4;
+
+  pktSize = pBuf - cmdBuf;
+
+  stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
+  if (stat != asynSuccess)  return stat;
+  if (sent != pktSize)  return asynError;
+
+  ++packetID;
+
+  rcvd = 0;
+  pasynOctetSyncIO->read(pAsynUserUDP, (char *)respBuf, sizeof(respBuf),
+                         2.0, &rcvd, &eomReason);
+  if (rcvd != expectedRespSize)  return asynError;
+
+  return asynSuccess;
+}
+
+
+//----------------------------------------------------------------------------
 // Send the driver's current value for one or more writeable LCP registers to
 // the LCP controller
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::writeRegs(int firstParamID, int numParams)
+asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 {
 /*
-  status = pasynOctetSyncIO->write(pAsynUserDev_, cmdBuf_, cmdLen_, 1.0, &sent);
+  status = pasynOctetSyncIO->write(pAsynUserUDP_, cmdBuf_, cmdLen_, 1.0, &sent);
   if (status != asynSuccess)  return status;
 
   rcvd = 0;
-  pasynOctetSyncIO->read(pAsynUserDev_, (char *)rcvBuf_, sizeof(rcvBuf_),
+  pasynOctetSyncIO->read(pAsynUserUDP, (char *)rcvBuf_, sizeof(rcvBuf_),
                          1.0, &rcvd, &eomReason);
   if (!rcvd)  return asynError;
 */
@@ -332,7 +376,6 @@ asynStatus drvFGPDB::writeRegs(int firstParamID, int numParams)
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 {
-  const char  *funcName = "writeInt32";
   asynStatus  stat = asynSuccess;
   const char  *paramName;
   int  paramID = pasynUser->reason;
@@ -346,11 +389,11 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
-                  DriverName, funcName, stat, paramID, paramName, newVal);
+                  DriverName, __func__, stat, paramID, paramName, newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
-              DriverName, funcName, paramID, paramName, newVal);
+              DriverName, __func__, paramID, paramName, newVal);
 
   return stat;
 }
