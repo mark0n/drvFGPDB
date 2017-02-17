@@ -166,7 +166,7 @@ TEST_F(AnFGPDBDriver, readRegValues) {
 }
 
 //-----------------------------------------------------------------------------
-// Test reading LCP register values
+// Test writing LCP register values
 // NOTE:  This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, writeRegValues) {

@@ -1,3 +1,22 @@
+//----- drvFGPDB.h ----- 02/17/17 --- (01/24/17)----
+
+//-----------------------------------------------------------------------------
+//  asynPortDriver-based interface for controllers that support the FRIB LCP
+//  protocol.
+//
+//  Copyright (c) 2017, FRIB/NSCL, Michigan State University
+//
+//  Authors:
+//      Mark Davis (davism50@msu.edu)
+//      Martin Konrad (konrad@frib.msu.edu)
+//-----------------------------------------------------------------------------
+//  Release log (most recent 1st) (see git repository for more details)
+//
+//
+//  2017-01-24 - 2017-xx-xx:
+//       (initial development of completely new version)
+//
+//-----------------------------------------------------------------------------
 
 #include <map>
 #include <string>
@@ -167,8 +186,6 @@ std::string joinMapKeys(const std::map<std::string, T>& map,
 
 //-----------------------------------------------------------------------------
 
-
-static std::list<drvFGPDB *> drvList;
 
 void drvFGPDB_initHookFunc(initHookState state);
 

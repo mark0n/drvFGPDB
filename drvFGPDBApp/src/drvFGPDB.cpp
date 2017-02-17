@@ -1,4 +1,4 @@
-//----- drvFGPDB.cpp ----- 02/16/17 --- (01/24/17)----
+//----- drvFGPDB.cpp ----- 02/17/17 --- (01/24/17)----
 
 //-----------------------------------------------------------------------------
 //  asynPortDriver-based interface for controllers that support the FRIB LCP
@@ -34,6 +34,8 @@ using namespace std;
 // Should be set to the name of the C++ class
 static const char *DriverName = "drvFGPDB";
 
+
+static std::list<drvFGPDB *> drvList;
 
 //-----------------------------------------------------------------------------
 const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
@@ -147,6 +149,8 @@ drvFGPDB::~drvFGPDB()
 {
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
 //  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
+
+
 }
 
 //-----------------------------------------------------------------------------
