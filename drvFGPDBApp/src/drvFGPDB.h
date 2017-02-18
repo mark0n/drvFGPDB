@@ -17,6 +17,8 @@
 //       (initial development of completely new version)
 //
 //-----------------------------------------------------------------------------
+#ifndef DRVFGPDB_H
+#define DRVFGPDB_H
 
 #include <map>
 #include <string>
@@ -252,3 +254,4 @@ class drvFGPDB : public asynPortDriver {
 };
 
 //-----------------------------------------------------------------------------
+#endif // DRVFGPDB_H
