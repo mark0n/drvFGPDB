@@ -48,7 +48,8 @@ class AnFGPDBDriver: public ::testing::Test
     int addParam(string paramStr) {
       asynStatus stat;
       pasynUser->reason = -1;
-      stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), NULL, NULL);
+      stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), nullptr,
+                                   nullptr);
       return (stat == asynSuccess) ? pasynUser->reason : -1;
     }
 
@@ -80,7 +81,8 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
   const char *paramDesc = { " " };
 
-  ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL));
+  ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, nullptr,
+                                         nullptr));
 }
 
 //-----------------------------------------------------------------------------
@@ -130,7 +132,7 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
   ASSERT_THAT(id, Eq(0));
 
   const char *param1Def = { "testParam1 0x10001 Float64 F32" };
-  auto stat = testDrv.drvUserCreate(pasynUser, param1Def, NULL, NULL);
+  auto stat = testDrv.drvUserCreate(pasynUser, param1Def, nullptr, nullptr);
   ASSERT_THAT(stat, Eq(asynError));
 }
 
