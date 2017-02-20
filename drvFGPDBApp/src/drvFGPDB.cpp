@@ -31,10 +31,6 @@
 using namespace std;
 
 
-// Should be set to the name of the C++ class
-static const char *DriverName = "drvFGPDB";
-
-
 static std::list<drvFGPDB *> drvList;
 
 //-----------------------------------------------------------------------------
@@ -420,11 +416,12 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
-                  DriverName, __func__, stat, paramID, paramName, newVal);
+                  typeid(this).name(), __func__, stat, paramID, paramName,
+                  newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
-              DriverName, __func__, paramID, paramName, newVal);
+              typeid(this).name(), __func__, paramID, paramName, newVal);
 
   return stat;
 }
