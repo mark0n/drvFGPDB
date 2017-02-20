@@ -14,8 +14,6 @@ using namespace std;
 static int testNum = 0;
 
 #define UDPPortName  "FGPDB_com"
-#define MaxParams    200
-
 
 //-----------------------------------------------------------------------------
 int createPortUDP(void)
@@ -52,10 +50,11 @@ public:
     return (stat == asynSuccess) ? pasynUser->reason : -1;
   }
 
+  const int maxParams = 200;
   asynUser  *pasynUser;
   std::string  drvName;
   int  udpPortStat;
-  drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, MaxParams);
+  drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, maxParams);
 };
 
 
