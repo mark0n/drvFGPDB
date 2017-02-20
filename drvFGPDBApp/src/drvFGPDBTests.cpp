@@ -31,32 +31,31 @@ int createPortUDP(void)
 //-----------------------------------------------------------------------------
 class AnFGPDBDriver: public ::testing::Test
 {
-  public:
-    AnFGPDBDriver() :
-      pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
-      drvName("testDriver" + std::to_string(++testNum)),
-      // NOTE: asyn UDP port must be created before drvFGPDB object
-      udpPortStat(createPortUDP())
-    {
-      if (udpPortStat)
-        cout << drvName << " unable to create asyn UDP port: " << UDPPortName
-             << endl << endl;
-    };
+public:
+  AnFGPDBDriver() :
+    pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
+    drvName("testDriver" + std::to_string(++testNum)),
+    // NOTE: asyn UDP port must be created before drvFGPDB object
+    udpPortStat(createPortUDP())
+  {
+    if (udpPortStat)
+      cout << drvName << " unable to create asyn UDP port: " << UDPPortName
+           << endl << endl;
+  };
 
-    ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
+  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
 
-    int addParam(string paramStr) {
-      asynStatus stat;
-      pasynUser->reason = -1;
-      stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), nullptr,
-                                   nullptr);
-      return (stat == asynSuccess) ? pasynUser->reason : -1;
-    }
+  int addParam(string paramStr) {
+    asynStatus stat;
+    pasynUser->reason = -1;
+    stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), nullptr, nullptr);
+    return (stat == asynSuccess) ? pasynUser->reason : -1;
+  }
 
-    asynUser  *pasynUser;
-    std::string  drvName;
-    int  udpPortStat;
-    drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, MaxParams);
+  asynUser  *pasynUser;
+  std::string  drvName;
+  int  udpPortStat;
+  drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, MaxParams);
 };
 
 
