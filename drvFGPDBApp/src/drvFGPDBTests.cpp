@@ -36,7 +36,8 @@ class AnFGPDBDriver: public ::testing::Test
       pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
       drvName("testDriver" + std::to_string(++testNum)),
       // NOTE: asyn UDP port must be created before drvFGPDB object
-      udpPortStat(createPortUDP())
+      udpPortStat(createPortUDP()),
+      testDrv(drvFGPDB(drvName, UDPPortName, MaxParams))
     {
       if (udpPortStat)
         cout << drvName << " unable to create asyn UDP port: " << UDPPortName
@@ -55,7 +56,7 @@ class AnFGPDBDriver: public ::testing::Test
     asynUser  *pasynUser;
     std::string  drvName;
     int  udpPortStat;
-    drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, MaxParams);
+    drvFGPDB  testDrv;
 };
 
 
