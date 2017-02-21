@@ -34,7 +34,8 @@ public:
     pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
     drvName("testDriver" + std::to_string(++testNum)),
     // NOTE: asyn UDP port must be created before drvFGPDB object
-    udpPortStat(createPortUDP())
+    udpPortStat(createPortUDP()),
+    testDrv(drvFGPDB(drvName, UDPPortName, maxParams))
   {
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
@@ -54,10 +55,11 @@ public:
   asynUser  *pasynUser;
   std::string  drvName;
   int  udpPortStat;
-  drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, maxParams);
+  drvFGPDB  testDrv;
 };
 
 
+//-----------------------------------------------------------------------------
 TEST(joinMapKeys, returnsEmptyStringForEmptyMap) {
   const map<string, int> aMap;
   const string separator("--");
@@ -67,6 +69,7 @@ TEST(joinMapKeys, returnsEmptyStringForEmptyMap) {
   ASSERT_THAT(result, Eq(""));
 }
 
+//-----------------------------------------------------------------------------
 TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
   const int arbitraryInt = 0;
   const string key1("KEY1");
@@ -85,12 +88,8 @@ TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
 }
 
 //=============================================================================
-// *** WARNING ***
-//
-// The order of these tests is important.  Many of them depend on the state the
-// previous tests left the test object in.
+// Tests for public functionality (supported for use outside the class itself)
 //=============================================================================
-
 
 //-----------------------------------------------------------------------------
 // Start by constructing
