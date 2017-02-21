@@ -14,8 +14,6 @@ using namespace std;
 static int testNum = 0;
 
 #define UDPPortName  "FGPDB_com"
-#define MaxParams    200
-
 
 //-----------------------------------------------------------------------------
 int createPortUDP(void)
@@ -31,6 +29,7 @@ int createPortUDP(void)
 //-----------------------------------------------------------------------------
 class AnFGPDBDriver: public ::testing::Test
 {
+<<<<<<< HEAD
   public:
     AnFGPDBDriver() :
       pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
@@ -57,8 +56,62 @@ class AnFGPDBDriver: public ::testing::Test
     std::string  drvName;
     int  udpPortStat;
     drvFGPDB  testDrv;
+=======
+public:
+  AnFGPDBDriver() :
+    pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
+    drvName("testDriver" + std::to_string(++testNum)),
+    // NOTE: asyn UDP port must be created before drvFGPDB object
+    udpPortStat(createPortUDP())
+  {
+    if (udpPortStat)
+      cout << drvName << " unable to create asyn UDP port: " << UDPPortName
+           << endl << endl;
+  };
+
+  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
+
+  int addParam(string paramStr) {
+    asynStatus stat;
+    pasynUser->reason = -1;
+    stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), nullptr, nullptr);
+    return (stat == asynSuccess) ? pasynUser->reason : -1;
+  }
+
+  const int maxParams = 200;
+  asynUser  *pasynUser;
+  std::string  drvName;
+  int  udpPortStat;
+  drvFGPDB  testDrv = drvFGPDB(drvName, UDPPortName, maxParams);
+>>>>>>> origin/master
 };
 
+
+TEST(joinMapKeys, returnsEmptyStringForEmptyMap) {
+  const map<string, int> aMap;
+  const string separator("--");
+
+  string result = joinMapKeys<int>(aMap, separator);
+
+  ASSERT_THAT(result, Eq(""));
+}
+
+TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
+  const int arbitraryInt = 0;
+  const string key1("KEY1");
+  const string key2("KEY2");
+  const string key3("KEY3");
+  const map<string, int> aMap = {
+    { key1, arbitraryInt },
+    { key2, arbitraryInt },
+    { key3, arbitraryInt }
+  };
+  const string separator("--");
+
+  string result = joinMapKeys<int>(aMap, separator);
+
+  ASSERT_THAT(result, Eq(key1 + separator + key2 + separator + key3));
+}
 
 //=============================================================================
 // *** WARNING ***
@@ -81,7 +134,8 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
   const char *paramDesc = { " " };
 
-  ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, NULL, NULL));
+  ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, nullptr,
+                                         nullptr));
 }
 
 //-----------------------------------------------------------------------------
@@ -131,7 +185,7 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
   ASSERT_THAT(id, Eq(0));
 
   const char *param1Def = { "testParam1 0x10001 Float64 F32" };
-  auto stat = testDrv.drvUserCreate(pasynUser, param1Def, NULL, NULL);
+  auto stat = testDrv.drvUserCreate(pasynUser, param1Def, nullptr, nullptr);
   ASSERT_THAT(stat, Eq(asynError));
 }
 

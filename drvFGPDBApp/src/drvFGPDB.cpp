@@ -18,21 +18,15 @@
 //
 //-----------------------------------------------------------------------------
 
-#include "drvFGPDB.h"
-
 #include <iostream>
 #include <string>
-#include <vector>
-#include <sstream>
 
 #include <arpa/inet.h>
 
+#include "drvFGPDB.h"
+#include "LCPProtocol.h"
 
 using namespace std;
-
-
-// Should be set to the name of the C++ class
-static const char *DriverName = "drvFGPDB";
 
 
 static std::list<drvFGPDB *> drvList;
@@ -257,7 +251,9 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 //     value returned in pasynUser->reason is correct.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
-                                   const char **pptypeName, size_t *psize)
+                                   __attribute__((unused)) const char
+                                   **pptypeName,
+                                   __attribute__((unused)) size_t *psize)
 {
   string paramCfgStr = string(drvInfo);
   ParamInfo  param(paramCfgStr);
@@ -345,7 +341,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   pBuf = cmdBuf;
 
   *(U32 *)pBuf = htonl(packetID);   pBuf += 4;
-  *(U32 *)pBuf = htonl(READ_REGS);  pBuf += 4;
+  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::READ_REGS));  pBuf += 4;
   *(U32 *)pBuf = htonl(firstReg);   pBuf += 4;
   *(U32 *)pBuf = htonl(numRegs);    pBuf += 4;
   *(U32 *)pBuf = htonl(0);          pBuf += 4;
@@ -388,7 +384,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   pBuf = cmdBuf;
 
   *(U32 *)pBuf = htonl(packetID);    pBuf += 4;
-  *(U32 *)pBuf = htonl(WRITE_REGS);  pBuf += 4;
+  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS));  pBuf += 4;
   *(U32 *)pBuf = htonl(firstReg);    pBuf += 4;
   *(U32 *)pBuf = htonl(numRegs);     pBuf += 4;
 
@@ -430,11 +426,12 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
-                  DriverName, __func__, stat, paramID, paramName, newVal);
+                  typeid(this).name(), __func__, stat, paramID, paramName,
+                  newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
-              DriverName, __func__, paramID, paramName, newVal);
+              typeid(this).name(), __func__, paramID, paramName, newVal);
 
   return stat;
 }
