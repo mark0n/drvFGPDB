@@ -256,7 +256,9 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 //     value returned in pasynUser->reason is correct.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
-                                   const char **pptypeName, size_t *psize)
+                                   __attribute__((unused)) const char
+                                   **pptypeName,
+                                   __attribute__((unused)) size_t *psize)
 {
   string paramCfgStr = string(drvInfo);
   ParamInfo  param(paramCfgStr);
