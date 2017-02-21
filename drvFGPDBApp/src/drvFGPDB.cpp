@@ -18,13 +18,13 @@
 //
 //-----------------------------------------------------------------------------
 
-#include "drvFGPDB.h"
-
 #include <iostream>
 #include <string>
 
 #include <arpa/inet.h>
 
+#include "drvFGPDB.h"
+#include "LCPProtocol.h"
 
 using namespace std;
 
@@ -331,7 +331,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   pBuf = cmdBuf;
 
   *(U32 *)pBuf = htonl(packetID);   pBuf += 4;
-  *(U32 *)pBuf = htonl(READ_REGS);  pBuf += 4;
+  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::READ_REGS));  pBuf += 4;
   *(U32 *)pBuf = htonl(firstReg);   pBuf += 4;
   *(U32 *)pBuf = htonl(numRegs);    pBuf += 4;
   *(U32 *)pBuf = htonl(0);          pBuf += 4;
@@ -374,7 +374,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   pBuf = cmdBuf;
 
   *(U32 *)pBuf = htonl(packetID);    pBuf += 4;
-  *(U32 *)pBuf = htonl(WRITE_REGS);  pBuf += 4;
+  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS));  pBuf += 4;
   *(U32 *)pBuf = htonl(firstReg);    pBuf += 4;
   *(U32 *)pBuf = htonl(numRegs);     pBuf += 4;
 

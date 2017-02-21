@@ -48,27 +48,6 @@ typedef  epicsFloat64   F64;
 typedef  unsigned int   uint;
 typedef  unsigned char  uchar;
 
-
-
-//--- LCP command codes ---
-#define  READ_REGS      1
-#define  WRITE_REGS     2
-#define  READ_WAVEFORM  3
-#define  ERASE_BLOCK    4
-#define  READ_BLOCK     5
-#define  WRITE_BLOCK    6
-
-//--- LCP status codes ---
-#define  STATUS_SUCCESS         0
-#define  STATUS_ACCESS_DENIED  -1
-#define  STATUS_INVALID_ID     -2
-#define  STATUS_INVALID_PARAM  -3
-#define  STATUS_MAX_CLIENTS    -4
-#define  STATUS_MAX_CMDS       -5
-#define  STATUS_INVALID_CMD    -6
-#define  STATUS_ERROR        -999  // unclassified error
-
-
 //-----------------------------------------------------------
 enum class CtlrDataFmt {
   NotDefined,
