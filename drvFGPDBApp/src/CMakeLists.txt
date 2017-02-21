@@ -38,10 +38,9 @@ epics_install(LIBS drvFGPDBShared drvFGPDBStatic DBDS drvFGPDB.dbd)
 include_directories(${GTEST_INCLUDE_DIRS})
 set(TEST_COMPONENTS
   drvFGPDBTests.cpp
-  drvFGPDB.cpp
 )
 add_executable(drvFGPDBTests ${TEST_COMPONENTS})
-target_link_libraries(drvFGPDBTests ${EPICS_LIBRARIES} gmock_main)
+target_link_libraries(drvFGPDBTests drvFGPDBShared ${EPICS_LIBRARIES} gmock_main)
 
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
