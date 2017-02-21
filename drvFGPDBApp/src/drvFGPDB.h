@@ -115,17 +115,10 @@ class ParamInfo {
   friend drvFGPDB;
 
   public:
-    ParamInfo()  {
-      regAddr  = 0;
-      asynType = asynParamNotDefined;
-      ctlrFmt  = CtlrDataFmt::NotDefined;
-    };
-    ParamInfo(const ParamInfo &info) {
-      name     = info.name;
-      regAddr  = info.regAddr;
-      asynType = info.asynType;
-      ctlrFmt  = info.ctlrFmt;
-    };
+    ParamInfo() : regAddr(0), asynType(asynParamNotDefined),
+    ctlrFmt(CtlrDataFmt::NotDefined) {};
+    ParamInfo(const ParamInfo &info) : name(info.name), regAddr(info.regAddr),
+    asynType(info.asynType), ctlrFmt(info.ctlrFmt) {};
     ParamInfo(const std::string& paramStr);
 
 
