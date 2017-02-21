@@ -59,6 +59,17 @@ enum class CtlrDataFmt {
 };
 
 //-----------------------------------------------------------
+enum class ParamGroup {
+  Invalid,
+  LCP_RO,  // Read-Only LCP register
+  LCP_WA,  // Write-Anytime LCP register
+  LCP_WO,  // Write-Once LCP register
+  DRV_RO,  // Read-Only Driver parameter
+  DRV_RW   // Read-Write Driver parameter
+};
+
+
+//-----------------------------------------------------------
 /* For probable future use
 //===== values for StaticRegInfo.syncMode =====
 //
@@ -118,13 +129,15 @@ class ParamInfo {
     ParamInfo() :
       regAddr(0),
       asynType(asynParamNotDefined),
-      ctlrFmt(CtlrDataFmt::NotDefined) {};
+      ctlrFmt(CtlrDataFmt::NotDefined),
+      group(ParamGroup::Invalid)  {};
 
     ParamInfo(const ParamInfo &info) :
       name(info.name),
       regAddr(info.regAddr),
       asynType(info.asynType),
-      ctlrFmt(info.ctlrFmt) {};
+      ctlrFmt(info.ctlrFmt),
+      group(info.group)   {};
 
     ParamInfo(const std::string& paramStr);
 
@@ -133,12 +146,16 @@ class ParamInfo {
 
     static CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
 
+    static ParamGroup regAddrToParamGroup(const uint regAddr);
+
+
     std::string    name;
     uint           regAddr;    // LCP reg addr or driver param group
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
   //SyncMode       syncMode;   // relation between set and read values
 
+    ParamGroup     group;      // what processing group does param belong to
 
   private:
     static std::regex &generateParamStrRegex();
@@ -208,6 +225,7 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus createAsynParams(void);
 
+    asynStatus determineGroupSizes(void);
     asynStatus sortParams(void);
 
 
@@ -227,6 +245,12 @@ class drvFGPDB : public asynPortDriver {
     static const int StackSize = 0;
 
     int maxParams;
+
+    uint max_LCP_RO;  // largest regAddr for LCP_RO group of params
+    uint max_LCP_WA;  // largest regAddr for LCP_WA group of params
+    uint max_LCP_WO;  // largest regAddr for LCP_WO group of params
+    uint num_DRV_RO;  // number of driver RO params
+    uint num_DRV_RW;  // number of driver RW params
 
     U32  packetID;
 

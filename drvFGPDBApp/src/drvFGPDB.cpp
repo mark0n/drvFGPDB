@@ -108,6 +108,20 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
   return it == ctlrFmts.end() ? CtlrDataFmt::NotDefined : it->second;
 }
 
+//-----------------------------------------------------------------------------
+//  Return the ParamGroup implied by a parameter's regAddr value
+//-----------------------------------------------------------------------------
+ParamGroup ParamInfo::regAddrToParamGroup(const uint regAddr)
+{
+  if ((regAddr >= 0x10001) and (regAddr <= 0x1FFFF)) return ParamGroup::LCP_RO;
+  if ((regAddr >= 0x20001) and (regAddr <= 0x2FFFF)) return ParamGroup::LCP_WA;
+  if ((regAddr >= 0x30001) and (regAddr <= 0x3FFFF)) return ParamGroup::LCP_WO;
+  if (regAddr == 1) return ParamGroup::DRV_RO;
+  if (regAddr == 2) return ParamGroup::DRV_RW;
+
+  return ParamGroup::Invalid;
+}
+
 
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
@@ -115,6 +129,11 @@ drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
     asynPortDriver(drvPortName.c_str(), MaxAddr, maxParams_, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     maxParams(maxParams_),
+    max_LCP_RO(0),
+    max_LCP_WA(0),
+    max_LCP_WO(0),
+    num_DRV_RO(0),
+    num_DRV_RW(0),
     packetID(0)
 {
   initHookRegister(drvFGPDB_initHookFunc);
@@ -295,19 +314,54 @@ asynStatus drvFGPDB::createAsynParams(void)
 }
 
 //-----------------------------------------------------------------------------
+// Determine the number of parameters in each group.  NOTE that, for efficiency
+// reasons, the size of the LCP_xx groups is determined by the max address
+// specified for one of the parameters within the group, rather than simply the
+// number of parameters within them.
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::determineGroupSizes(void)
+{
+  asynStatus stat = asynSuccess;
+
+  max_LCP_RO = max_LCP_WA = max_LCP_WO = num_DRV_RO = num_DRV_RW = 0;
+
+  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
+
+    param->group = ParamInfo::regAddrToParamGroup(param->regAddr);
+    auto addr = param->regAddr;
+
+    switch (param->group)  {
+      case ParamGroup::Invalid:
+        cout << "Invalid addr/group ID for parameter: " << param->name << endl;
+        stat = asynError;  break;
+
+      case ParamGroup::LCP_RO:
+        if (addr > max_LCP_RO)  max_LCP_RO = addr;  break;
+
+      case ParamGroup::LCP_WA:
+        if (addr > max_LCP_WA)  max_LCP_WA = addr;  break;
+
+      case ParamGroup::LCP_WO:
+        if (addr > max_LCP_WO)  max_LCP_WO = addr;  break;
+
+      case ParamGroup::DRV_RO:  ++num_DRV_RO;  break;
+
+      case ParamGroup::DRV_RW:  ++num_DRV_RW;  break;
+    }
+  }
+
+  return stat;
+}
+
+//-----------------------------------------------------------------------------
 // Sort the params by which group they belong to
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::sortParams(void)
 {
-  int paramID;
-  asynStatus stat;
 
-  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
-
-  }
-
-  return asynSuccess;
+  return asynError;
 }
+
 
 //-----------------------------------------------------------------------------
 //  Callback function for EPICS IOC initialization steps
@@ -316,8 +370,13 @@ void drvFGPDB_initHookFunc(initHookState state)
 {
   if (state != initHookAfterInitDatabase)  return;
 
-  for (auto it = drvList.begin(); it != drvList.end(); ++it)
-    (*it)->createAsynParams();
+  for (auto it = drvList.begin(); it != drvList.end(); ++it)  {
+    drvFGPDB *drv = *it;
+
+    if (drv->createAsynParams() != asynSuccess)  break;
+    if (drv->determineGroupSizes() != asynSuccess)  break;
+    if (drv->sortParams() != asynSuccess)  break;
+  }
 }
 
 
