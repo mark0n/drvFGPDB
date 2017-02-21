@@ -227,6 +227,9 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus createAsynParams(void);
 
+    asynStatus sortParams(void);
+
+
 
   private:
     static const int MaxAddr = 1;

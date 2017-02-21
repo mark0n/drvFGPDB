@@ -158,16 +158,13 @@ drvFGPDB::~drvFGPDB()
 //  Search the driver's list of parameters for an entry with the given name.
 //  Note that, unlike asynPortDriver::findParam(), this function works during
 //  IOC startup, before the actual asyn parameters are generated from the
-//  driver's list.
+//  driver's paramList.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::findParamByName(const string &name, int *paramID)
 {
-  auto it = paramList.begin();
-  while (it != paramList.end())  {
-    if ((*it).name == name)  {
-      *paramID = it - paramList.begin();  return (asynSuccess); }
-    it++;
-  }
+  for (auto param = paramList.begin(); param != paramList.end(); ++param)
+    if (param->name == name)  {
+      *paramID = param - paramList.begin();  return (asynSuccess); }
 
   return asynError;
 }
@@ -291,14 +288,27 @@ asynStatus drvFGPDB::createAsynParams(void)
 
   int paramID;
   asynStatus stat;
-  auto param = paramList.begin();
-  while (param != paramList.end())  {
+  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
     cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
-    param++;
   }
   cout << endl;  //tdebug
+
+  return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
+// Sort the params by which group they belong to
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::sortParams(void)
+{
+  int paramID;
+  asynStatus stat;
+
+  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
+
+  }
 
   return asynSuccess;
 }
