@@ -180,7 +180,7 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 
 //-----------------------------------------------------------------------------
 // Test reading LCP register values
-// NOTE:  This requires the LCP simulator appl to be running on the same mach
+// NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, readRegValues) {
   addParam("testParam1 0x10001 Int32 U32");
@@ -192,7 +192,7 @@ TEST_F(AnFGPDBDriver, readRegValues) {
 
 //-----------------------------------------------------------------------------
 // Test writing LCP register values
-// NOTE:  This requires the LCP simulator appl to be running on the same mach
+// NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, writeRegValues) {
   addParam("testParam1 0x20001 Int32 U32");
@@ -200,6 +200,28 @@ TEST_F(AnFGPDBDriver, writeRegValues) {
 
   auto stat = testDrv.writeRegs(0x20001, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
+}
+
+//-----------------------------------------------------------------------------
+// Test sorting of parameters
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, sortParameters) {
+  addParam("lcpRegRO1 0x10001 Int32 U32");
+  addParam("lcpRegRO2 0x10002 Float64 F32");
+
+  addParam("lcpRegWA1 0x20001 Int32 U32");
+  addParam("lcpRegWA2 0x20002 Float64 F32");
+
+  addParam("lcpRegWO1 0x30001 Int32 U32");
+  addParam("lcpRegWO2 0x30002 Float64 F32");
+
+  addParam("drvRegRO1 1 Int32 U32");
+  addParam("drvRegRO2 1 Float64 F32");
+
+  addParam("drvRegRW1 2 Int32 U32");
+  addParam("drvRegRW2 2 Float64 F32");
+
+  drvFGPDB_initHookFunc(initHookAfterInitDatabase);
 }
 
 //-----------------------------------------------------------------------------

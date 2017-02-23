@@ -226,6 +226,8 @@ class drvFGPDB : public asynPortDriver {
     asynStatus createAsynParams(void);
 
     asynStatus determineGroupSizes(void);
+    void createProcessingGroups(void);
+    int addParamToGroup(std::vector<int> &groupList, uint idx, int paramID);
     asynStatus sortParams(void);
 
 
@@ -255,6 +257,13 @@ class drvFGPDB : public asynPortDriver {
     U32  packetID;
 
     std::vector<ParamInfo> paramList;
+
+    // lists of the elements in paramList sorted by processing group
+    std::vector<int> LCP_RO_group;  // LCP Read-Only parameters
+    std::vector<int> LCP_WA_group;  // LCP Write-Anytime parameters
+    std::vector<int> LCP_WO_group;  // LCP Write-Once parameters
+    std::vector<int> DRV_RO_group;  // Driver Read-Only parameters
+    std::vector<int> DRV_RW_group;  // Driver Read/Write parameters
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 };

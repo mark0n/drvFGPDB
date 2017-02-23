@@ -315,10 +315,10 @@ asynStatus drvFGPDB::createAsynParams(void)
 }
 
 //-----------------------------------------------------------------------------
-// Determine the number of parameters in each group.  NOTE that, for efficiency
-// reasons, the size of the LCP_xx groups is determined by the max address
-// specified for one of the parameters within the group, rather than simply the
-// number of parameters within them.
+// Determine the number of parameters in each processing-type group.  NOTE
+// that, for operational efficiency reasons, the size of the LCP_xx groups is
+// determined by the max address specified for one of the parameters within the
+// group, rather than simply the number of parameters defined within them.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::determineGroupSizes(void)
 {
@@ -354,12 +354,80 @@ asynStatus drvFGPDB::determineGroupSizes(void)
 }
 
 //-----------------------------------------------------------------------------
-// Sort the params by which group they belong to
+// Create the lists for each processing-type group
+//-----------------------------------------------------------------------------
+void drvFGPDB::createProcessingGroups(void)
+{
+  if (max_LCP_RO > 0)  LCP_RO_group = vector<int>(max_LCP_RO-0x10000u, -1);
+  if (max_LCP_WA > 0)  LCP_WA_group = vector<int>(max_LCP_WA-0x20000u, -1);
+  if (max_LCP_WO > 0)  LCP_WO_group = vector<int>(max_LCP_WO-0x30000u, -1);
+
+  if (num_DRV_RO > 0)  DRV_RO_group = vector<int>(num_DRV_RO, -1);
+  if (num_DRV_RW > 0)  DRV_RW_group = vector<int>(num_DRV_RW, -1);
+}
+
+
+//-----------------------------------------------------------------------------
+//  Add parameter to specified processing group.  Checks for a conflict in the
+//  LCP register number.
+//-----------------------------------------------------------------------------
+int drvFGPDB::addParamToGroup(std::vector<int> &groupList,
+                              uint idx, int paramID)
+{
+  if (groupList.at(idx) >= 0)  {
+    cout << "Device: " << portName << ": "
+         "*** Multiple params with same LCP reg # ***" << endl
+         << "  " << paramList.at(groupList.at(idx)).name
+         << " and " << paramList.at(paramID).name << endl;
+    return asynError;
+  }
+
+  groupList.at(idx) = paramID;
+
+  return 0;
+}
+
+//-----------------------------------------------------------------------------
+// Sort the params by which processing-type group they belong to.  NOTE that
+// the LCP_xx_group[] lists can have elements for which no parameter was
+// defined, and that those elements will have the default paramID value of -1.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::sortParams(void)
 {
+  asynStatus stat = asynSuccess;
 
-  return asynError;
+  uint  drvROidx = 0, drvRWidx = 0;
+
+  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
+
+    auto addr = param->regAddr;
+    int id = param - paramList.begin();
+
+    switch (param->group)  {
+      case ParamGroup::Invalid:  stat = asynError;  break;
+
+      case ParamGroup::LCP_RO:
+        if (addParamToGroup(LCP_RO_group, addr-0x10001u, id)) stat = asynError;
+       break;
+
+      case ParamGroup::LCP_WA:
+        if (addParamToGroup(LCP_WA_group, addr-0x20001u, id)) stat = asynError;
+       break;
+
+      case ParamGroup::LCP_WO:
+        if (addParamToGroup(LCP_WO_group, addr-0x30001u, id)) stat = asynError;
+        break;
+
+      case ParamGroup::DRV_RO:
+        DRV_RO_group.at(drvROidx++) = id;  break;
+
+      case ParamGroup::DRV_RW:
+        DRV_RW_group.at(drvRWidx++) = id;  break;
+    }
+
+  }
+
+  return stat;
 }
 
 
@@ -375,6 +443,7 @@ void drvFGPDB_initHookFunc(initHookState state)
 
     if (drv->createAsynParams() != asynSuccess)  break;
     if (drv->determineGroupSizes() != asynSuccess)  break;
+    drv->createProcessingGroups();
     if (drv->sortParams() != asynSuccess)  break;
   }
 }
