@@ -1,4 +1,4 @@
-//----- drvFGPDB.cpp ----- 02/17/17 --- (01/24/17)----
+//----- drvFGPDB.cpp ----- 02/23/17 --- (01/24/17)----
 
 //-----------------------------------------------------------------------------
 //  asynPortDriver-based interface for controllers that support the FRIB LCP
@@ -67,6 +67,7 @@ ParamInfo::ParamInfo(const string& paramStr) : ParamInfo()
 
   this->asynType = strToAsynType(asynTypeName);
   this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
+  this->group = ParamInfo::regAddrToParamGroup(this->regAddr);
 }
 
 //-----------------------------------------------------------------------------
@@ -327,7 +328,6 @@ asynStatus drvFGPDB::determineGroupSizes(void)
 
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
-    param->group = ParamInfo::regAddrToParamGroup(param->regAddr);
     auto addr = param->regAddr;
 
     switch (param->group)  {
