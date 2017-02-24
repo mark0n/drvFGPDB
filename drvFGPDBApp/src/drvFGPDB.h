@@ -139,7 +139,7 @@ class ParamInfo {
       ctlrFmt(info.ctlrFmt),
       group(info.group)   {};
 
-    ParamInfo(const std::string& paramStr);
+    ParamInfo(const std::string& paramStr, const std::string& portName);
 
 
     static asynParamType strToAsynType(const std::string &typeName);
@@ -232,7 +232,7 @@ class drvFGPDB : public asynPortDriver {
 
 
 
-  private:
+//private:
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |

@@ -52,10 +52,14 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 //
 //  name addr asynType ctlrFmt
 //-----------------------------------------------------------------------------
-ParamInfo::ParamInfo(const string& paramStr) : ParamInfo()
+ParamInfo::ParamInfo(const string& paramStr, const string& portName)
+         : ParamInfo()
 {
-  if (!regex_match(paramStr, generateParamStrRegex()))
+  if (!regex_match(paramStr, generateParamStrRegex()))  {
+    cout << "*** Param def error: Device: " << portName << " ***" << endl
+         << "[" << paramStr << "]" << endl;
     throw invalid_argument("Invalid argument for parameter.");
+  }
 
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
@@ -276,7 +280,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                    __attribute__((unused)) size_t *psize)
 {
   string paramCfgStr = string(drvInfo);
-  ParamInfo  param(paramCfgStr);
+  ParamInfo  param(paramCfgStr, portName);
 
   if (param.name.empty())  return asynError;
 
