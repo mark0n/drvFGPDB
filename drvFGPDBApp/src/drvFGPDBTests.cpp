@@ -35,15 +35,18 @@ public:
     drvName("testDriver" + std::to_string(++testNum)),
     // NOTE: asyn UDP port must be created before drvFGPDB object
     udpPortStat(createPortUDP()),
-    testDrv(drvFGPDB(drvName, UDPPortName, maxParams))
+    testDrv(drvFGPDB(drvName, UDPPortName, maxParams)),
+    testParamID(0)
   {
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
            << endl << endl;
   };
 
+  //---------------------------------------------
   ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
 
+  //---------------------------------------------
   int addParam(string paramStr) {
     asynStatus stat;
     pasynUser->reason = -1;
@@ -51,11 +54,65 @@ public:
     return (stat == asynSuccess) ? pasynUser->reason : -1;
   }
 
+  //---------------------------------------------
+  void addParams()  {
+    auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
+    ASSERT_THAT(stat, Eq(0));
+    stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
+    ASSERT_THAT(stat, Eq(1));
+
+    stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
+    ASSERT_THAT(stat, Eq(2));
+    stat = addParam("lcpRegWA_2 0x20002 Float64 F32");
+    ASSERT_THAT(stat, Eq(3));  testParamID = stat;
+    stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
+    ASSERT_THAT(stat, Eq(4));
+
+    stat = addParam("lcpRegWO_2 0x30002 Int32 U32");
+    ASSERT_THAT(stat, Eq(5));
+  }
+
+  //---------------------------------------------
+  void determineGroupSizes()  {
+    addParams();
+
+    auto stat = testDrv.createAsynParams();
+    ASSERT_THAT(stat, Eq(asynSuccess));
+
+    stat = testDrv.determineGroupSizes();
+    ASSERT_THAT(stat, Eq(asynSuccess));
+
+    ASSERT_THAT(testDrv.max_LCP_RO, Eq(5));
+    ASSERT_THAT(testDrv.max_LCP_WA, Eq(4));
+    ASSERT_THAT(testDrv.max_LCP_WO, Eq(2));
+  }
+
+  //---------------------------------------------
+  void createProcessingGroups()  {
+    determineGroupSizes();
+
+    testDrv.createProcessingGroups();
+
+    ASSERT_THAT(testDrv.LCP_RO_group.size(), Eq(5));
+    ASSERT_THAT(testDrv.LCP_WA_group.size(), Eq(4));
+    ASSERT_THAT(testDrv.LCP_WO_group.size(), Eq(2));
+  }
+
+  //---------------------------------------------
+  void sortParams()  {
+    createProcessingGroups();
+
+    auto stat = testDrv.sortParams();
+    ASSERT_THAT(stat, Eq(asynSuccess));
+  }
+
+  //---------------------------------------------
   const int maxParams = 200;
   asynUser  *pasynUser;
   std::string  drvName;
   int  udpPortStat;
   drvFGPDB  testDrv;
+  int  testParamID;
 };
 
 
@@ -87,19 +144,11 @@ TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
   ASSERT_THAT(result, Eq(key1 + separator + key2 + separator + key3));
 }
 
-//=============================================================================
-// Tests for public functionality (supported for use outside the class itself)
-//=============================================================================
 
-//-----------------------------------------------------------------------------
-// Start by constructing
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 }
 
-//-----------------------------------------------------------------------------
-// Add "testParam" to the list of parameters but don't provide any property
-// info for it.
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
   const char *paramDesc = { " " };
@@ -109,16 +158,11 @@ TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
 }
 
 //-----------------------------------------------------------------------------
-// Add "testParam" to the list of parameters but don't provide any property
-// info for it.
-//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
   int id = addParam("testParam1");
   ASSERT_THAT(id, Eq(0));
 }
 
-//-----------------------------------------------------------------------------
-// Add a 2nd parameter
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddAnotherParam) {
   int id = addParam("testParam1");
@@ -128,8 +172,6 @@ TEST_F(AnFGPDBDriver, canAddAnotherParam) {
   ASSERT_THAT(id, Eq(1));
 }
 
-//-----------------------------------------------------------------------------
-// Add properties to an existing testParam
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
   int id = addParam("testParam1");
@@ -148,8 +190,6 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
 }
 
 //-----------------------------------------------------------------------------
-// Test for rejection of conflicting properties for an existing param
-//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
   int id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(0));
@@ -160,22 +200,16 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
 }
 
 //-----------------------------------------------------------------------------
-// Test creation of asyn params
-//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, createsAsynParams) {
-  int id = addParam("testParam1 0x10001 Int32 U32");
-  ASSERT_THAT(id, Eq(0));
-
-  id = addParam("testParam2 0x10002 Float64 F32");
-  ASSERT_THAT(id, Eq(1));
+  addParams();
 
   auto stat = testDrv.createAsynParams();
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   int paramID;
-  stat = testDrv.findParam("testParam2", &paramID);
+  stat = testDrv.findParam("lcpRegWA_2", &paramID);
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(paramID, Eq(1));
+  ASSERT_THAT(paramID, Eq(testParamID));
 }
 
 //-----------------------------------------------------------------------------
@@ -183,8 +217,7 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, readRegValues) {
-  addParam("testParam1 0x10001 Int32 U32");
-  addParam("testParam2 0x10002 Float64 F32");
+  addParams();
 
   auto stat = testDrv.readRegs(0x10001, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
@@ -195,34 +228,18 @@ TEST_F(AnFGPDBDriver, readRegValues) {
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, writeRegValues) {
-  addParam("testParam1 0x20001 Int32 U32");
-  addParam("testParam2 0x20002 Float64 F32");
+  addParams();
 
   auto stat = testDrv.writeRegs(0x20001, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
 //-----------------------------------------------------------------------------
-// Test sorting of parameters
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, sortParameters) {
-  addParam("lcpRegRO1 0x10001 Int32 U32");
-  addParam("lcpRegRO2 0x10002 Float64 F32");
+TEST_F(AnFGPDBDriver, determineGroupSizes) { determineGroupSizes(); }
 
-  addParam("lcpRegWA1 0x20001 Int32 U32");
-  addParam("lcpRegWA2 0x20002 Float64 F32");
+TEST_F(AnFGPDBDriver, createProcessingGroups) { createProcessingGroups(); }
 
-  addParam("lcpRegWO1 0x30001 Int32 U32");
-  addParam("lcpRegWO2 0x30002 Float64 F32");
-
-  addParam("drvRegRO1 1 Int32 U32");
-  addParam("drvRegRO2 1 Float64 F32");
-
-  addParam("drvRegRW1 2 Int32 U32");
-  addParam("drvRegRW2 2 Float64 F32");
-
-  drvFGPDB_initHookFunc(initHookAfterInitDatabase);
-}
+TEST_F(AnFGPDBDriver, sortParameters) { sortParams(); }
 
 //-----------------------------------------------------------------------------
 
