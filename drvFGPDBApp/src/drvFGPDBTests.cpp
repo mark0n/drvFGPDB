@@ -73,23 +73,23 @@ public:
   }
 
   //---------------------------------------------
-  void determineGroupSizes()  {
+  void determineGroupRanges()  {
     addParams();
 
     auto stat = testDrv.createAsynParams();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.determineGroupSizes();
+    stat = testDrv.determineGroupRanges();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.max_LCP_RO, Eq(5));
-    ASSERT_THAT(testDrv.max_LCP_WA, Eq(4));
-    ASSERT_THAT(testDrv.max_LCP_WO, Eq(2));
+    ASSERT_THAT(testDrv.max_LCP_RO, Eq(0x10005));
+    ASSERT_THAT(testDrv.max_LCP_WA, Eq(0x20004));
+    ASSERT_THAT(testDrv.max_LCP_WO, Eq(0x30002));
   }
 
   //---------------------------------------------
   void createProcessingGroups()  {
-    determineGroupSizes();
+    determineGroupRanges();
 
     testDrv.createProcessingGroups();
 
@@ -235,7 +235,7 @@ TEST_F(AnFGPDBDriver, writeRegValues) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, determineGroupSizes) { determineGroupSizes(); }
+TEST_F(AnFGPDBDriver, determineGroupRanges) { determineGroupRanges(); }
 
 TEST_F(AnFGPDBDriver, createProcessingGroups) { createProcessingGroups(); }
 
