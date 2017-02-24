@@ -225,7 +225,7 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus createAsynParams(void);
 
-    asynStatus determineGroupSizes(void);
+    asynStatus determineGroupRanges(void);
     void createProcessingGroups(void);
     int addParamToGroup(std::vector<int> &groupList, uint idx, int paramID);
     asynStatus sortParams(void);

@@ -1,4 +1,4 @@
-//----- drvFGPDB.cpp ----- 02/23/17 --- (01/24/17)----
+//----- drvFGPDB.cpp ----- 02/24/17 --- (01/24/17)----
 
 //-----------------------------------------------------------------------------
 //  asynPortDriver-based interface for controllers that support the FRIB LCP
@@ -75,7 +75,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 }
 
 //-----------------------------------------------------------------------------
-// Generate a regex for validating strings that define a parameter
+// Generate a regex for basic validation of strings that define a parameter
 //-----------------------------------------------------------------------------
 regex & ParamInfo::generateParamStrRegex()
 {
@@ -174,9 +174,7 @@ drvFGPDB::~drvFGPDB()
 
 //-----------------------------------------------------------------------------
 //  Search the driver's list of parameters for an entry with the given name.
-//  Note that, unlike asynPortDriver::findParam(), this function works during
-//  IOC startup, before the actual asyn parameters are generated from the
-//  driver's paramList.
+//  Unlike asynPortDriver::findParam(), this func works during IOC startup.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::findParamByName(const string &name, int *paramID)
 {
@@ -230,49 +228,11 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 
 
 //-----------------------------------------------------------------------------
-// Called by clients to get the ID for a parameter for a given "port" (device)
-// and "addr" (sub-device).
-//
-// To allow the list of parameters to be determined at run time (rather than
-// compiled in to the code), this driver uses these calls to construct a list
-// of parameters and their properties during IOC startup. The assumption is
-// that the drvInfo string comes from an EPICS record's INP or OUT string
-// (everything after the "@asyn(port, addr, timeout)" prefix required for
-// records linked to asyn parameter values) and will include the name for the
-// parameter and (in at least one of the records that references a parameter)
-// the properties for the parameter.
-//
-// Because multiple records can refer to the same parameter, this function may
-// be called multiple times during IOC initialization for the same parameter.
-// And because we want to avoid redundancy (and the errors that often result),
-// only ONE of the records is expected to include all the property values for
-// the paramter.  NOTE that, although it is discouraged, it is NOT an error if
-// multiple records include the property values, so long as the values are the
-// same for all calls for the same parameter.
-//
-// We also don't want to require that records be loaded in a specific order, so
-// this function does not actually create the asyn parameters.  That is done by
-// the driver during a later phase of the IOC initialization, when we can be
-// sure that no additional calls to this function for new parameters will
-// occur.
-//
-// NOTE that this flexibility assumes and requires the following:
-//
-//   - Any attempt to access a parameter before the driver actually creates the
-//     parameters must be limited to functions implemented in this driver. Any
-//     attempt to do otherwise will result in an error.  If this requirement
-//     can not be met at some time in the future, then this function will have
-//     to be changed to require at least the asynType property for the first
-//     call for a new parameter and to create the asyn parameter during the
-//     call.
-//
-//   - When the driver creates the asyn parameters, the index used by the asyn
-//     layer for each parameter is the same as its position in the driver's
-//     list.  The driver checks for this and will fail and report an error if
-//     they are not the same (although a consistent offset could also be easily
-//     accomodated if necessary).  NOTE that the value of such an offset would
-//     have to be known before the first call to this function returns, so the
-//     value returned in pasynUser->reason is correct.
+// This func is called during IOC statup to to get the ID for a parameter for a
+// given "port" (device) and "addr" (sub-device).  At least one of the calls
+// for each parameter must include all the properties that define a parameter.
+// For EPICS records, the strings come from the record's INP or OUT field
+// (everything after the "@asyn(port, addr, timeout)" prefix).
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                    __attribute__((unused)) const char
@@ -319,12 +279,9 @@ asynStatus drvFGPDB::createAsynParams(void)
 }
 
 //-----------------------------------------------------------------------------
-// Determine the number of parameters in each processing-type group.  NOTE
-// that, for operational efficiency reasons, the size of the LCP_xx groups is
-// determined by the max address specified for one of the parameters within the
-// group, rather than simply the number of parameters defined within them.
+// Determine the number of parameters in each processing-type group.
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::determineGroupSizes(void)
+asynStatus drvFGPDB::determineGroupRanges(void)
 {
   asynStatus stat = asynSuccess;
 
@@ -392,9 +349,9 @@ int drvFGPDB::addParamToGroup(std::vector<int> &groupList,
 }
 
 //-----------------------------------------------------------------------------
-// Sort the params by which processing-type group they belong to.  NOTE that
-// the LCP_xx_group[] lists can have elements for which no parameter was
-// defined, and that those elements will have the default paramID value of -1.
+// Sort the params by which processing-type group they belong to.  A paramID
+// value of -1 in the LCP_XXX_group lists indicates an LCP register that is not
+// currently referenced by an EPICS record.
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::sortParams(void)
 {
@@ -436,7 +393,9 @@ asynStatus drvFGPDB::sortParams(void)
 
 
 //-----------------------------------------------------------------------------
-//  Callback function for EPICS IOC initialization steps
+// Callback function for EPICS IOC initialization steps.  Used to trigger
+// startup/initialization processes in the correct order and at the correct
+// times.
 //-----------------------------------------------------------------------------
 void drvFGPDB_initHookFunc(initHookState state)
 {
@@ -446,7 +405,7 @@ void drvFGPDB_initHookFunc(initHookState state)
     drvFGPDB *drv = *it;
 
     if (drv->createAsynParams() != asynSuccess)  break;
-    if (drv->determineGroupSizes() != asynSuccess)  break;
+    if (drv->determineGroupRanges() != asynSuccess)  break;
     drv->createProcessingGroups();
     if (drv->sortParams() != asynSuccess)  break;
   }
