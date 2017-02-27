@@ -158,6 +158,14 @@ TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
 }
 
 //-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, rejectsMultipleParamDefinitions) {
+  const char *paramDesc = "testParam1 0x10001 Float64 F32 0x10001 Float64 F32";
+
+  ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, nullptr,
+                                         nullptr));
+}
+
+//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
   int id = addParam("testParam1");
   ASSERT_THAT(id, Eq(0));

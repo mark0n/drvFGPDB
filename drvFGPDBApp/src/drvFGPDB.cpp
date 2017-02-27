@@ -99,7 +99,7 @@ regex ParamInfo::generateParamStrRegex()
   const string asynType     = "(" + joinMapKeys(asynTypes, "|") + ")";
   const string ctlrFmt      = "(" + joinMapKeys(ctlrFmts,  "|") + ")";
   const string optionalPart = "(" + whiteSpaces + address + whiteSpaces +
-                              asynType + whiteSpaces + ctlrFmt + ")*";
+                              asynType + whiteSpaces + ctlrFmt + ")?";
   return regex(paramName + optionalPart);
 }
 
