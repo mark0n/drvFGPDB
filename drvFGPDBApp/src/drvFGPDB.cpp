@@ -297,17 +297,24 @@ asynStatus drvFGPDB::determineGroupRanges(void)
         stat = asynError;  break;
 
       case ParamGroup::LCP_RO:
-        if (addr > max_LCP_RO)  max_LCP_RO = addr;  break;
+        if (addr > max_LCP_RO)  max_LCP_RO = addr;
+        break;
 
       case ParamGroup::LCP_WA:
-        if (addr > max_LCP_WA)  max_LCP_WA = addr;  break;
+        if (addr > max_LCP_WA)  max_LCP_WA = addr;
+        break;
 
       case ParamGroup::LCP_WO:
-        if (addr > max_LCP_WO)  max_LCP_WO = addr;  break;
+        if (addr > max_LCP_WO)  max_LCP_WO = addr;
+        break;
 
-      case ParamGroup::DRV_RO:  ++num_DRV_RO;  break;
+      case ParamGroup::DRV_RO:
+        ++num_DRV_RO;
+        break;
 
-      case ParamGroup::DRV_RW:  ++num_DRV_RW;  break;
+      case ParamGroup::DRV_RW:
+        ++num_DRV_RW;
+        break;
     }
   }
 
