@@ -91,22 +91,16 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 //-----------------------------------------------------------------------------
 // Generate a regex for basic validation of strings that define a parameter
 //-----------------------------------------------------------------------------
-regex & ParamInfo::generateParamStrRegex()
+regex ParamInfo::generateParamStrRegex()
 {
-  static std::regex  paramStrRegex("");
-
-  if (paramStrRegex.mark_count() < 2)  {
-    string asynTypeNames = joinMapKeys(asynTypes, "|");
-    string ctlrFmtNames  = joinMapKeys(ctlrFmts,  "|");
-    paramStrRegex = regex(
-          "\\w+("                        // param name
-          "\\s+0x[0-9a-fA-F]+"           // addr or param group
-          "\\s+(" + asynTypeNames + ")"  // asyn data type
-          "\\s+(" + ctlrFmtNames + ")"   // ctlr data format
-          ")*" );
-  }
-
-  return paramStrRegex;
+  const string paramName    = "\\w+";
+  const string whiteSpaces  = "\\s+";
+  const string address      = "0x[0-9a-fA-F]+";
+  const string asynType     = "(" + joinMapKeys(asynTypes, "|") + ")";
+  const string ctlrFmt      = "(" + joinMapKeys(ctlrFmts,  "|") + ")";
+  const string optionalPart = "(" + whiteSpaces + address + whiteSpaces +
+                              asynType + whiteSpaces + ctlrFmt + ")*";
+  return regex(paramName + optionalPart);
 }
 
 //-----------------------------------------------------------------------------

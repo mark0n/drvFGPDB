@@ -141,7 +141,7 @@ class ParamInfo {
     ParamGroup     group;      // what processing group does param belong to
 
   private:
-    static std::regex &generateParamStrRegex();
+    static std::regex generateParamStrRegex();
 
     static const std::map<std::string, asynParamType> asynTypes;
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;
