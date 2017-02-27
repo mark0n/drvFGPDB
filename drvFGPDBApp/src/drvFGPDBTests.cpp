@@ -1,6 +1,7 @@
 
 #include "gmock/gmock.h"
 
+#define TEST_DRVFGPDB
 #include "drvFGPDB.h"
 #include "drvAsynIPPort.h"
 
