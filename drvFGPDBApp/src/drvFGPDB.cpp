@@ -43,7 +43,8 @@ typedef  epicsFloat64   F64;
 typedef  unsigned int   uint;
 typedef  unsigned char  uchar;
 
-static std::list<drvFGPDB *> drvList;
+
+static list<drvFGPDB *> drvList;
 
 //-----------------------------------------------------------------------------
 const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
@@ -60,6 +61,15 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "U16_16", CtlrDataFmt::U16_16 }
 };
 
+// list of driver values accessable via asyn interface
+static const list<string> driverParamDefs = {
+  "syncPktID   0x1 Int32",
+  "asyncPktID  0x1 Int32",
+  "ctlrAddr    0x1 Int32",
+  "stateFlags  0x1 UInt32Digital",
+  "diagFlags   0x2 UInt32Digital"
+};
+
 
 //-----------------------------------------------------------------------------
 // Construct a ParamInfo object from a string description of the form:
@@ -72,7 +82,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
   if (!regex_match(paramStr, generateParamStrRegex()))  {
     cout << "*** Param def error: Device: " << portName << " ***" << endl
          << "[" << paramStr << "]" << endl;
-    throw invalid_argument("Invalid argument for parameter.");
+    throw invalid_argument("Invalid parameter definition.");
   }
 
   stringstream paramStream(paramStr);
@@ -98,8 +108,9 @@ regex ParamInfo::generateParamStrRegex()
   const string address      = "0x[0-9a-fA-F]+";
   const string asynType     = "(" + joinMapKeys(asynTypes, "|") + ")";
   const string ctlrFmt      = "(" + joinMapKeys(ctlrFmts,  "|") + ")";
-  const string optionalPart = "(" + whiteSpaces + address + whiteSpaces +
-                              asynType + whiteSpaces + ctlrFmt + ")?";
+  const string optionalPart = "(" + whiteSpaces + address
+                                  + whiteSpaces + asynType
+                                  + "(" + whiteSpaces + ctlrFmt + ")?)?";
   return regex(paramName + optionalPart);
 }
 
@@ -145,14 +156,16 @@ drvFGPDB::drvFGPDB(const string &drvPortName, const string &udpPortName,
     max_LCP_RO(0),
     max_LCP_WA(0),
     max_LCP_WO(0),
-    num_DRV_RO(0),
-    num_DRV_RW(0),
+//  num_DRV_RO(0),
+//  num_DRV_RW(0),
     packetID(0)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
 //  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
   drvList.push_back(this);
+
+  addDriverParams();
 
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
@@ -178,6 +191,19 @@ drvFGPDB::~drvFGPDB()
 
   for (auto it = drvList.begin(); it != drvList.end(); ++it)
     if ((*it) == this) { drvList.erase(it);  break; }
+}
+
+//-----------------------------------------------------------------------------
+// Add parameters for externally-accessable driver values
+//-----------------------------------------------------------------------------
+void drvFGPDB::addDriverParams(void)
+{
+  for (auto str=driverParamDefs.begin(); str!=driverParamDefs.end(); ++str) {
+    if (paramList.size() >= (uint)maxParams)
+      throw invalid_argument("# driver params > maxParams");
+    ParamInfo param(*str, portName);
+    paramList.push_back(param);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -233,7 +259,6 @@ asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
 
   return asynSuccess;
 }
-
 
 //-----------------------------------------------------------------------------
 // This func is called during IOC statup to to get the ID for a parameter for a
@@ -293,7 +318,7 @@ asynStatus drvFGPDB::determineGroupRanges(void)
 {
   asynStatus stat = asynSuccess;
 
-  max_LCP_RO = max_LCP_WA = max_LCP_WO = num_DRV_RO = num_DRV_RW = 0;
+  max_LCP_RO = max_LCP_WA = max_LCP_WO = 0;  //num_DRV_RO = num_DRV_RW = 0;
 
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
@@ -316,6 +341,9 @@ asynStatus drvFGPDB::determineGroupRanges(void)
         if (addr > max_LCP_WO)  max_LCP_WO = addr;
         break;
 
+      default:
+        break;
+/*
       case ParamGroup::DRV_RO:
         ++num_DRV_RO;
         break;
@@ -323,6 +351,7 @@ asynStatus drvFGPDB::determineGroupRanges(void)
       case ParamGroup::DRV_RW:
         ++num_DRV_RW;
         break;
+*/
     }
   }
 
@@ -338,10 +367,9 @@ void drvFGPDB::createProcessingGroups(void)
   if (max_LCP_WA > 0)  LCP_WA_group = vector<int>(max_LCP_WA-0x20000u, -1);
   if (max_LCP_WO > 0)  LCP_WO_group = vector<int>(max_LCP_WO-0x30000u, -1);
 
-  if (num_DRV_RO > 0)  DRV_RO_group = vector<int>(num_DRV_RO, -1);
-  if (num_DRV_RW > 0)  DRV_RW_group = vector<int>(num_DRV_RW, -1);
+//if (num_DRV_RO > 0)  DRV_RO_group = vector<int>(num_DRV_RO, -1);
+//if (num_DRV_RW > 0)  DRV_RW_group = vector<int>(num_DRV_RW, -1);
 }
-
 
 //-----------------------------------------------------------------------------
 //  Add parameter to specified processing group.  Checks for a conflict in the
@@ -372,7 +400,7 @@ asynStatus drvFGPDB::sortParams(void)
 {
   asynStatus stat = asynSuccess;
 
-  uint  drvROidx = 0, drvRWidx = 0;
+//uint  drvROidx = 0, drvRWidx = 0;
 
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
@@ -394,18 +422,21 @@ asynStatus drvFGPDB::sortParams(void)
         if (addParamToGroup(LCP_WO_group, addr-0x30001u, id)) stat = asynError;
         break;
 
+      default:
+        break;
+/*
       case ParamGroup::DRV_RO:
         DRV_RO_group.at(drvROidx++) = id;  break;
 
       case ParamGroup::DRV_RW:
         DRV_RW_group.at(drvRWidx++) = id;  break;
+*/
     }
 
   }
 
   return stat;
 }
-
 
 //-----------------------------------------------------------------------------
 // Callback function for EPICS IOC initialization steps.  Used to trigger
@@ -425,7 +456,6 @@ void drvFGPDB_initHookFunc(initHookState state)
     if (drv->sortParams() != asynSuccess)  break;
   }
 }
-
 
 //----------------------------------------------------------------------------
 // Read the controller's current values for one or more LCP registers
@@ -467,7 +497,6 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   return asynSuccess;
 }
-
 
 //----------------------------------------------------------------------------
 // Send the driver's current value for one or more writeable LCP registers to
@@ -513,7 +542,6 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   return asynSuccess;
 }
 
-
 //----------------------------------------------------------------------------
 // Process a request to write to one of the Int32 parameters
 //----------------------------------------------------------------------------
@@ -541,6 +569,5 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 
   return stat;
 }
-
 
 //-----------------------------------------------------------------------------

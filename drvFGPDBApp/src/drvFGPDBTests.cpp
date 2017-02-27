@@ -41,6 +41,8 @@ public:
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
            << endl << endl;
+
+    numDrvParams = testDrv.paramList.size();
   };
 
   //---------------------------------------------
@@ -57,19 +59,19 @@ public:
   //---------------------------------------------
   void addParams()  {
     auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
-    ASSERT_THAT(stat, Eq(0));
+    ASSERT_THAT(stat, Eq(numDrvParams));
     stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
-    ASSERT_THAT(stat, Eq(1));
+    ASSERT_THAT(stat, Eq(numDrvParams+1));
 
     stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
-    ASSERT_THAT(stat, Eq(2));
+    ASSERT_THAT(stat, Eq(numDrvParams+2));
     stat = addParam("lcpRegWA_2 0x20002 Float64 F32");
-    ASSERT_THAT(stat, Eq(3));  testParamID = stat;
+    ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID = stat;
     stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
-    ASSERT_THAT(stat, Eq(4));
+    ASSERT_THAT(stat, Eq(numDrvParams+4));
 
     stat = addParam("lcpRegWO_2 0x30002 Int32 U32");
-    ASSERT_THAT(stat, Eq(5));
+    ASSERT_THAT(stat, Eq(numDrvParams+5));
   }
 
   //---------------------------------------------
@@ -113,13 +115,16 @@ public:
   int  udpPortStat;
   drvFGPDB  testDrv;
   int  testParamID;
+  int  numDrvParams;
 };
 
+
+//-----------------------------------------------------------------------------
 class AnFGPDBDriverWithAParameter: public AnFGPDBDriver {
 public:
   virtual void SetUp() {
     auto stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
-    ASSERT_THAT(stat, Eq(0));
+    ASSERT_THAT(stat, Eq(numDrvParams));
   }
 };
 
@@ -154,6 +159,12 @@ TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
+  ASSERT_THAT(udpPortStat, Eq(0));
+}
+
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, newDriverInstanceContainsDriverParams) {
+  ASSERT_THAT(numDrvParams, Gt(0));
 }
 
 //-----------------------------------------------------------------------------
@@ -175,28 +186,28 @@ TEST_F(AnFGPDBDriver, rejectsMultipleParamDefinitions) {
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
   int id = addParam("testParam1");
-  ASSERT_THAT(id, Eq(0));
+  ASSERT_THAT(id, Eq(numDrvParams));
 }
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddAnotherParam) {
   int id = addParam("testParam1");
-  ASSERT_THAT(id, Eq(0));
+  ASSERT_THAT(id, Eq(numDrvParams));
 
   id = addParam("testParam2 0x10001 Float64 F32");
-  ASSERT_THAT(id, Eq(1));
+  ASSERT_THAT(id, Eq(numDrvParams+1));
 }
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
   int id = addParam("testParam1");
-  ASSERT_THAT(id, Eq(0));
+  ASSERT_THAT(id, Eq(numDrvParams));
 
   id = addParam("testParam1 0x10001 Int32 U32");
-  ASSERT_THAT(id, Eq(0));
+  ASSERT_THAT(id, Eq(numDrvParams));
 
   ParamInfo param1;
-  asynStatus stat = testDrv.getParamInfo(0, param1);
+  asynStatus stat = testDrv.getParamInfo(numDrvParams, param1);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param1.regAddr,  Eq(0x10001));
@@ -207,7 +218,7 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
   int id = addParam("testParam1 0x10001 Int32 U32");
-  ASSERT_THAT(id, Eq(0));
+  ASSERT_THAT(id, Eq(numDrvParams));
 
   const char *param1Def = { "testParam1 0x10001 Float64 F32" };
   auto stat = testDrv.drvUserCreate(pasynUser, param1Def, nullptr, nullptr);

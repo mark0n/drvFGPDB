@@ -195,7 +195,6 @@ class drvFGPDB : public asynPortDriver {
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
-
     // clients should use asynPortDriver::findParam() instead
     asynStatus findParamByName(const std::string &name, int *paramID);
 
@@ -216,6 +215,9 @@ class drvFGPDB : public asynPortDriver {
 
 
 //private:
+    void addDriverParams(void);
+
+
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
