@@ -115,6 +115,13 @@ public:
   int  testParamID;
 };
 
+class AnFGPDBDriverWithAParameter: public AnFGPDBDriver {
+public:
+  virtual void SetUp() {
+    auto stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
+    ASSERT_THAT(stat, Eq(0));
+  }
+};
 
 //-----------------------------------------------------------------------------
 TEST(joinMapKeys, returnsEmptyStringForEmptyMap) {
@@ -224,9 +231,7 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 // Test reading LCP register values
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, readRegValues) {
-  addParams();
-
+TEST_F(AnFGPDBDriverWithAParameter, readRegValues) {
   auto stat = testDrv.readRegs(0x10001, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
@@ -235,9 +240,7 @@ TEST_F(AnFGPDBDriver, readRegValues) {
 // Test writing LCP register values
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, writeRegValues) {
-  addParams();
-
+TEST_F(AnFGPDBDriverWithAParameter, writeRegValues) {
   auto stat = testDrv.writeRegs(0x20001, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
