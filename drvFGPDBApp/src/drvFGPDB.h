@@ -31,23 +31,6 @@
 
 #include <initHooks.h>
 
-
-
-// Much more compact, easily read names for freq used types
-typedef  epicsInt8      I8;
-typedef  epicsInt16     I16;
-typedef  epicsInt32     I32;
-
-typedef  epicsUInt8     U8;
-typedef  epicsUInt16    U16;
-typedef  epicsUInt32    U32;
-
-typedef  epicsFloat32   F32;
-typedef  epicsFloat64   F64;
-
-typedef  unsigned int   uint;
-typedef  unsigned char  uchar;
-
 //-----------------------------------------------------------
 enum class CtlrDataFmt {
   NotDefined,
@@ -209,8 +192,8 @@ class drvFGPDB : public asynPortDriver {
     // make changes to these functions as needed, so dependening on them to NOT
     // change is dangerous and will likely result in broken clients.
 
-    asynStatus readRegs(U32 firstReg, uint numRegs);
-    asynStatus writeRegs(U32 firstReg, uint numRegs);
+    asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
+    asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
 
     // clients should use asynPortDriver::findParam() instead
@@ -254,7 +237,7 @@ class drvFGPDB : public asynPortDriver {
     uint num_DRV_RO;  // number of driver RO params
     uint num_DRV_RW;  // number of driver RW params
 
-    U32  packetID;
+    epicsUInt32 packetID;
 
     std::vector<ParamInfo> paramList;
 

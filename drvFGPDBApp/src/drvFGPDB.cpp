@@ -28,6 +28,20 @@
 
 using namespace std;
 
+// Much more compact, easily read names for freq used types
+typedef  epicsInt8      I8;
+typedef  epicsInt16     I16;
+typedef  epicsInt32     I32;
+
+typedef  epicsUInt8     U8;
+typedef  epicsUInt16    U16;
+typedef  epicsUInt32    U32;
+
+typedef  epicsFloat32   F32;
+typedef  epicsFloat64   F64;
+
+typedef  unsigned int   uint;
+typedef  unsigned char  uchar;
 
 static std::list<drvFGPDB *> drvList;
 
