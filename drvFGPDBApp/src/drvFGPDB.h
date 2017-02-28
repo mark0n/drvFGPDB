@@ -139,8 +139,9 @@ class ParamInfo {
   //SyncMode       syncMode;   // relation between set and read values
 
     ParamGroup     group;      // what processing group does param belong to
-
+#ifndef TEST_DRVFGPDB
   private:
+#endif
     static std::regex generateParamStrRegex();
 
     static const std::map<std::string, asynParamType> asynTypes;
