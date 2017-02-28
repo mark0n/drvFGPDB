@@ -19,6 +19,7 @@ include_directories("${EPICS_asyn_INCLUDE_DIRS}")
 
 set(LIB_COMPONENTS
   drvFGPDB.cpp
+  ParamInfo.cpp
 )
 add_library(drvFGPDBShared SHARED ${LIB_COMPONENTS})
 set_target_properties(drvFGPDBShared PROPERTIES
