@@ -13,9 +13,11 @@ endif(EXISTS "${PROJECT_SOURCE_DIR}/.git")
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake4epics/cmake")
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
-find_package(EPICS COMPONENTS Com dbCore asyn)
+find_package(EPICS COMPONENTS Com dbCore)
 find_package(EPICSTools)
-include_directories(${EPICS_INCLUDE_DIRS})
+find_package(EPICSModule)
+find_epics_module(NAME asyn IDFILES include/asynDriver.h DBDS asyn.dbd LIBS asyn)
+include_directories(${EPICS_INCLUDE_DIRS} ${asyn_INCLUDE_DIRS})
 
 # Build Google Mock as part of this project as recommended by the project (see
 # Debian's README as well as

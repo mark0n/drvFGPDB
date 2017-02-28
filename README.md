@@ -29,7 +29,7 @@ cmake -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_BUILD_TYPE=Debug ..
 ### Build Against a Specific Asyn Version
 You can use a specific Asyn version by pointing CMake to it:
 ```
-cmake -DCMAKE_INSTALL_PREFIX=.. -DEPICS_asyn_INCLUDE_DIRS=/home/marko/asyn/include -DEPICS_asyn_LIBRARY=/home/marko/asyn/lib/linux-x86_64-debug/libasyn.so ..
+cmake -DCMAKE_INSTALL_PREFIX=.. -DEPICS_MODULE_PATH=/home/marko/work/RF/LLRF/support/asyn-1 ..
 ```
 
 ### Code Coverage
