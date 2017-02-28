@@ -102,14 +102,6 @@ public:
   }
 
   //---------------------------------------------
-  void sortParams()  {
-    createProcessingGroups();
-
-    auto stat = testDrv.sortParams();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-  }
-
-  //---------------------------------------------
   const int maxParams = 200;
   asynUser  *pasynUser;
   std::string  drvName;
@@ -128,35 +120,6 @@ public:
     ASSERT_THAT(stat, Eq(numDrvParams));
   }
 };
-
-//-----------------------------------------------------------------------------
-TEST(joinMapKeys, returnsEmptyStringForEmptyMap) {
-  const map<string, int> aMap;
-  const string separator("--");
-
-  string result = joinMapKeys<int>(aMap, separator);
-
-  ASSERT_THAT(result, Eq(""));
-}
-
-//-----------------------------------------------------------------------------
-TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
-  const int arbitraryInt = 0;
-  const string key1("KEY1");
-  const string key2("KEY2");
-  const string key3("KEY3");
-  const map<string, int> aMap = {
-    { key1, arbitraryInt },
-    { key2, arbitraryInt },
-    { key3, arbitraryInt }
-  };
-  const string separator("--");
-
-  string result = joinMapKeys<int>(aMap, separator);
-
-  ASSERT_THAT(result, Eq(key1 + separator + key2 + separator + key3));
-}
-
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
@@ -262,7 +225,13 @@ TEST_F(AnFGPDBDriver, determineGroupRanges) { determineGroupRanges(); }
 
 TEST_F(AnFGPDBDriver, createProcessingGroups) { createProcessingGroups(); }
 
-TEST_F(AnFGPDBDriver, sortParameters) { sortParams(); }
+TEST_F(AnFGPDBDriver, sortParameters) {
+  createProcessingGroups();
+
+  auto stat = testDrv.sortParams();
+
+  ASSERT_THAT(stat, Eq(asynSuccess));
+}
 
 //-----------------------------------------------------------------------------
 
