@@ -68,6 +68,6 @@ add_unit_tests(drvFGPDBTests)
 add_unit_tests(ParamInfoTests)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-  setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests coverage '*Tests.cpp')
-  setup_target_for_coverage(ParamInfoTests_coverage ParamInfoTests coverage '*Tests.cpp')
+  setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests drvFGPDBCoverage '*Tests.cpp')
+  setup_target_for_coverage(ParamInfoTests_coverage ParamInfoTests ParamInfoCoverage '*Tests.cpp')
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
