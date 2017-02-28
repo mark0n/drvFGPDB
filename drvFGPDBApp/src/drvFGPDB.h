@@ -31,7 +31,6 @@
 #include <initHooks.h>
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
-#include "FGPDBProtocol.h"
 
 void drvFGPDB_initHookFunc(initHookState state);
 
