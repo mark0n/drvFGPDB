@@ -139,6 +139,7 @@ class ParamInfo {
   //SyncMode       syncMode;   // relation between set and read values
 
     ParamGroup     group;      // what processing group does param belong to
+
 #ifndef TEST_DRVFGPDB
   private:
 #endif
@@ -187,11 +188,12 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
 
 
-    // WARNING: The following functions are public ONLY for the purpose of
-    // avoiding unnecessary complexity when writing tests.  These should NOT be
-    // used outside of this class EXCEPT by those tests (i.e. the authors will
-    // make changes to these functions as needed, so dependening on them to NOT
-    // change is dangerous and will likely result in broken clients.
+#ifndef TEST_DRVFGPDB
+  private:
+#endif
+    friend void drvFGPDB_initHookFunc(initHookState state);
+
+    void addDriverParams(void);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
@@ -213,10 +215,6 @@ class drvFGPDB : public asynPortDriver {
     int addParamToGroup(std::vector<int> &groupList, uint idx, int paramID);
     asynStatus sortParams(void);
 
-
-
-//private:
-    void addDriverParams(void);
 
 
     static const int MaxAddr = 1;
