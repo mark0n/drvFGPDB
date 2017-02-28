@@ -15,7 +15,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR})
 # add the binary tree to the search path for include files so that we will find
 # config.h
 include_directories("${PROJECT_BINARY_DIR}")
-# include_directories("${EPICS_asyn_INCLUDE_DIRS}")
 
 set(LIB_COMPONENTS
   drvFGPDB.cpp
@@ -28,13 +27,13 @@ set_target_properties(drvFGPDBShared PROPERTIES
   VERSION ${drvFGPDB_VERSION_MAJOR}.${drvFGPDB_VERSION_MINOR}.${drvFGPDB_VERSION_PATCH}
   SOVERSION ${drvFGPDB_VERSION_MAJOR}.${drvFGPDB_VERSION_MINOR}
 )
-target_link_libraries(drvFGPDBShared ${EPICS_LIBRARIES})
+target_link_libraries(drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES})
 add_library(drvFGPDBStatic STATIC ${LIB_COMPONENTS})
 set_target_properties(drvFGPDBStatic
   PROPERTIES OUTPUT_NAME drvFGPDB
   CLEAN_DIRECT_OUTPUT 1
 )
-target_link_libraries(drvFGPDBStatic ${EPICS_LIBRARIES})
+target_link_libraries(drvFGPDBStatic ${EPICS_LIBRARIES} ${asyn_LIBRARIES})
 epics_install(LIBS drvFGPDBShared drvFGPDBStatic DBDS drvFGPDB.dbd)
 
 include_directories(${GTEST_INCLUDE_DIRS})
@@ -42,13 +41,13 @@ set(DRVFGPDBTEST_COMPONENTS
   drvFGPDBTests.cpp
 )
 add_executable(drvFGPDBTests ${DRVFGPDBTEST_COMPONENTS})
-target_link_libraries(drvFGPDBTests drvFGPDBShared ${EPICS_LIBRARIES} gmock_main)
+target_link_libraries(drvFGPDBTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
 
 set(PARAMINFOTEST_COMPONENTS
   ParamInfoTests.cpp
 )
 add_executable(ParamInfoTests ${PARAMINFOTEST_COMPONENTS})
-target_link_libraries(ParamInfoTests drvFGPDBShared ${EPICS_LIBRARIES} gmock_main)
+target_link_libraries(ParamInfoTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
 
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
