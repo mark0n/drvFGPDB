@@ -2,6 +2,7 @@
 #define PARAMINFO_H
 
 #include <regex>
+#include <map>
 
 #include <asynPortDriver.h>
 
