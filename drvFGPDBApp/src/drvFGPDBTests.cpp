@@ -4,11 +4,59 @@
 #define TEST_DRVFGPDB
 #include "drvFGPDB.h"
 #include "drvAsynIPPort.h"
-
+#include "asynOctetSyncIOInterface.h"
 
 using namespace testing;
 using namespace std;
 
+
+class asynOctetSyncIOWrapperMock: public asynOctetSyncIOInterface {
+public:
+  MOCK_METHOD4(connect, asynStatus(const char *port, int addr,
+                                   asynUser **ppasynUser, const char *drvInfo));
+  MOCK_METHOD1(disconnect, asynStatus(asynUser *pasynUser));
+  MOCK_METHOD3(write, asynStatus(asynUser *pasynUser, writeData outData,
+                                 double timeout));
+  MOCK_METHOD4(read, asynStatus(asynUser *pasynUser, readData inData,
+                                double timeout, int *eomReason));
+  MOCK_METHOD5(writeRead, asynStatus(asynUser *pasynUser, writeData outData,
+                                     readData inData, double timeout,
+                                     int *eomReason));
+  MOCK_METHOD1(flush, asynStatus(asynUser *pasynUser));
+  MOCK_METHOD3(setInputEos, asynStatus(asynUser *pasynUser, const char *eos,
+                                       int eoslen));
+  MOCK_METHOD4(getInputEos, asynStatus(asynUser *pasynUser, char *eos,
+                                       int eossize, int *eoslen));
+  MOCK_METHOD3(setOutputEos, asynStatus(asynUser *pasynUser, const char *eos,
+                                        int eoslen));
+  MOCK_METHOD4(getOutputEos, asynStatus(asynUser *pasynUser, char *eos,
+                                        int eossize, int *eoslen));
+  MOCK_METHOD5(writeOnce, asynStatus(const char *port, int addr,
+                                     writeData outData, double timeout,
+                                     const char *drvInfo));
+  MOCK_METHOD6(readOnce, asynStatus(const char *port, int addr, readData inData,
+                                    double timeout, int *eomReason,
+                                    const char *drvInfo));
+  MOCK_METHOD7(writeReadOnce, asynStatus(const char *port, int addr,
+                                         writeData outData, readData inData,
+                                         double timeout, int *eomReason,
+                                         const char *drvInfo));
+  MOCK_METHOD3(flushOnce, asynStatus(const char *port, int addr,
+                                     const char *drvInfo));
+
+  MOCK_METHOD5(setInputEosOnce, asynStatus(const char *port, int addr,
+                                           const char *eos, int eoslen,
+                                           const char *drvInfo));
+  MOCK_METHOD6(getInputEosOnce, asynStatus(const char *port, int addr,
+                                           char *eos, int eossize, int *eoslen,
+                                           const char *drvInfo));
+  MOCK_METHOD5(setOutputEosOnce, asynStatus(const char *port, int addr,
+                                            const char *eos, int eoslen,
+                                            const char *drvInfo));
+  MOCK_METHOD6(getOutputEosOnce, asynStatus(const char *port, int addr,
+                                            char *eos, int eossize, int *eoslen,
+                                            const char *drvInfo));
+};
 
 //-----------------------------------------------------------------------------
 
@@ -33,10 +81,11 @@ class AnFGPDBDriver: public ::testing::Test
 public:
   AnFGPDBDriver() :
     pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
+      syncIO(new asynOctetSyncIOWrapperMock),
     drvName("testDriver" + std::to_string(++testNum)),
     // NOTE: asyn UDP port must be created before drvFGPDB object
     udpPortStat(createPortUDP()),
-    testDrv(drvFGPDB(drvName, UDPPortName, maxParams)),
+    testDrv(drvFGPDB(drvName, syncIO, UDPPortName, maxParams)),
     testParamID(0)
   {
     if (udpPortStat)
@@ -104,6 +153,7 @@ public:
   //---------------------------------------------
   const int maxParams = 200;
   asynUser  *pasynUser;
+    shared_ptr<asynOctetSyncIOWrapperMock> syncIO;
   std::string  drvName;
   int  udpPortStat;
   drvFGPDB  testDrv;
@@ -234,4 +284,7 @@ TEST_F(AnFGPDBDriver, sortParameters) {
 }
 
 //-----------------------------------------------------------------------------
-
+TEST_F(AnFGPDBDriver, writesDataToAsyn) {
+  EXPECT_CALL(*syncIO, write(pasynUser, _, _)).WillOnce(Return(asynSuccess));
+  testDrv.writeInt32(pasynUser, 42);
+}

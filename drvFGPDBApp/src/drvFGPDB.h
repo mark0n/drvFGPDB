@@ -24,11 +24,12 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <memory>
 
 #include <asynPortDriver.h>
 #include <asynOctetSyncIO.h>
 #include <initHooks.h>
-
+#include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
 #include "FGPDBProtocol.h"
 
@@ -38,8 +39,9 @@ void drvFGPDB_initHookFunc(initHookState state);
 class drvFGPDB : public asynPortDriver {
 
   public:
-    drvFGPDB(const std::string &drvPortName, const std::string &udpPortName,
-             int maxParams);
+    drvFGPDB(const std::string &drvPortName,
+             std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
+             const std::string &udpPortName, int maxParams);
     ~drvFGPDB();
 
 
@@ -89,6 +91,8 @@ class drvFGPDB : public asynPortDriver {
     static const int Priority = 0;
     static const int StackSize = 0;
 
+    std::shared_ptr<asynOctetSyncIOInterface> syncIO;
+
     int maxParams;
 
     uint max_LCP_RO;  // largest regAddr for LCP_RO group of params
@@ -107,7 +111,6 @@ class drvFGPDB : public asynPortDriver {
     std::vector<int> LCP_WO_group;  // LCP Write-Once parameters
     std::vector<int> DRV_RO_group;  // Driver Read-Only parameters
     std::vector<int> DRV_RW_group;  // Driver Read/Write parameters
-
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 };
 
