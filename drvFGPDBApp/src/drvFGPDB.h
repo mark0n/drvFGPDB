@@ -65,7 +65,7 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);
 
-    asynStatus updateParam(int paramID, const ParamInfo &newParam);
+    asynStatus updateParamDef(int paramID, const ParamInfo &newParam);
 
     asynStatus createAsynParams(void);
 

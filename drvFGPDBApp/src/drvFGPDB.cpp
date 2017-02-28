@@ -143,10 +143,8 @@ asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
 //  Checks for conflicts and updates any missing property values using ones
 //  from the new set of properties.
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::updateParam(int paramID, const ParamInfo &newParam)
+asynStatus drvFGPDB::updateParamDef(int paramID, const ParamInfo &newParam)
 {
-//  cout << "updateParam(" << paramID << ", ...)" << endl;
-
   if ((uint)paramID >= (uint)maxParams)  return asynError;  //msg
 
   ParamInfo  &curParam = paramList.at(paramID);
@@ -196,7 +194,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   pasynUser->reason = paramID;
 
   // Update the existing entry (in case the old one was incomplete)
-  return updateParam(paramID, param);
+  return updateParamDef(paramID, param);
 }
 
 //-----------------------------------------------------------------------------
