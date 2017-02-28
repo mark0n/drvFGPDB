@@ -101,14 +101,6 @@ public:
   }
 
   //---------------------------------------------
-  void sortParams()  {
-    createProcessingGroups();
-
-    auto stat = testDrv.sortParams();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-  }
-
-  //---------------------------------------------
   const int maxParams = 200;
   asynUser  *pasynUser;
   std::string  drvName;
@@ -261,7 +253,13 @@ TEST_F(AnFGPDBDriver, determineGroupRanges) { determineGroupRanges(); }
 
 TEST_F(AnFGPDBDriver, createProcessingGroups) { createProcessingGroups(); }
 
-TEST_F(AnFGPDBDriver, sortParameters) { sortParams(); }
+TEST_F(AnFGPDBDriver, sortParameters) {
+  createProcessingGroups();
+
+  auto stat = testDrv.sortParams();
+
+  ASSERT_THAT(stat, Eq(asynSuccess));
+}
 
 //-----------------------------------------------------------------------------
 
