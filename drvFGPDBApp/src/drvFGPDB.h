@@ -32,16 +32,12 @@
 
 #include "FGPDBProtocol.h"
 
-class drvFGPDB;
-
 //-----------------------------------------------------------------------------
 // Information the driver keeps about each parameter.  This list is generated
 // during IOC startup from the data in the INP/OUT fields in the EPICS records
 // that are linked to these parameters.
 //-----------------------------------------------------------------------------
 class ParamInfo {
-  friend drvFGPDB;
-
   public:
     ParamInfo() :
       regAddr(0),
