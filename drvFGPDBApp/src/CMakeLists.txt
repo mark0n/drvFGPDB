@@ -38,11 +38,17 @@ target_link_libraries(drvFGPDBStatic ${EPICS_LIBRARIES})
 epics_install(LIBS drvFGPDBShared drvFGPDBStatic DBDS drvFGPDB.dbd)
 
 include_directories(${GTEST_INCLUDE_DIRS})
-set(TEST_COMPONENTS
+set(DRVFGPDBTEST_COMPONENTS
   drvFGPDBTests.cpp
 )
-add_executable(drvFGPDBTests ${TEST_COMPONENTS})
+add_executable(drvFGPDBTests ${DRVFGPDBTEST_COMPONENTS})
 target_link_libraries(drvFGPDBTests drvFGPDBShared ${EPICS_LIBRARIES} gmock_main)
+
+set(PARAMINFOTEST_COMPONENTS
+  ParamInfoTests.cpp
+)
+add_executable(ParamInfoTests ${PARAMINFOTEST_COMPONENTS})
+target_link_libraries(ParamInfoTests drvFGPDBShared ${EPICS_LIBRARIES} gmock_main)
 
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
@@ -59,7 +65,9 @@ function(add_unit_tests target)
 endfunction()
 
 add_unit_tests(drvFGPDBTests)
+add_unit_tests(ParamInfoTests)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests coverage '*Tests.cpp')
+  setup_target_for_coverage(ParamInfoTests_coverage ParamInfoTests coverage '*Tests.cpp')
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
