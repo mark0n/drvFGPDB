@@ -282,7 +282,7 @@ TEST_F(AnFGPDBDriverWithAParameter, failsIfMultParamsWithSameRegAddr) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.createRegLists();
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  ASSERT_THAT(stat, Eq(asynError));
 }
 
 //-----------------------------------------------------------------------------

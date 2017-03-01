@@ -274,11 +274,11 @@ asynStatus drvFGPDB::createRegLists(void)
 
     uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
 
-    auto regList = regLists[groupID - 1];
+    vector<int> &regList = regLists[groupID - 1];
 
     if (regList.at(offset) >= 0)  {
       cout << "Device: " << portName << ": "
-           "*** Multiple params with same LCP reg # ***" << endl
+           "*** Multiple params with same LCP reg addr ***" << endl
            << "  " << paramList.at(regList.at(offset)).name
            << " and " << paramList.at(paramID).name << endl;
       stat = asynError;
@@ -421,11 +421,12 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   char buffer[256];
   strncpy(buffer, "test message", sizeof(buffer));
   const double writeTimeout = 2.0;
-  size_t nwrite;
+//  size_t nwrite;
   writeData outData;
   outData.write_buffer = buffer;
   outData.write_buffer_len = strlen(buffer);
-  asynStatus status = syncIO->write(pasynUser, outData, writeTimeout);
+  stat = syncIO->write(pasynUser, outData, writeTimeout);
+
   return stat;
 }
 
