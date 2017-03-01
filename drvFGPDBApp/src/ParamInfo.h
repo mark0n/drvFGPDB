@@ -82,15 +82,15 @@ class ParamInfo {
     ParamInfo() :
       regAddr(0),
       asynType(asynParamNotDefined),
-      ctlrFmt(CtlrDataFmt::NotDefined),
-      group(ParamGroup::Invalid)  {};
+      ctlrFmt(CtlrDataFmt::NotDefined)
+    {};
 
     ParamInfo(const ParamInfo &info) :
       name(info.name),
       regAddr(info.regAddr),
       asynType(info.asynType),
-      ctlrFmt(info.ctlrFmt),
-      group(info.group)   {};
+      ctlrFmt(info.ctlrFmt)
+    {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
 
@@ -99,16 +99,12 @@ class ParamInfo {
 
     static CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
 
-    static ParamGroup regAddrToParamGroup(const uint regAddr);
-
 
     std::string    name;
     uint           regAddr;    // LCP reg addr or driver param group
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
   //SyncMode       syncMode;   // relation between set and read values
-
-    ParamGroup     group;      // what processing group does param belong to
 
   private:
     static std::regex generateParamStrRegex();

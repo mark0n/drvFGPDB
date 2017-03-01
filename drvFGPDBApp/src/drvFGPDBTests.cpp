@@ -64,7 +64,7 @@ static int testNum = 0;
 
 #define UDPPortName  "FGPDB_com"
 
-//-----------------------------------------------------------------------------
+//=============================================================================
 int createPortUDP(void)
 {
   static int  stat = 0;
@@ -75,7 +75,7 @@ int createPortUDP(void)
   return stat;
 }
 
-//-----------------------------------------------------------------------------
+//=============================================================================
 class AnFGPDBDriver: public ::testing::Test
 {
 public:
@@ -113,7 +113,7 @@ public:
     stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+1));
 
-    stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
+    stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+2));
     stat = addParam("lcpRegWA_2 0x20002 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID = stat;
@@ -125,29 +125,30 @@ public:
   }
 
   //---------------------------------------------
-  void determineGroupRanges()  {
+  void determineRegRanges()  {
     addParams();
 
     auto stat = testDrv.createAsynParams();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.determineGroupRanges();
+    stat = testDrv.determineRegRanges();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.max_LCP_RO, Eq(0x10005));
-    ASSERT_THAT(testDrv.max_LCP_WA, Eq(0x20004));
-    ASSERT_THAT(testDrv.max_LCP_WO, Eq(0x30002));
+    ASSERT_THAT(testDrv.maxOffset[0], Eq(5));
+    ASSERT_THAT(testDrv.maxOffset[1], Eq(4));
+    ASSERT_THAT(testDrv.maxOffset[2], Eq(2));
   }
 
   //---------------------------------------------
-  void createProcessingGroups()  {
-    determineGroupRanges();
+  void createRegLists()  {
+    determineRegRanges();
 
-    testDrv.createProcessingGroups();
+    auto stat = testDrv.createRegLists();
+    ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.LCP_RO_group.size(), Eq(5));
-    ASSERT_THAT(testDrv.LCP_WA_group.size(), Eq(4));
-    ASSERT_THAT(testDrv.LCP_WO_group.size(), Eq(2));
+    ASSERT_THAT(testDrv.regLists[0].size(), Eq(6));
+    ASSERT_THAT(testDrv.regLists[1].size(), Eq(5));
+    ASSERT_THAT(testDrv.regLists[2].size(), Eq(3));
   }
 
   //---------------------------------------------
@@ -162,7 +163,7 @@ public:
 };
 
 
-//-----------------------------------------------------------------------------
+//=============================================================================
 class AnFGPDBDriverWithAParameter: public AnFGPDBDriver {
 public:
   virtual void SetUp() {
@@ -171,7 +172,9 @@ public:
   }
 };
 
-//-----------------------------------------------------------------------------
+
+
+//=============================================================================
 TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
   ASSERT_THAT(udpPortStat, Eq(0));
 }
@@ -257,7 +260,7 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverWithAParameter, readRegValues) {
-  auto stat = testDrv.readRegs(0x10001, 2);
+  auto stat = testDrv.readRegs(0x10000, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
@@ -266,25 +269,33 @@ TEST_F(AnFGPDBDriverWithAParameter, readRegValues) {
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverWithAParameter, writeRegValues) {
-  auto stat = testDrv.writeRegs(0x20001, 2);
+  auto stat = testDrv.writeRegs(0x20000, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, determineGroupRanges) { determineGroupRanges(); }
+TEST_F(AnFGPDBDriverWithAParameter, failsIfMultParamsWithSameRegAddr) {
+  auto stat = addParam("lcpRegWA_01 0x20001 Int32 U32");
+  ASSERT_THAT(stat, Eq(numDrvParams+1));
 
-TEST_F(AnFGPDBDriver, createProcessingGroups) { createProcessingGroups(); }
+  stat = testDrv.determineRegRanges();
+  ASSERT_THAT(stat, Eq(asynSuccess));
 
-TEST_F(AnFGPDBDriver, sortParameters) {
-  createProcessingGroups();
-
-  auto stat = testDrv.sortParams();
-
+  stat = testDrv.createRegLists();
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
 //-----------------------------------------------------------------------------
+<<<<<<< HEAD
 TEST_F(AnFGPDBDriver, writesDataToAsyn) {
   EXPECT_CALL(*syncIO, write(pasynUser, _, _)).WillOnce(Return(asynSuccess));
   testDrv.writeInt32(pasynUser, 42);
 }
+=======
+TEST_F(AnFGPDBDriver, determineRegRanges) { determineRegRanges(); }
+
+TEST_F(AnFGPDBDriver, createRegsLists) { createRegLists(); }
+
+//-----------------------------------------------------------------------------
+
+>>>>>>> Simplified and removed unnecessary logic related to processing groups

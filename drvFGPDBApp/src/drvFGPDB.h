@@ -34,6 +34,7 @@
 
 void drvFGPDB_initHookFunc(initHookState state);
 
+
 //-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
 
@@ -70,11 +71,8 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus createAsynParams(void);
 
-    asynStatus determineGroupRanges(void);
-    void createProcessingGroups(void);
-    int addParamToGroup(std::vector<int> &groupList, uint idx, int paramID);
-    asynStatus sortParams(void);
-
+    asynStatus determineRegRanges(void);
+    asynStatus createRegLists(void);
 
 
     static const int MaxAddr = 1;
@@ -90,26 +88,31 @@ class drvFGPDB : public asynPortDriver {
     static const int Priority = 0;
     static const int StackSize = 0;
 
+<<<<<<< HEAD
     std::shared_ptr<asynOctetSyncIOInterface> syncIO;
 
     int maxParams;
+=======
+    int maxParams;  // upper limit on total # params
+>>>>>>> Simplified and removed unnecessary logic related to processing groups
 
-    uint max_LCP_RO;  // largest regAddr for LCP_RO group of params
-    uint max_LCP_WA;  // largest regAddr for LCP_WA group of params
-    uint max_LCP_WO;  // largest regAddr for LCP_WO group of params
-    uint num_DRV_RO;  // number of driver RO params
-    uint num_DRV_RW;  // number of driver RW params
+    uint maxOffset[3];  // largest reg addr offset for each LCP reg group
+    std::vector<int> regLists[3];  // Ordered list of params in each group
 
     epicsUInt32 packetID;
 
     std::vector<ParamInfo> paramList;
 
+<<<<<<< HEAD
     // lists of the elements in paramList sorted by processing group
     std::vector<int> LCP_RO_group;  // LCP Read-Only parameters
     std::vector<int> LCP_WA_group;  // LCP Write-Anytime parameters
     std::vector<int> LCP_WO_group;  // LCP Write-Once parameters
     std::vector<int> DRV_RO_group;  // Driver Read-Only parameters
     std::vector<int> DRV_RW_group;  // Driver Read/Write parameters
+=======
+
+>>>>>>> Simplified and removed unnecessary logic related to processing groups
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 };
 

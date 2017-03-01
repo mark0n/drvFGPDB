@@ -55,6 +55,16 @@ static const list<string> driverParamDefs = {
   "diagFlags   0x2 UInt32Digital"
 };
 
+//-----------------------------------------------------------------------------
+static uint addrGroupID(uint addr)   { return ((addr >> 16) & 0xFFFF); }
+
+static uint addrOffset(uint addr)  { return addr & 0xFFFF; }
+
+static bool isRegAddr(uint addr)  {
+  uint groupID = addrGroupID(addr);
+  return (groupID > 0) and (groupID < 4);
+}
+
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
@@ -63,11 +73,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
     maxParams(maxParams_),
-    max_LCP_RO(0),
-    max_LCP_WA(0),
-    max_LCP_WO(0),
-//  num_DRV_RO(0),
-//  num_DRV_RW(0),
+    maxOffset{0,0,0},
     packetID(0)
 {
   initHookRegister(drvFGPDB_initHookFunc);
@@ -220,127 +226,65 @@ asynStatus drvFGPDB::createAsynParams(void)
 }
 
 //-----------------------------------------------------------------------------
-// Determine the number of parameters in each processing-type group.
+// Determine the range of addresses in each LCP register group
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::determineGroupRanges(void)
+asynStatus drvFGPDB::determineRegRanges(void)
 {
   asynStatus stat = asynSuccess;
-
-  max_LCP_RO = max_LCP_WA = max_LCP_WO = 0;  //num_DRV_RO = num_DRV_RW = 0;
 
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
     auto addr = param->regAddr;
+    uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
 
-    switch (param->group)  {
-      case ParamGroup::Invalid:
-        cout << "Invalid addr/group ID for parameter: " << param->name << endl;
-        stat = asynError;  break;
+    if (groupID == 0)  continue;  // Driver parameter
 
-      case ParamGroup::LCP_RO:
-        if (addr > max_LCP_RO)  max_LCP_RO = addr;
-        break;
-
-      case ParamGroup::LCP_WA:
-        if (addr > max_LCP_WA)  max_LCP_WA = addr;
-        break;
-
-      case ParamGroup::LCP_WO:
-        if (addr > max_LCP_WO)  max_LCP_WO = addr;
-        break;
-
-      default:
-        break;
-/*
-      case ParamGroup::DRV_RO:
-        ++num_DRV_RO;
-        break;
-
-      case ParamGroup::DRV_RW:
-        ++num_DRV_RW;
-        break;
-*/
+    if (groupID < 4)  {
+      uint groupIdx = groupID - 1;
+      if (offset > maxOffset[groupIdx])  maxOffset[groupIdx] = offset;
+      continue;
     }
+
+    cout << "Invalid addr/group ID for parameter: " << param->name << endl;
+    stat = asynError;
   }
 
   return stat;
 }
 
 //-----------------------------------------------------------------------------
-// Create the lists for each processing-type group
+// Create the lists of parameters for each LCP register group
 //-----------------------------------------------------------------------------
-void drvFGPDB::createProcessingGroups(void)
-{
-  if (max_LCP_RO > 0)  LCP_RO_group = vector<int>(max_LCP_RO-0x10000u, -1);
-  if (max_LCP_WA > 0)  LCP_WA_group = vector<int>(max_LCP_WA-0x20000u, -1);
-  if (max_LCP_WO > 0)  LCP_WO_group = vector<int>(max_LCP_WO-0x30000u, -1);
-
-//if (num_DRV_RO > 0)  DRV_RO_group = vector<int>(num_DRV_RO, -1);
-//if (num_DRV_RW > 0)  DRV_RW_group = vector<int>(num_DRV_RW, -1);
-}
-
-//-----------------------------------------------------------------------------
-//  Add parameter to specified processing group.  Checks for a conflict in the
-//  LCP register number.
-//-----------------------------------------------------------------------------
-int drvFGPDB::addParamToGroup(std::vector<int> &groupList,
-                              uint idx, int paramID)
-{
-  if (groupList.at(idx) >= 0)  {
-    cout << "Device: " << portName << ": "
-         "*** Multiple params with same LCP reg # ***" << endl
-         << "  " << paramList.at(groupList.at(idx)).name
-         << " and " << paramList.at(paramID).name << endl;
-    return asynError;
-  }
-
-  groupList.at(idx) = paramID;
-
-  return 0;
-}
-
-//-----------------------------------------------------------------------------
-// Sort the params by which processing-type group they belong to.  A paramID
-// value of -1 in the LCP_XXX_group lists indicates an LCP register that is not
-// currently referenced by an EPICS record.
-//-----------------------------------------------------------------------------
-asynStatus drvFGPDB::sortParams(void)
+asynStatus drvFGPDB::createRegLists(void)
 {
   asynStatus stat = asynSuccess;
 
-//uint  drvROidx = 0, drvRWidx = 0;
+  for (uint u=0; u<3; ++u)  {
+    if (maxOffset[u] < 1)  continue;
+    regLists[u] = vector<int>(maxOffset[u]+1, -1);
+  }
+
 
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
+    int paramID = param - paramList.begin();
     auto addr = param->regAddr;
-    int id = param - paramList.begin();
 
-    switch (param->group)  {
-      case ParamGroup::Invalid:  stat = asynError;  break;
+    if (!isRegAddr(addr))  continue;
 
-      case ParamGroup::LCP_RO:
-        if (addParamToGroup(LCP_RO_group, addr-0x10001u, id)) stat = asynError;
-       break;
+    uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
 
-      case ParamGroup::LCP_WA:
-        if (addParamToGroup(LCP_WA_group, addr-0x20001u, id)) stat = asynError;
-       break;
+    auto regList = regLists[groupID - 1];
 
-      case ParamGroup::LCP_WO:
-        if (addParamToGroup(LCP_WO_group, addr-0x30001u, id)) stat = asynError;
-        break;
-
-      default:
-        break;
-/*
-      case ParamGroup::DRV_RO:
-        DRV_RO_group.at(drvROidx++) = id;  break;
-
-      case ParamGroup::DRV_RW:
-        DRV_RW_group.at(drvRWidx++) = id;  break;
-*/
+    if (regList.at(offset) >= 0)  {
+      cout << "Device: " << portName << ": "
+           "*** Multiple params with same LCP reg # ***" << endl
+           << "  " << paramList.at(regList.at(offset)).name
+           << " and " << paramList.at(paramID).name << endl;
+      stat = asynError;
     }
 
+    regList.at(offset) = paramID;
   }
 
   return stat;
@@ -358,10 +302,9 @@ void drvFGPDB_initHookFunc(initHookState state)
   for (auto it = drvList.begin(); it != drvList.end(); ++it)  {
     drvFGPDB *drv = *it;
 
-    if (drv->createAsynParams() != asynSuccess)  break;
-    if (drv->determineGroupRanges() != asynSuccess)  break;
-    drv->createProcessingGroups();
-    if (drv->sortParams() != asynSuccess)  break;
+    if (drv->createAsynParams() != asynSuccess)  continue;
+    if (drv->determineRegRanges() != asynSuccess)  continue;
+    if (drv->createRegLists() != asynSuccess)  continue;
   }
 }
 

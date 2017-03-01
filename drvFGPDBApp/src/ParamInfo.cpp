@@ -44,7 +44,6 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 
   this->asynType = strToAsynType(asynTypeName);
   this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
-  this->group = ParamInfo::regAddrToParamGroup(this->regAddr);
 }
 
 //-----------------------------------------------------------------------------
@@ -81,16 +80,4 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
   return it == ctlrFmts.end() ? CtlrDataFmt::NotDefined : it->second;
 }
 
-//-----------------------------------------------------------------------------
-//  Return the ParamGroup implied by a parameter's regAddr value
-//-----------------------------------------------------------------------------
-ParamGroup ParamInfo::regAddrToParamGroup(const uint regAddr)
-{
-  if ((regAddr >= 0x10001) and (regAddr <= 0x1FFFF)) return ParamGroup::LCP_RO;
-  if ((regAddr >= 0x20001) and (regAddr <= 0x2FFFF)) return ParamGroup::LCP_WA;
-  if ((regAddr >= 0x30001) and (regAddr <= 0x3FFFF)) return ParamGroup::LCP_WO;
-  if (regAddr == 1) return ParamGroup::DRV_RO;
-  if (regAddr == 2) return ParamGroup::DRV_RW;
 
-  return ParamGroup::Invalid;
-}
