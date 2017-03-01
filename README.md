@@ -5,6 +5,19 @@ This support module connects to an FRIB General Purpose Digital Board over Ether
 * read arrays (waveforms)
 * read/write EEPROM data (e.g. firmware)
 
+Getting the Code
+----------------
+This project uses Git submodules. Please clone the project using the following commands:
+```
+git clone ssh://git@stash.frib.msu.edu:7999/rf/drvfgpdb.git
+cd drvfgpdb/
+git submodule update --init
+```
+The following command is a shortcut for the two commands above:
+```
+git clone --recursive ssh://git@stash.frib.msu.edu:7999/rf/drvfgpdb.git
+```
+
 Compiling
 ---------
 Run the following commands to build this module:
