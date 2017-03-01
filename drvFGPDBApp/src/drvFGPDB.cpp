@@ -55,6 +55,21 @@ static const list<string> driverParamDefs = {
   "diagFlags   0x2 UInt32Digital"
 };
 
+
+static void syncComLCP(void *drvPvt);
+
+//-----------------------------------------------------------------------------
+// Return the time as a millisecond counter that wraps around
+//-----------------------------------------------------------------------------
+ulong GetMS(void)
+{
+  struct timespec  timeData;
+  clock_gettime(CLOCK_REALTIME, &timeData);
+  return (timeData.tv_sec * 1000L) + (timeData.tv_nsec / 1000000L);
+}
+
+ulong MSSince(ulong msTime) { return GetMS() - msTime; }
+
 //-----------------------------------------------------------------------------
 static uint addrGroupID(uint addr)   { return ((addr >> 16) & 0xFFFF); }
 
@@ -74,7 +89,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     syncIO(syncIOWrapper),
     maxParams(maxParams_),
     maxOffset{0,0,0},
-    packetID(0)
+    packetID(0),
+    syncThreadInitialized(false)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -97,6 +113,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   cout << "  asyn driver for: " << drvPortName
        << " connected to asyn UDP port: " << udpPortName << endl;
+
+  startThread(string("sync"), (EPICSTHREADFUNC)::syncComLCP);
 }
 
 //-----------------------------------------------------------------------------
@@ -108,6 +126,55 @@ drvFGPDB::~drvFGPDB()
   for (auto it = drvList.begin(); it != drvList.end(); ++it)
     if ((*it) == this) { drvList.erase(it);  break; }
 }
+
+//-----------------------------------------------------------------------------
+// Create a thread to manage ongoing communication with the controller
+//-----------------------------------------------------------------------------
+void drvFGPDB::startThread(const string &prefix, EPICSTHREADFUNC funcPtr)
+{
+  string threadName(prefix + portName);
+
+  if ( epicsThreadCreate(threadName.c_str(),
+                         epicsThreadPriorityMedium,
+                         epicsThreadGetStackSize(epicsThreadStackMedium),
+                         funcPtr, this) == NULL)  {
+    cout << typeid(this).name() << "::" << __func__ << ": "
+         << "epicsThreadCreate failure" << endl;
+    throw runtime_error("Unable to start new thread");
+  }
+
+  ulong startTime = GetMS();
+  while (!syncThreadInitialized)  {
+    if (MSSince(startTime) > 10000)  {
+      cout << typeid(this).name() << "::" << __func__ << ": "
+           "Thread " << threadName << " failed to initialize" << endl;
+      throw runtime_error("New thread did not initialize");
+    }
+    if (syncThreadInitialized)  break;
+    epicsThreadSleep(0.010);
+  }
+
+}
+
+//-----------------------------------------------------------------------------
+static void syncComLCP(void *drvPvt)
+{
+  drvFGPDB *pdrv = (drvFGPDB *)drvPvt;
+
+  pdrv->syncComLCP();
+}
+
+//-----------------------------------------------------------------------------
+//  Task run in a separate thread to manage synchronous communication with a
+//  controller that supports LCP.
+//-----------------------------------------------------------------------------
+void drvFGPDB::syncComLCP(void)
+{
+  syncThreadInitialized = true;
+
+  while (true)  epicsThreadSleep(0.100);
+}
+
 
 //-----------------------------------------------------------------------------
 // Add parameters for externally-accessable driver values
