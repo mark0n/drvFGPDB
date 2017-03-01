@@ -286,16 +286,16 @@ TEST_F(AnFGPDBDriverWithAParameter, failsIfMultParamsWithSameRegAddr) {
 }
 
 //-----------------------------------------------------------------------------
-<<<<<<< HEAD
 TEST_F(AnFGPDBDriver, writesDataToAsyn) {
   EXPECT_CALL(*syncIO, write(pasynUser, _, _)).WillOnce(Return(asynSuccess));
   testDrv.writeInt32(pasynUser, 42);
 }
-=======
+
+//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, determineRegRanges) { determineRegRanges(); }
 
 TEST_F(AnFGPDBDriver, createRegsLists) { createRegLists(); }
 
 //-----------------------------------------------------------------------------
 
->>>>>>> Simplified and removed unnecessary logic related to processing groups
+
