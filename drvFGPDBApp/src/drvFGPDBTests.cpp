@@ -81,10 +81,9 @@ class AnFGPDBDriver: public ::testing::Test
 public:
   AnFGPDBDriver() :
     pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
-      syncIO(new asynOctetSyncIOWrapperMock),
+    syncIO(new asynOctetSyncIOWrapperMock),
     drvName("testDriver" + std::to_string(++testNum)),
-    // NOTE: asyn UDP port must be created before drvFGPDB object
-    udpPortStat(createPortUDP()),
+    udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
     testDrv(drvFGPDB(drvName, syncIO, UDPPortName, maxParams)),
     testParamID(0)
   {
@@ -152,14 +151,15 @@ public:
   }
 
   //---------------------------------------------
-  const int maxParams = 200;
+  const int  maxParams = 200;
   asynUser  *pasynUser;
-    shared_ptr<asynOctetSyncIOWrapperMock> syncIO;
+  shared_ptr<asynOctetSyncIOWrapperMock>  syncIO;
   std::string  drvName;
   int  udpPortStat;
   drvFGPDB  testDrv;
   int  testParamID;
   int  numDrvParams;
+  ParamInfo  paramInfo;
 };
 
 
@@ -286,15 +286,29 @@ TEST_F(AnFGPDBDriverWithAParameter, failsIfMultParamsWithSameRegAddr) {
 }
 
 //-----------------------------------------------------------------------------
+/* The writeXxx() functions to NOT do I/O because they could block...
 TEST_F(AnFGPDBDriver, writesDataToAsyn) {
   EXPECT_CALL(*syncIO, write(pasynUser, _, _)).WillOnce(Return(asynSuccess));
   testDrv.writeInt32(pasynUser, 42);
 }
+*/
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, determineRegRanges) { determineRegRanges(); }
 
 TEST_F(AnFGPDBDriver, createRegsLists) { createRegLists(); }
+
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriverWithAParameter, setsPendingWriteValueOfParam) {
+  auto paramID = addParam("lcpRegWA_2 0x20002 Int32 U32");
+
+  pasynUser->reason = paramID;
+  auto stat = testDrv.writeInt32(pasynUser, 42);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.getParamInfo(paramID, paramInfo);
+  ASSERT_THAT(paramInfo.ctlrValSet, Eq(42));
+}
 
 //-----------------------------------------------------------------------------
 

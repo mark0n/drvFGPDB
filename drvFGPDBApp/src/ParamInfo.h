@@ -17,13 +17,9 @@ enum class CtlrDataFmt {
   PHASE      // = (int) (degrees * (2.0^32) / 360.0)
 };
 
-enum class ParamGroup {
-  Invalid,
-  LCP_RO,  // Read-Only LCP register
-  LCP_WA,  // Write-Anytime LCP register
-  LCP_WO,  // Write-Once LCP register
-  DRV_RO,  // Read-Only Driver parameter
-  DRV_RW   // Read-Write Driver parameter
+enum class SetState {
+  Undefined,     // no value written to the parameter yet
+  Pending        // new value waiting to be sent
 };
 
 
@@ -82,14 +78,18 @@ class ParamInfo {
     ParamInfo() :
       regAddr(0),
       asynType(asynParamNotDefined),
-      ctlrFmt(CtlrDataFmt::NotDefined)
+      ctlrFmt(CtlrDataFmt::NotDefined),
+      ctlrValSet(0),
+      setState(SetState::Undefined)
     {};
 
     ParamInfo(const ParamInfo &info) :
       name(info.name),
       regAddr(info.regAddr),
       asynType(info.asynType),
-      ctlrFmt(info.ctlrFmt)
+      ctlrFmt(info.ctlrFmt),
+      ctlrValSet(info.ctlrValSet),
+      setState(info.setState)
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -106,7 +106,14 @@ class ParamInfo {
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
   //SyncMode       syncMode;   // relation between set and read values
 
+    epicsUInt32    ctlrValSet; // value to write to ctlr (in ctlr format, host byte order)
+    SetState       setState;   // state of ctlrValSet
+
+
+#ifndef TEST_DRVFGPDB
   private:
+#endif
+
     static std::regex generateParamStrRegex();
 
     static const std::map<std::string, asynParamType> asynTypes;

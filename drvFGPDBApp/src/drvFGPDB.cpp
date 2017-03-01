@@ -126,13 +126,12 @@ void drvFGPDB::addDriverParams(void)
 //  Search the driver's list of parameters for an entry with the given name.
 //  Unlike asynPortDriver::findParam(), this func works during IOC startup.
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::findParamByName(const string &name, int *paramID)
+int drvFGPDB::findParamByName(const string &name)
 {
   for (auto param = paramList.begin(); param != paramList.end(); ++param)
-    if (param->name == name)  {
-      *paramID = param - paramList.begin();  return (asynSuccess); }
+    if (param->name == name)  return param - paramList.begin();
 
-  return asynError;
+  return -1;
 }
 
 //-----------------------------------------------------------------------------
@@ -192,8 +191,8 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   if (param.name.empty())  return asynError;
 
   // If the parameter is not already in the list, then add it
-  int  paramID;
-  if (findParamByName(param.name, &paramID) != asynSuccess)  {
+  int  paramID = findParamByName(param.name);
+  if (paramID < 0)  {
     if (paramList.size() >= (uint)maxParams)  return asynError;
     paramList.push_back(param);
     pasynUser->reason = paramList.size()-1;  return asynSuccess;
@@ -379,13 +378,13 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   pktSize = pBuf - cmdBuf;
 
+
   stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
   if (stat != asynSuccess)  return stat;
   if (sent != pktSize)  return asynError;
 
   ++packetID;
 
-  rcvd = 0;
   pasynOctetSyncIO->read(pAsynUserUDP, (char *)respBuf, sizeof(respBuf),
                          2.0, &rcvd, &eomReason);
   if (rcvd != 20)  return asynError;
@@ -405,27 +404,32 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 
   getParamName(paramID, &paramName);
 
+  do {
+    if ((uint)paramID >= paramList.size())  {
+      cout << "*** paramID out of bounds ***" << endl;
+      stat = asynError;  break;
+    }
 
-  stat = asynError;  //tdebug
+    ParamInfo &param = paramList.at(paramID);
+    if (param.asynType != asynParamInt32)  {
+      cout << "*** invalid parameter type ***" << endl;
+      stat = asynError;  break;
+    }
+
+    param.ctlrValSet = newVal;
+    param.setState = SetState::Pending;
+  } while (0);
+
 
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
-                  typeid(this).name(), __func__, stat, paramID, paramName,
-                  newVal);
+                  typeid(this).name(), __func__,
+                  stat, paramID, paramName, newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
               typeid(this).name(), __func__, paramID, paramName, newVal);
-
-  char buffer[256];
-  strncpy(buffer, "test message", sizeof(buffer));
-  const double writeTimeout = 2.0;
-//  size_t nwrite;
-  writeData outData;
-  outData.write_buffer = buffer;
-  outData.write_buffer_len = strlen(buffer);
-  stat = syncIO->write(pasynUser, outData, writeTimeout);
 
   return stat;
 }

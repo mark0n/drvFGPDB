@@ -37,13 +37,15 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
   stringstream paramStream(paramStr);
   string asynTypeName, ctlrFmtName;
 
-  paramStream >> this->name
-              >> hex >> this->regAddr
+  paramStream >> name
+              >> hex >> regAddr
               >> asynTypeName
               >> ctlrFmtName;
 
-  this->asynType = strToAsynType(asynTypeName);
-  this->ctlrFmt = strToCtlrFmt(ctlrFmtName);
+  asynType = strToAsynType(asynTypeName);
+  ctlrFmt = strToCtlrFmt(ctlrFmtName);
+  ctlrValSet = 0;
+  setState = SetState::Undefined;
 }
 
 //-----------------------------------------------------------------------------

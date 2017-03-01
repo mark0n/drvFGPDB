@@ -29,6 +29,7 @@
 #include <asynPortDriver.h>
 #include <asynOctetSyncIO.h>
 #include <initHooks.h>
+
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
 
@@ -63,7 +64,7 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
     // clients should use asynPortDriver::findParam() instead
-    asynStatus findParamByName(const std::string &name, int *paramID);
+    int findParamByName(const std::string &name);
 
     asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);
 
