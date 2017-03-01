@@ -311,4 +311,10 @@ TEST_F(AnFGPDBDriverWithAParameter, setsPendingWriteValueOfParam) {
 }
 
 //-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriverWithAParameter, launchesSyncComThread) {
+  epicsThreadSleep(1.0);
+  ASSERT_THAT(testDrv.syncThreadInitialized, Eq(true));
+}
+
+//-----------------------------------------------------------------------------
 
