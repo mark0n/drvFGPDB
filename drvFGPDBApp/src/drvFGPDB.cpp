@@ -71,12 +71,6 @@ ulong GetMS(void)
 ulong MSSince(ulong msTime) { return GetMS() - msTime; }
 
 
-// Indexes into regGroup[]
-#define  LCP_RO  0  // Read-Only registers
-#define  LCP_WA  1  // Write-Anytime registers
-#define  LCP_WO  2  // Write-Once registers
-
-
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
@@ -170,11 +164,10 @@ void drvFGPDB::syncComLCP(void)
 
 
   for (;;)  {
-    //readRegs(0, regGroup.at(LCP_RO).maxOffset);
-    //readRegs(0, regGroup.at(LCP_WA).maxOffset);
+    //readRegs(0, regGroup.at(ProcGroup_LCP_RO).maxOffset);
+    //readRegs(0, regGroup.at(ProcGroup_LCP_WA).maxOffset);
 
-    //processPendingWrites(LCP_WA);
-    //processPendingWrites(LCP_WO);
+    //processPendingWrites();
 
     epicsThreadSleep(0.200);
   }
@@ -185,23 +178,17 @@ void drvFGPDB::syncComLCP(void)
 //  Send any pending write values for the specified group of LCP registers.
 //  Returns the # of ack'd writes or < 0 if an error.
 //-----------------------------------------------------------------------------
-int drvFGPDB::processPendingWrites(int groupIdx)
+int drvFGPDB::processPendingWrites(void)
 {
-  if ((groupIdx != LCP_WA) and (groupIdx != LCP_WO))  return -1;
+  //ToDo: Use a linked-list of params with pending writes
 
-  RegGroup &group = regGroup.at(groupIdx);
-  vector<int> &idMap = group.paramIDs;
+  int ackdCount = 0;
+  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
+    if (param->setState != SetState::Pending)  continue;
 
-  int  paramID, ackdCount = 0;
-  for (auto it = idMap.begin(); it != idMap.end(); ++it)  {
-    if ((paramID = *it) < 0)  continue;
+    if (writeRegs(param->regAddr, 1) != asynSuccess)  continue;
 
-    ParamInfo &param = paramList.at(paramID);
-    if (param.setState != SetState::Pending)  continue;
-
-    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
-
-    param.setState = SetState::Sent;
+    param->setState = SetState::Sent;
     ++ackdCount;
   }
 
@@ -325,21 +312,13 @@ asynStatus drvFGPDB::createAsynParams(void)
 }
 
 //-----------------------------------------------------------------------------
-// Returns true if addr is a valid LCP reg addr
-//-----------------------------------------------------------------------------
-bool drvFGPDB::validRegAddr(uint addr)
-{
-  uint groupID = addrGroupID(addr);
-  return (groupID > 0) and (groupID < 4);
-}
-
-//-----------------------------------------------------------------------------
 // Returns true if the range of LCP addresses is within the defined ones
 //-----------------------------------------------------------------------------
-bool drvFGPDB::definedRegRange(uint firstReg, uint numRegs)
+bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
 {
-  if (!validRegAddr(firstReg))  return false;
-  uint groupID = addrGroupID(firstReg);  uint offset = addrOffset(firstReg);
+  if (!LCPUtil::validRegAddr(firstReg))  return false;
+  uint groupID = LCPUtil::addrGroupID(firstReg);
+  uint offset = LCPUtil::addrOffset(firstReg);
   const RegGroup &group = regGroup.at(groupID-1);
   return ((offset + numRegs) < group.maxOffset);
 }
@@ -354,9 +333,10 @@ asynStatus drvFGPDB::determineAddrRanges(void)
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
     auto addr = param->regAddr;
-    uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
+    uint groupID = LCPUtil::addrGroupID(addr);
+    uint offset = LCPUtil::addrOffset(addr);
 
-    if (validRegAddr(addr))  {
+    if (LCPUtil::validRegAddr(addr))  {
       RegGroup &group = regGroup.at(groupID - 1);
       if (offset > group.maxOffset)  group.maxOffset = offset;
     } else {
@@ -385,11 +365,12 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
     auto addr = param->regAddr;
-    if (!validRegAddr(addr))  continue;
+    if (!LCPUtil::validRegAddr(addr))  continue;
 
     int paramID = param - paramList.begin();
 
-    uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
+    uint groupID = LCPUtil::addrGroupID(addr);
+    uint offset = LCPUtil::addrOffset(addr);
 
     vector<int> &paramIDs = regGroup.at(groupID-1).paramIDs;
 
@@ -438,9 +419,10 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   char  respBuf[1024];
 
 
-  if (!definedRegRange(firstReg, numRegs))  return asynError;
+  if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
-//  uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
+//uint groupID = LCPUtil::addrGroupID(addr);
+//uint offset = LCPUtil::addrOffset(addr);
 
 
   size_t expectedRespSize = numRegs * 4 + 20;
@@ -484,7 +466,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   char  respBuf[32];
 
 
-  if (!definedRegRange(firstReg, numRegs))  return asynError;
+  if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
   uint maxNumRegs = (sizeof(cmdBuf) - 20) / 4;
   if (numRegs > maxNumRegs)  return asynError;
@@ -521,26 +503,34 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 {
   asynStatus  stat = asynSuccess;
-  const char  *paramName;
   int  paramID = pasynUser->reason;
+  ParamInfo &param = paramList.at(paramID);
 
-
-  getParamName(paramID, &paramName);
 
   do {
     if ((uint)paramID >= paramList.size())  {
-      cout << "*** paramID out of bounds ***" << endl;
+      cout << __func__ << " for " << portName << ": "
+           " *** paramID out of bounds ***" << endl;
       stat = asynError;  break;
     }
 
-    ParamInfo &param = paramList.at(paramID);
     if (param.asynType != asynParamInt32)  {
-      cout << "*** invalid parameter type ***" << endl;
+      cout << __func__ << " for " << portName << ":" << param.name << ": "
+           " *** invalid parameter type ***" << endl;
+      stat = asynError;  break;
+    }
+
+    if (param.readOnly)  {
+      cout << __func__ << " for " << portName << ":" << param.name << ": "
+           " *** param is read-only ***" << endl;
       stat = asynError;  break;
     }
 
     param.ctlrValSet = newVal;
     param.setState = SetState::Pending;
+
+  //ToDo: Add param to a linked-list of params with pending writes
+
   } while (0);
 
 
@@ -548,11 +538,12 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
                   typeid(this).name(), __func__,
-                  stat, paramID, paramName, newVal);
+                  stat, paramID, param.name.c_str(), newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
-              typeid(this).name(), __func__, paramID, paramName, newVal);
+              typeid(this).name(), __func__,
+              paramID, param.name.c_str(), newVal);
 
   return stat;
 }

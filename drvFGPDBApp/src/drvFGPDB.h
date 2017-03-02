@@ -66,13 +66,10 @@ class drvFGPDB : public asynPortDriver {
 
     void syncComLCP(void);
 
-    int processPendingWrites(int groupIdx);
+    int processPendingWrites(void);
 
 
-    static uint addrGroupID(uint addr)   { return ((addr >> 16) & 0xFFFF); }
-    static uint addrOffset(uint addr)  { return addr & 0xFFFF; }
-    static bool validRegAddr(uint addr);
-    bool definedRegRange(uint firstReg, uint numRegs);
+    bool inDefinedRegRange(uint firstReg, uint numRegs);
 
 
 

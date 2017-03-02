@@ -85,7 +85,8 @@ public:
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
     testDrv(drvFGPDB(drvName, syncIO, UDPPortName, maxParams)),
-    testParamID(0)
+    testParamID_RO(0),
+    testParamID_WA(0)
   {
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
@@ -108,14 +109,14 @@ public:
   //---------------------------------------------
   void addParams()  {
     auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams));
+    ASSERT_THAT(stat, Eq(numDrvParams));  testParamID_RO = stat;
     stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+1));
 
     stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+2));
     stat = addParam("lcpRegWA_2 0x20002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID = stat;
+    ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID_WA = stat;
     stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+4));
 
@@ -154,11 +155,11 @@ public:
   void setsPendingWriteStateForAParam()  {
     createAddrToParamMaps();
 
-    pasynUser->reason = testParamID;
+    pasynUser->reason = testParamID_WA;
     auto stat = testDrv.writeInt32(pasynUser, 42);
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.getParamInfo(testParamID, paramInfo);
+    stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
     ASSERT_THAT(paramInfo.ctlrValSet, Eq(42));
     ASSERT_THAT(paramInfo.setState, Eq(SetState::Pending));
   }
@@ -170,7 +171,7 @@ public:
   std::string  drvName;
   int  udpPortStat;
   drvFGPDB  testDrv;
-  int  testParamID;
+  int  testParamID_RO, testParamID_WA;
   int  numDrvParams;
   ParamInfo  paramInfo;
 };
@@ -261,10 +262,12 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
   auto stat = testDrv.createAsynParams();
   ASSERT_THAT(stat, Eq(asynSuccess));
 
+  stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
+
   int paramID;
-  stat = testDrv.findParam("lcpRegWA_2", &paramID);
+  stat = testDrv.findParam(paramInfo.name.c_str(), &paramID);
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(paramID, Eq(testParamID));
+  ASSERT_THAT(paramID, Eq(testParamID_WA));
 }
 
 //-----------------------------------------------------------------------------
@@ -304,6 +307,17 @@ TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
   createAddrToParamMaps();
 
   auto stat = testDrv.writeRegs(0x20004, 10);
+  ASSERT_THAT(stat, Eq(asynError));
+}
+
+//-----------------------------------------------------------------------------
+// NOTE: This requires the LCP simulator appl to be running on the same mach
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, failsOnWriteToReadOnlyParam) {
+  createAddrToParamMaps();
+
+  pasynUser->reason = numDrvParams;
+  auto stat = testDrv.writeInt32(pasynUser, 42);
   ASSERT_THAT(stat, Eq(asynError));
 }
 
@@ -352,10 +366,10 @@ TEST_F(AnFGPDBDriver, setsPendingWriteStateForAParam) {
 TEST_F(AnFGPDBDriver, processesPendingWrites) {
   setsPendingWriteStateForAParam();
 
-  auto ackdWrites = testDrv.processPendingWrites(1);
+  auto ackdWrites = testDrv.processPendingWrites();
   ASSERT_THAT(ackdWrites, Eq(1));
 
-  auto stat = testDrv.getParamInfo(testParamID, paramInfo);
+  auto stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(paramInfo.setState, Eq(SetState::Sent));
 }

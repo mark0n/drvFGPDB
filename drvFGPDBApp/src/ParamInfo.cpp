@@ -2,9 +2,12 @@
 
 #include <asynPortDriver.h>
 
+#include "LCPProtocol.h"
+
 #include "ParamInfo.h"
 
 using namespace std;
+
 
 const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Int32",         asynParamInt32         },
@@ -44,6 +47,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 
   asynType = strToAsynType(asynTypeName);
   ctlrFmt = strToCtlrFmt(ctlrFmtName);
+  readOnly = LCPUtil::readOnlyAddr(regAddr);
   ctlrValSet = 0;
   setState = SetState::Undefined;
 }

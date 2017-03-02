@@ -80,6 +80,7 @@ class ParamInfo {
       regAddr(0),
       asynType(asynParamNotDefined),
       ctlrFmt(CtlrDataFmt::NotDefined),
+      readOnly(true),
       ctlrValSet(0),
       setState(SetState::Undefined)
     {};
@@ -89,6 +90,7 @@ class ParamInfo {
       regAddr(info.regAddr),
       asynType(info.asynType),
       ctlrFmt(info.ctlrFmt),
+      readOnly(info.readOnly),
       ctlrValSet(info.ctlrValSet),
       setState(info.setState)
     {};
@@ -106,6 +108,8 @@ class ParamInfo {
     asynParamType  asynType;   // format of value used by driver
     CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
   //SyncMode       syncMode;   // relation between set and read values
+
+    bool           readOnly;   // clients cannot write to the value
 
     epicsUInt32    ctlrValSet; // value to write to ctlr (in ctlr format, host byte order)
     SetState       setState;   // state of ctlrValSet

@@ -23,4 +23,39 @@ enum class LCPStatus : std::int16_t {
   ERROR         = -999  // unclassified error
 };
 
+enum class ProcessGroup : std::int16_t {
+  Invalid = -1,
+  Driver  =  0,
+  LCP_RO  =  1,
+  LCP_WA  =  2,
+  LCP_WO  =  3
+};
+
+// To reduce clutter in code to make it readable
+#define  ProcGroup_Driver  ( static_cast<std::int16_t> (ProcessGroup::Driver) )
+#define  ProcGroup_LCP_RO  ( static_cast<std::int16_t> (ProcessGroup::LCP_RO) )
+#define  ProcGroup_LCP_WA  ( static_cast<std::int16_t> (ProcessGroup::LCP_WA) )
+#define  ProcGroup_LCP_WO  ( static_cast<std::int16_t> (ProcessGroup::LCP_WO) )
+
+
+class LCPUtil {
+public:
+  static int addrGroupID(uint addr)  { return ((addr >> 16) & 0x7FFF); }
+
+  static uint addrOffset(uint addr)   { return addr & 0xFFFF; }
+
+  static bool validRegAddr(uint addr)  {
+    uint groupID = addrGroupID(addr);
+    return (groupID > 0) and (groupID < 4);
+  }
+
+  static bool readOnlyAddr(uint addr)  {
+    uint groupID = addrGroupID(addr);
+    uint offset = addrOffset(addr);
+    return (groupID == ProcGroup_LCP_RO) or
+           ((groupID == ProcGroup_Driver) and (offset == 1));
+  }
+};
+
+
 #endif // LCPPROTOCOL_H
