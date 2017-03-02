@@ -268,19 +268,52 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 }
 
 //-----------------------------------------------------------------------------
-// Test reading LCP register values
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverWithAParameter, readRegValues) {
+TEST_F(AnFGPDBDriver, readsWithinDefinedRegRange) {
+  createAddrToParamMaps();
+
   auto stat = testDrv.readRegs(0x10000, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
+}
+
+//-----------------------------------------------------------------------------
+// NOTE: This requires the LCP simulator appl to be running on the same mach
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, failsOnReadOutsideDefinedRegRange) {
+  createAddrToParamMaps();
+
+  auto stat = testDrv.readRegs(0x10005, 10);
+  ASSERT_THAT(stat, Eq(asynError));
+}
+
+//-----------------------------------------------------------------------------
+// NOTE: This requires the LCP simulator appl to be running on the same mach
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, writesWithinDefinedRegRange) {
+  createAddrToParamMaps();
+
+  auto stat = testDrv.writeRegs(0x20000, 2);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+}
+
+//-----------------------------------------------------------------------------
+// NOTE: This requires the LCP simulator appl to be running on the same mach
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
+  createAddrToParamMaps();
+
+  auto stat = testDrv.writeRegs(0x20004, 10);
+  ASSERT_THAT(stat, Eq(asynError));
 }
 
 //-----------------------------------------------------------------------------
 // Test writing LCP register values
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverWithAParameter, writeRegValues) {
+TEST_F(AnFGPDBDriver, writeRegValues) {
+  createAddrToParamMaps();
+
   auto stat = testDrv.writeRegs(0x20000, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }

@@ -69,6 +69,13 @@ class drvFGPDB : public asynPortDriver {
     int processPendingWrites(int groupIdx);
 
 
+    static uint addrGroupID(uint addr)   { return ((addr >> 16) & 0xFFFF); }
+    static uint addrOffset(uint addr)  { return addr & 0xFFFF; }
+    static bool validRegAddr(uint addr);
+    bool definedRegRange(uint firstReg, uint numRegs);
+
+
+
 #ifndef TEST_DRVFGPDB
   private:
 #endif

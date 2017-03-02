@@ -70,15 +70,6 @@ ulong GetMS(void)
 
 ulong MSSince(ulong msTime) { return GetMS() - msTime; }
 
-//-----------------------------------------------------------------------------
-static uint addrGroupID(uint addr)   { return ((addr >> 16) & 0xFFFF); }
-
-static uint addrOffset(uint addr)  { return addr & 0xFFFF; }
-
-static bool validRegAddr(uint addr)  {
-  uint groupID = addrGroupID(addr);
-  return (groupID > 0) and (groupID < 4);
-}
 
 // Indexes into regGroup[]
 #define  LCP_RO  0  // Read-Only registers
@@ -318,19 +309,39 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::createAsynParams(void)
 {
-  cout << endl
-       << "create asyn params for: [" << portName << "]" << endl;  //tdebug
+//cout << endl
+//     << "create asyn params for: [" << portName << "]" << endl;
 
   int paramID;
   asynStatus stat;
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-    cout << "  created '" << param->name << "' [" << paramID << "]" << endl;  //tdebug
+//  cout << "  created '" << param->name << "' [" << paramID << "]" << endl;
   }
-  cout << endl;  //tdebug
+//cout << endl;
 
   return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
+// Returns true if addr is a valid LCP reg addr
+//-----------------------------------------------------------------------------
+bool drvFGPDB::validRegAddr(uint addr)
+{
+  uint groupID = addrGroupID(addr);
+  return (groupID > 0) and (groupID < 4);
+}
+
+//-----------------------------------------------------------------------------
+// Returns true if the range of LCP addresses is within the defined ones
+//-----------------------------------------------------------------------------
+bool drvFGPDB::definedRegRange(uint firstReg, uint numRegs)
+{
+  if (!validRegAddr(firstReg))  return false;
+  uint groupID = addrGroupID(firstReg);  uint offset = addrOffset(firstReg);
+  const RegGroup &group = regGroup.at(groupID-1);
+  return ((offset + numRegs) < group.maxOffset);
 }
 
 //-----------------------------------------------------------------------------
@@ -380,7 +391,7 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
 
     uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
 
-    vector<int> &paramIDs = regGroup[groupID-1].paramIDs;
+    vector<int> &paramIDs = regGroup.at(groupID-1).paramIDs;
 
     if (paramIDs.at(offset) >= 0)  {
       cout << "Device: " << portName << ": "
@@ -427,8 +438,12 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   char  respBuf[1024];
 
 
-  size_t expectedRespSize = numRegs * 4 + 20;
+  if (!definedRegRange(firstReg, numRegs))  return asynError;
 
+//  uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
+
+
+  size_t expectedRespSize = numRegs * 4 + 20;
   if (expectedRespSize > sizeof(respBuf))  return asynError;
 
   pBuf = cmdBuf;
@@ -469,8 +484,9 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   char  respBuf[32];
 
 
-  uint maxNumRegs = sizeof(cmdBuf) / 4 - 4;
+  if (!definedRegRange(firstReg, numRegs))  return asynError;
 
+  uint maxNumRegs = (sizeof(cmdBuf) - 20) / 4;
   if (numRegs > maxNumRegs)  return asynError;
 
   pBuf = cmdBuf;
