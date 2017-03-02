@@ -223,13 +223,12 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
   id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
 
-  ParamInfo param1;
-  asynStatus stat = testDrv.getParamInfo(numDrvParams, param1);
+  asynStatus stat = testDrv.getParamInfo(numDrvParams, paramInfo);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(param1.regAddr,  Eq(0x10001));
-  ASSERT_THAT(param1.asynType, Eq(asynParamInt32));
-  ASSERT_THAT(param1.ctlrFmt,  Eq(CtlrDataFmt::U32));
+  ASSERT_THAT(paramInfo.regAddr,  Eq(0x10001));
+  ASSERT_THAT(paramInfo.asynType, Eq(asynParamInt32));
+  ASSERT_THAT(paramInfo.ctlrFmt,  Eq(CtlrDataFmt::U32));
 }
 
 //-----------------------------------------------------------------------------
@@ -308,11 +307,15 @@ TEST_F(AnFGPDBDriverWithAParameter, setsPendingWriteValueOfParam) {
 
   stat = testDrv.getParamInfo(paramID, paramInfo);
   ASSERT_THAT(paramInfo.ctlrValSet, Eq(42));
+  ASSERT_THAT(paramInfo.setState, Eq(SetState::Pending));
 }
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverWithAParameter, launchesSyncComThread) {
-  epicsThreadSleep(1.0);
+  for (int i=0; i<200; ++i)  {
+    if (testDrv.syncThreadInitialized)  break;
+    epicsThreadSleep(0.010);
+  }
   ASSERT_THAT(testDrv.syncThreadInitialized, Eq(true));
 }
 
