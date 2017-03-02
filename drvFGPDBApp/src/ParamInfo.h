@@ -18,8 +18,9 @@ enum class CtlrDataFmt {
 };
 
 enum class SetState {
-  Undefined,     // no value written to the parameter yet
-  Pending        // new value waiting to be sent
+  Undefined,  // no value written to the parameter yet
+  Pending,    // new value waiting to be sent
+  Sent        // ctlr ack'd write cmd (but not necessarily the new value)
 };
 
 

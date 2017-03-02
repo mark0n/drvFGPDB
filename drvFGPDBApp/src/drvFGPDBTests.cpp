@@ -114,7 +114,7 @@ public:
 
     stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+2));
-    stat = addParam("lcpRegWA_2 0x20002 Float64 F32");
+    stat = addParam("lcpRegWA_2 0x20002 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID = stat;
     stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+4));
@@ -124,30 +124,43 @@ public:
   }
 
   //---------------------------------------------
-  void determineRegRanges()  {
+  void determineAddrRanges()  {
     addParams();
 
     auto stat = testDrv.createAsynParams();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.determineRegRanges();
+    stat = testDrv.determineAddrRanges();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.maxOffset[0], Eq(5));
-    ASSERT_THAT(testDrv.maxOffset[1], Eq(4));
-    ASSERT_THAT(testDrv.maxOffset[2], Eq(2));
+    ASSERT_THAT(testDrv.regGroup[0].maxOffset, Eq(5));
+    ASSERT_THAT(testDrv.regGroup[1].maxOffset, Eq(4));
+    ASSERT_THAT(testDrv.regGroup[2].maxOffset, Eq(2));
   }
 
   //---------------------------------------------
-  void createRegLists()  {
-    determineRegRanges();
+  void createAddrToParamMaps()  {
+    determineAddrRanges();
 
-    auto stat = testDrv.createRegLists();
+    auto stat = testDrv.createAddrToParamMaps();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.regLists[0].size(), Eq(6));
-    ASSERT_THAT(testDrv.regLists[1].size(), Eq(5));
-    ASSERT_THAT(testDrv.regLists[2].size(), Eq(3));
+    ASSERT_THAT(testDrv.regGroup[0].paramIDs.size(), Eq(6));
+    ASSERT_THAT(testDrv.regGroup[1].paramIDs.size(), Eq(5));
+    ASSERT_THAT(testDrv.regGroup[2].paramIDs.size(), Eq(3));
+  }
+
+//---------------------------------------------
+  void setsPendingWriteStateForAParam()  {
+    createAddrToParamMaps();
+
+    pasynUser->reason = testParamID;
+    auto stat = testDrv.writeInt32(pasynUser, 42);
+    ASSERT_THAT(stat, Eq(asynSuccess));
+
+    stat = testDrv.getParamInfo(testParamID, paramInfo);
+    ASSERT_THAT(paramInfo.ctlrValSet, Eq(42));
+    ASSERT_THAT(paramInfo.setState, Eq(SetState::Pending));
   }
 
   //---------------------------------------------
@@ -277,15 +290,15 @@ TEST_F(AnFGPDBDriverWithAParameter, failsIfMultParamsWithSameRegAddr) {
   auto stat = addParam("lcpRegWA_01 0x20001 Int32 U32");
   ASSERT_THAT(stat, Eq(numDrvParams+1));
 
-  stat = testDrv.determineRegRanges();
+  stat = testDrv.determineAddrRanges();
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv.createRegLists();
+  stat = testDrv.createAddrToParamMaps();
   ASSERT_THAT(stat, Eq(asynError));
 }
 
 //-----------------------------------------------------------------------------
-/* The writeXxx() functions to NOT do I/O because they could block...
+/* The writeXxx() functions to NOT do I/O because they would have to block...
 TEST_F(AnFGPDBDriver, writesDataToAsyn) {
   EXPECT_CALL(*syncIO, write(pasynUser, _, _)).WillOnce(Return(asynSuccess));
   testDrv.writeInt32(pasynUser, 42);
@@ -293,25 +306,29 @@ TEST_F(AnFGPDBDriver, writesDataToAsyn) {
 */
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, determineRegRanges) { determineRegRanges(); }
+TEST_F(AnFGPDBDriver, determineAddrRanges) { determineAddrRanges(); }
 
-TEST_F(AnFGPDBDriver, createRegsLists) { createRegLists(); }
+TEST_F(AnFGPDBDriver, createAddrToParamMaps) { createAddrToParamMaps(); }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverWithAParameter, setsPendingWriteValueOfParam) {
-  auto paramID = addParam("lcpRegWA_2 0x20002 Int32 U32");
-
-  pasynUser->reason = paramID;
-  auto stat = testDrv.writeInt32(pasynUser, 42);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  stat = testDrv.getParamInfo(paramID, paramInfo);
-  ASSERT_THAT(paramInfo.ctlrValSet, Eq(42));
-  ASSERT_THAT(paramInfo.setState, Eq(SetState::Pending));
+TEST_F(AnFGPDBDriver, setsPendingWriteStateForAParam) {
+  setsPendingWriteStateForAParam();
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverWithAParameter, launchesSyncComThread) {
+TEST_F(AnFGPDBDriver, processesPendingWrites) {
+  setsPendingWriteStateForAParam();
+
+  auto ackdWrites = testDrv.processPendingWrites(1);
+  ASSERT_THAT(ackdWrites, Eq(1));
+
+  auto stat = testDrv.getParamInfo(testParamID, paramInfo);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+  ASSERT_THAT(paramInfo.setState, Eq(SetState::Sent));
+}
+
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, launchesSyncComThread) {
   for (int i=0; i<200; ++i)  {
     if (testDrv.syncThreadInitialized)  break;
     epicsThreadSleep(0.010);

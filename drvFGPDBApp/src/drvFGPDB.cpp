@@ -75,10 +75,16 @@ static uint addrGroupID(uint addr)   { return ((addr >> 16) & 0xFFFF); }
 
 static uint addrOffset(uint addr)  { return addr & 0xFFFF; }
 
-static bool isRegAddr(uint addr)  {
+static bool validRegAddr(uint addr)  {
   uint groupID = addrGroupID(addr);
   return (groupID > 0) and (groupID < 4);
 }
+
+// Indexes into regGroup[]
+#define  LCP_RO  0  // Read-Only registers
+#define  LCP_WA  1  // Write-Anytime registers
+#define  LCP_WO  2  // Write-Once registers
+
 
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
@@ -88,7 +94,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
     maxParams(maxParams_),
-    maxOffset{0,0,0},
     packetID(0),
     syncThreadInitialized(false)
 {
@@ -172,7 +177,44 @@ void drvFGPDB::syncComLCP(void)
 {
   syncThreadInitialized = true;
 
-  while (true)  epicsThreadSleep(0.100);
+
+  for (;;)  {
+    //readRegs(0, regGroup.at(LCP_RO).maxOffset);
+    //readRegs(0, regGroup.at(LCP_WA).maxOffset);
+
+    //processPendingWrites(LCP_WA);
+    //processPendingWrites(LCP_WO);
+
+    epicsThreadSleep(0.200);
+  }
+}
+
+
+//-----------------------------------------------------------------------------
+//  Send any pending write values for the specified group of LCP registers.
+//  Returns the # of ack'd writes or < 0 if an error.
+//-----------------------------------------------------------------------------
+int drvFGPDB::processPendingWrites(int groupIdx)
+{
+  if ((groupIdx != LCP_WA) and (groupIdx != LCP_WO))  return -1;
+
+  RegGroup &group = regGroup.at(groupIdx);
+  vector<int> &idMap = group.paramIDs;
+
+  int  paramID, ackdCount = 0;
+  for (auto it = idMap.begin(); it != idMap.end(); ++it)  {
+    if ((paramID = *it) < 0)  continue;
+
+    ParamInfo &param = paramList.at(paramID);
+    if (param.setState != SetState::Pending)  continue;
+
+    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
+
+    param.setState = SetState::Sent;
+    ++ackdCount;
+  }
+
+  return ackdCount;
 }
 
 
@@ -294,7 +336,7 @@ asynStatus drvFGPDB::createAsynParams(void)
 //-----------------------------------------------------------------------------
 // Determine the range of addresses in each LCP register group
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::determineRegRanges(void)
+asynStatus drvFGPDB::determineAddrRanges(void)
 {
   asynStatus stat = asynSuccess;
 
@@ -303,54 +345,52 @@ asynStatus drvFGPDB::determineRegRanges(void)
     auto addr = param->regAddr;
     uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
 
-    if (groupID == 0)  continue;  // Driver parameter
-
-    if (groupID < 4)  {
-      uint groupIdx = groupID - 1;
-      if (offset > maxOffset[groupIdx])  maxOffset[groupIdx] = offset;
-      continue;
+    if (validRegAddr(addr))  {
+      RegGroup &group = regGroup.at(groupID - 1);
+      if (offset > group.maxOffset)  group.maxOffset = offset;
+    } else {
+      if (groupID == 0)  continue;  // Driver parameter
+      cout << "Invalid addr/group ID for parameter: " << param->name << endl;
+      stat = asynError;
     }
-
-    cout << "Invalid addr/group ID for parameter: " << param->name << endl;
-    stat = asynError;
   }
 
   return stat;
 }
 
 //-----------------------------------------------------------------------------
-// Create the lists of parameters for each LCP register group
+// Create the lists that map reg addrs to params
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::createRegLists(void)
+asynStatus drvFGPDB::createAddrToParamMaps(void)
 {
   asynStatus stat = asynSuccess;
 
-  for (uint u=0; u<3; ++u)  {
-    if (maxOffset[u] < 1)  continue;
-    regLists[u] = vector<int>(maxOffset[u]+1, -1);
+  for (auto group = regGroup.begin(); group != regGroup.end(); ++group)  {
+    if (group->maxOffset < 1)  continue;
+    group->paramIDs = vector<int>(group->maxOffset+1, -1);
   }
 
 
   for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
 
-    int paramID = param - paramList.begin();
     auto addr = param->regAddr;
+    if (!validRegAddr(addr))  continue;
 
-    if (!isRegAddr(addr))  continue;
+    int paramID = param - paramList.begin();
 
     uint groupID = addrGroupID(addr);  uint offset = addrOffset(addr);
 
-    vector<int> &regList = regLists[groupID - 1];
+    vector<int> &paramIDs = regGroup[groupID-1].paramIDs;
 
-    if (regList.at(offset) >= 0)  {
+    if (paramIDs.at(offset) >= 0)  {
       cout << "Device: " << portName << ": "
            "*** Multiple params with same LCP reg addr ***" << endl
-           << "  " << paramList.at(regList.at(offset)).name
+           << "  " << paramList.at(paramIDs.at(offset)).name
            << " and " << paramList.at(paramID).name << endl;
       stat = asynError;
     }
 
-    regList.at(offset) = paramID;
+    paramIDs.at(offset) = paramID;
   }
 
   return stat;
@@ -369,8 +409,8 @@ void drvFGPDB_initHookFunc(initHookState state)
     drvFGPDB *drv = *it;
 
     if (drv->createAsynParams() != asynSuccess)  continue;
-    if (drv->determineRegRanges() != asynSuccess)  continue;
-    if (drv->createRegLists() != asynSuccess)  continue;
+    if (drv->determineAddrRanges() != asynSuccess)  continue;
+    if (drv->createAddrToParamMaps() != asynSuccess)  continue;
   }
 }
 

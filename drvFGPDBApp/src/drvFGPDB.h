@@ -37,6 +37,16 @@
 
 void drvFGPDB_initHookFunc(initHookState state);
 
+//-----------------------------------------------------------------------------
+class RegGroup {
+  public:
+    RegGroup() :
+      maxOffset(0)
+    { };
+
+    uint  maxOffset;             // largest addr offset (0 - 0xFFFF)
+    std::vector<int>  paramIDs;  // offset to paramID map
+};
 
 //-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
@@ -55,6 +65,8 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
 
     void syncComLCP(void);
+
+    int processPendingWrites(int groupIdx);
 
 
 #ifndef TEST_DRVFGPDB
@@ -78,8 +90,8 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus createAsynParams(void);
 
-    asynStatus determineRegRanges(void);
-    asynStatus createRegLists(void);
+    asynStatus determineAddrRanges(void);
+    asynStatus createAddrToParamMaps(void);
 
 
     static const int MaxAddr = 1;
@@ -99,8 +111,7 @@ class drvFGPDB : public asynPortDriver {
 
     int maxParams;  // upper limit on total # params
 
-    uint maxOffset[3];  // largest reg addr offset for each LCP reg group
-    std::vector<int> regLists[3];  // Ordered list of params in each group
+    std::array<RegGroup,3> regGroup;
 
     epicsUInt32 packetID;
 
