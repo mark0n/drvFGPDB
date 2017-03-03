@@ -24,7 +24,6 @@ enum class LCPStatus : std::int16_t {
 };
 
 enum class ProcessGroup : std::int16_t {
-  Invalid = -1,
   Driver  =  0,
   LCP_RO  =  1,
   LCP_WA  =  2,

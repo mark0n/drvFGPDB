@@ -101,8 +101,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     throw invalid_argument("Invalid asyn UDP port name");
   }
 
-  cout << "  asyn driver for: " << drvPortName
-       << " connected to asyn UDP port: " << udpPortName << endl;
+//  cout << "  asyn driver for: " << drvPortName
+//       << " connected to asyn UDP port: " << udpPortName << endl;
 
   startThread(string("sync"), (EPICSTHREADFUNC)::syncComLCP);
 }
@@ -183,12 +183,12 @@ int drvFGPDB::processPendingWrites(void)
   //ToDo: Use a linked-list of params with pending writes
 
   int ackdCount = 0;
-  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
-    if (param->setState != SetState::Pending)  continue;
+  for (auto &param : paramList)  {
+    if (param.setState != SetState::Pending)  continue;
 
-    if (writeRegs(param->regAddr, 1) != asynSuccess)  continue;
+    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
 
-    param->setState = SetState::Sent;
+    param.setState = SetState::Sent;
     ++ackdCount;
   }
 
@@ -201,10 +201,10 @@ int drvFGPDB::processPendingWrites(void)
 //-----------------------------------------------------------------------------
 void drvFGPDB::addDriverParams(void)
 {
-  for (auto str=driverParamDefs.begin(); str!=driverParamDefs.end(); ++str) {
+  for (auto const &str : driverParamDefs) {
     if (paramList.size() >= (uint)maxParams)
       throw invalid_argument("# driver params > maxParams");
-    ParamInfo param(*str, portName);
+    ParamInfo param(str, portName);
     paramList.push_back(param);
   }
 }
@@ -467,6 +467,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
+  if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
   uint maxNumRegs = (sizeof(cmdBuf) - 20) / 4;
   if (numRegs > maxNumRegs)  return asynError;

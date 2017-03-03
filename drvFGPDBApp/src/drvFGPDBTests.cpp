@@ -301,8 +301,6 @@ TEST_F(AnFGPDBDriver, writesWithinDefinedRegRange) {
 }
 
 //-----------------------------------------------------------------------------
-// NOTE: This requires the LCP simulator appl to be running on the same mach
-//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
   createAddrToParamMaps();
 
@@ -311,12 +309,21 @@ TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
 }
 
 //-----------------------------------------------------------------------------
-// NOTE: This requires the LCP simulator appl to be running on the same mach
+TEST_F(AnFGPDBDriver, failsOnAttemptToSendReadOnlyRegs) {
+  createAddrToParamMaps();
+
+  auto stat = testDrv.getParamInfo(testParamID_RO, paramInfo);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.writeRegs(paramInfo.regAddr, 1);
+  ASSERT_THAT(stat, Eq(asynError));
+}
+
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnWriteToReadOnlyParam) {
   createAddrToParamMaps();
 
-  pasynUser->reason = numDrvParams;
+  pasynUser->reason = testParamID_RO;
   auto stat = testDrv.writeInt32(pasynUser, 42);
   ASSERT_THAT(stat, Eq(asynError));
 }
