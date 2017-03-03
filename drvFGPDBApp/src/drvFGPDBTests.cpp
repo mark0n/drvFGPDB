@@ -85,8 +85,9 @@ public:
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
     testDrv(drvFGPDB(drvName, syncIO, UDPPortName, maxParams)),
-    testParamID_RO(0),
-    testParamID_WA(0)
+    testParamID_RO(-1),
+    maxParamID_RO(-1),
+    testParamID_WA(-1)
   {
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
@@ -111,7 +112,7 @@ public:
     auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams));  testParamID_RO = stat;
     stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
-    ASSERT_THAT(stat, Eq(numDrvParams+1));
+    ASSERT_THAT(stat, Eq(numDrvParams+1));  maxParamID_RO = stat;
 
     stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+2));
@@ -171,7 +172,7 @@ public:
   std::string  drvName;
   int  udpPortStat;
   drvFGPDB  testDrv;
-  int  testParamID_RO, testParamID_WA;
+  int  testParamID_RO, maxParamID_RO, testParamID_WA;
   int  numDrvParams;
   ParamInfo  paramInfo;
 };
@@ -263,6 +264,7 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
+  ASSERT_THAT(stat, Eq(asynSuccess));
 
   int paramID;
   stat = testDrv.findParam(paramInfo.name.c_str(), &paramID);
@@ -271,12 +273,30 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 }
 
 //-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, rangeCheckReturnsValidResults) {
+  createAddrToParamMaps();
+
+  bool validRange = testDrv.inDefinedRegRange(0, 10);
+  ASSERT_THAT(validRange, Eq(false));
+
+  auto stat = testDrv.getParamInfo(maxParamID_RO, paramInfo);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  uint numRegsRO = paramInfo.regAddr - 0x10000;
+  validRange = testDrv.inDefinedRegRange(0x10000, numRegsRO);
+  ASSERT_THAT(validRange, Eq(true));
+}
+
+//-----------------------------------------------------------------------------
 // NOTE: This requires the LCP simulator appl to be running on the same mach
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, readsWithinDefinedRegRange) {
   createAddrToParamMaps();
 
-  auto stat = testDrv.readRegs(0x10000, 2);
+  auto stat = testDrv.getParamInfo(maxParamID_RO, paramInfo);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.readRegs(paramInfo.regAddr, 1);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 

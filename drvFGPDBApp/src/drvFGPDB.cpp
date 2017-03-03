@@ -320,7 +320,7 @@ bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
   const RegGroup &group = regGroup.at(groupID-1);
-  return ((offset + numRegs) < group.maxOffset);
+  return ((offset + numRegs - 1) <= group.maxOffset);
 }
 
 //-----------------------------------------------------------------------------
