@@ -56,8 +56,6 @@ static const list<string> driverParamDefs = {
 };
 
 
-static void syncComLCP(void *drvPvt);
-
 //-----------------------------------------------------------------------------
 // Return the time as a millisecond counter that wraps around
 //-----------------------------------------------------------------------------
@@ -80,7 +78,9 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     syncIO(syncIOWrapper),
     maxParams(maxParams_),
     packetID(0),
-    syncThreadInitialized(false)
+    syncThreadInitialized(false),
+    stopSyncThread(false),
+    syncThread(&drvFGPDB::syncComLCP, this)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -103,13 +103,14 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
 //  cout << "  asyn driver for: " << drvPortName
 //       << " connected to asyn UDP port: " << udpPortName << endl;
-
-  startThread(string("sync"), (EPICSTHREADFUNC)::syncComLCP);
 }
 
 //-----------------------------------------------------------------------------
 drvFGPDB::~drvFGPDB()
 {
+  stopSyncThread = true;
+  syncThread.join();
+
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
 //  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 
@@ -117,52 +118,15 @@ drvFGPDB::~drvFGPDB()
 }
 
 //-----------------------------------------------------------------------------
-// Create a thread to manage ongoing communication with the controller
-//-----------------------------------------------------------------------------
-void drvFGPDB::startThread(const string &prefix, EPICSTHREADFUNC funcPtr)
-{
-  string threadName(prefix + portName);
-
-  if ( epicsThreadCreate(threadName.c_str(),
-                         epicsThreadPriorityMedium,
-                         epicsThreadGetStackSize(epicsThreadStackMedium),
-                         funcPtr, this) == NULL)  {
-    cout << typeid(this).name() << "::" << __func__ << ": "
-         << "epicsThreadCreate failure" << endl;
-    throw runtime_error("Unable to start new thread");
-  }
-
-  ulong startTime = GetMS();
-  while (!syncThreadInitialized)  {
-    if (MSSince(startTime) > 10000)  {
-      cout << typeid(this).name() << "::" << __func__ << ": "
-           "Thread " << threadName << " failed to initialize" << endl;
-      throw runtime_error("New thread did not initialize");
-    }
-    if (syncThreadInitialized)  break;
-    epicsThreadSleep(0.010);
-  }
-
-}
-
-//-----------------------------------------------------------------------------
-static void syncComLCP(void *drvPvt)
-{
-  drvFGPDB *pdrv = (drvFGPDB *)drvPvt;
-
-  pdrv->syncComLCP();
-}
-
-//-----------------------------------------------------------------------------
 //  Task run in a separate thread to manage synchronous communication with a
 //  controller that supports LCP.
 //-----------------------------------------------------------------------------
-void drvFGPDB::syncComLCP(void)
+void drvFGPDB::syncComLCP()
 {
   syncThreadInitialized = true;
 
 
-  for (;;)  {
+  while (!stopSyncThread)  {
     //readRegs(0, regGroup.at(ProcGroup_LCP_RO).maxOffset);
     //readRegs(0, regGroup.at(ProcGroup_LCP_WA).maxOffset);
 

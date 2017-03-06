@@ -25,6 +25,8 @@
 #include <vector>
 #include <list>
 #include <memory>
+#include <thread>
+#include <atomic>
 
 #include <asynPortDriver.h>
 #include <asynOctetSyncIO.h>
@@ -78,8 +80,6 @@ class drvFGPDB : public asynPortDriver {
 #endif
     friend void drvFGPDB_initHookFunc(initHookState state);
 
-    void startThread(const std::string &prefix, EPICSTHREADFUNC funcPtr);
-
     void addDriverParams(void);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
@@ -123,7 +123,9 @@ class drvFGPDB : public asynPortDriver {
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
-    bool  syncThreadInitialized;
+    std::atomic<bool> syncThreadInitialized;
+    std::atomic<bool> stopSyncThread;
+    std::thread syncThread;
 };
 
 //-----------------------------------------------------------------------------
