@@ -463,6 +463,22 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
                          2.0, &rcvd, &eomReason);
   if (rcvd != expectedRespSize)  return asynError;
 
+  //todo:  Check header values in returned packet
+  pBuf = respBuf + 20;
+
+  uint groupID = LCPUtil::addrGroupID(firstReg);
+  uint offset = LCPUtil::addrOffset(firstReg);
+
+  RegGroup &group = getRegGroup(groupID);
+
+  for (uint u=0; u<numRegs; ++u,++offset)  {
+    uint paramID = group.paramIDs.at(offset);
+    if (paramID > paramList.size())  continue;
+    ParamInfo param = paramList.at(paramID);
+    param.ctlrValRead = ntohl(*(U32 *)pBuf);  pBuf += 4;
+    param.readState = ReadState::Current;
+  }
+
   return asynSuccess;
 }
 
@@ -517,6 +533,10 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   pasynOctetSyncIO->read(pAsynUserUDP, (char *)respBuf, sizeof(respBuf),
                          2.0, &rcvd, &eomReason);
   if (rcvd != 20)  return asynError;
+
+  //todo:
+  //  - Check header values in returned packet
+  //  - Update the setState of the params
 
   return asynSuccess;
 }

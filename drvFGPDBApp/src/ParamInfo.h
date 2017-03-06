@@ -23,6 +23,11 @@ enum class SetState {
   Sent        // ctlr ack'd write cmd (but not necessarily the new value)
 };
 
+enum class ReadState {
+  Undefined,  // no value read from ctlr yet
+  Current,    // value recently read from controller
+};
+
 
 /* For probable future use
 //===== values for StaticRegInfo.syncMode =====
@@ -82,7 +87,9 @@ class ParamInfo {
       ctlrFmt(CtlrDataFmt::NotDefined),
       readOnly(true),
       ctlrValSet(0),
-      setState(SetState::Undefined)
+      setState(SetState::Undefined),
+      ctlrValRead(0),
+      readState(ReadState::Undefined)
     {};
 
     ParamInfo(const ParamInfo &info) :
@@ -92,7 +99,9 @@ class ParamInfo {
       ctlrFmt(info.ctlrFmt),
       readOnly(info.readOnly),
       ctlrValSet(info.ctlrValSet),
-      setState(info.setState)
+      setState(info.setState),
+      ctlrValRead(info.ctlrValRead),
+      readState(info.readState)
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -104,16 +113,18 @@ class ParamInfo {
 
 
     std::string    name;
-    uint           regAddr;    // LCP reg addr or driver param group
-    asynParamType  asynType;   // format of value used by driver
-    CtlrDataFmt    ctlrFmt;    // format of value sent to/read from controller
-  //SyncMode       syncMode;   // relation between set and read values
+    uint           regAddr;     // LCP reg addr or driver param group
+    asynParamType  asynType;    // format of value used by driver
+    CtlrDataFmt    ctlrFmt;     // format of value sent to/read from controller
+  //SyncMode       syncMode;    // relation between set and read values
 
-    bool           readOnly;   // clients cannot write to the value
+    bool           readOnly;    // clients cannot write to the value
 
-    epicsUInt32    ctlrValSet; // value to write to ctlr (in ctlr format, host byte order)
-    SetState       setState;   // state of ctlrValSet
+    epicsUInt32    ctlrValSet;  // value to write to ctlr (in ctlr fmt, host byte order)
+    SetState       setState;    // state of ctlrValSet
 
+    epicsUInt32    ctlrValRead; // most recently read value (in ctlr fmt, host byte order)
+    ReadState      readState;   // state of ctlrValRead
 
 #ifndef TEST_DRVFGPDB
   private:
