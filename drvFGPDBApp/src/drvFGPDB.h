@@ -68,7 +68,7 @@ class drvFGPDB : public asynPortDriver {
 
     int processPendingWrites(void);
 
-
+    RegGroup & getRegGroup(uint groupID);
     bool inDefinedRegRange(uint firstReg, uint numRegs);
 
 

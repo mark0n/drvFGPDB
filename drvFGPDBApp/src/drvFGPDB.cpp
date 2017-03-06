@@ -312,14 +312,28 @@ asynStatus drvFGPDB::createAsynParams(void)
 }
 
 //-----------------------------------------------------------------------------
+// Returns a reference to a RegGroup object for the specified groupID.
+//-----------------------------------------------------------------------------
+RegGroup & drvFGPDB::getRegGroup(uint groupID)
+{
+  uint groupIdx = groupID - 1;
+  if (groupIdx >= regGroup.size())
+    throw out_of_range("Invalid LCP register group ID");
+
+  return regGroup.at(groupIdx);
+}
+
+//-----------------------------------------------------------------------------
 // Returns true if the range of LCP addresses is within the defined ones
 //-----------------------------------------------------------------------------
 bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
 {
   if (!LCPUtil::validRegAddr(firstReg))  return false;
+
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
-  const RegGroup &group = regGroup.at(groupID-1);
+  const RegGroup &group = getRegGroup(groupID);
+
   return ((offset + numRegs - 1) <= group.maxOffset);
 }
 
@@ -337,7 +351,7 @@ asynStatus drvFGPDB::determineAddrRanges(void)
     uint offset = LCPUtil::addrOffset(addr);
 
     if (LCPUtil::validRegAddr(addr))  {
-      RegGroup &group = regGroup.at(groupID - 1);
+      RegGroup &group = getRegGroup(groupID);
       if (offset > group.maxOffset)  group.maxOffset = offset;
     } else {
       if (groupID == 0)  continue;  // Driver parameter
@@ -372,7 +386,7 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
     uint groupID = LCPUtil::addrGroupID(addr);
     uint offset = LCPUtil::addrOffset(addr);
 
-    vector<int> &paramIDs = regGroup.at(groupID-1).paramIDs;
+    vector<int> &paramIDs = getRegGroup(groupID).paramIDs;
 
     if (paramIDs.at(offset) >= 0)  {
       cout << "Device: " << portName << ": "
@@ -479,8 +493,17 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   *(U32 *)pBuf = htonl(firstReg);    pBuf += 4;
   *(U32 *)pBuf = htonl(numRegs);     pBuf += 4;
 
-  for (uint u=0; u<numRegs; ++u)  {
-    *(U32 *)pBuf = htonl(u);  pBuf += 4; }  //test-only
+  uint groupID = LCPUtil::addrGroupID(firstReg);
+  uint offset = LCPUtil::addrOffset(firstReg);
+
+  RegGroup &group = getRegGroup(groupID);
+
+  for (uint u=0; u<numRegs; ++u,++offset)  {
+    uint paramID = group.paramIDs.at(offset);
+    if (paramID > paramList.size())  return asynError;
+    ParamInfo param = paramList.at(paramID);
+    *(U32 *)pBuf = htonl(param.ctlrValSet);  pBuf += 4;
+  }
 
   pktSize = pBuf - cmdBuf;
 

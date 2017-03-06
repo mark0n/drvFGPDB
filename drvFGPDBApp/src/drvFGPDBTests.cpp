@@ -109,20 +109,25 @@ public:
 
   //---------------------------------------------
   void addParams()  {
+    // Np params for addrs 0x10000 - 0x10001
     auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams));  testParamID_RO = stat;
+    // No params for addrs 0x10003 - 0x10004
     stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+1));  maxParamID_RO = stat;
 
     stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+2));
+    //No param defined for addr 0x20001
     stat = addParam("lcpRegWA_2 0x20002 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID_WA = stat;
-    stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
+    stat = addParam("lcpRegWA_3 0x20003 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+4));
+    stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
+    ASSERT_THAT(stat, Eq(numDrvParams+5));
 
     stat = addParam("lcpRegWO_2 0x30002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+5));
+    ASSERT_THAT(stat, Eq(numDrvParams+6));
   }
 
   //---------------------------------------------
@@ -160,9 +165,9 @@ public:
     auto stat = testDrv.writeInt32(pasynUser, 42);
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
-    ASSERT_THAT(paramInfo.ctlrValSet, Eq(42));
-    ASSERT_THAT(paramInfo.setState, Eq(SetState::Pending));
+    stat = testDrv.getParamInfo(testParamID_WA, param);
+    ASSERT_THAT(param.ctlrValSet, Eq(42));
+    ASSERT_THAT(param.setState, Eq(SetState::Pending));
   }
 
   //---------------------------------------------
@@ -174,7 +179,7 @@ public:
   drvFGPDB  testDrv;
   int  testParamID_RO, maxParamID_RO, testParamID_WA;
   int  numDrvParams;
-  ParamInfo  paramInfo;
+  ParamInfo  param;
 };
 
 
@@ -238,12 +243,12 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
   id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
 
-  asynStatus stat = testDrv.getParamInfo(numDrvParams, paramInfo);
+  asynStatus stat = testDrv.getParamInfo(numDrvParams, param);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(paramInfo.regAddr,  Eq(0x10001));
-  ASSERT_THAT(paramInfo.asynType, Eq(asynParamInt32));
-  ASSERT_THAT(paramInfo.ctlrFmt,  Eq(CtlrDataFmt::U32));
+  ASSERT_THAT(param.regAddr,  Eq(0x10001));
+  ASSERT_THAT(param.asynType, Eq(asynParamInt32));
+  ASSERT_THAT(param.ctlrFmt,  Eq(CtlrDataFmt::U32));
 }
 
 //-----------------------------------------------------------------------------
@@ -263,11 +268,11 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
   auto stat = testDrv.createAsynParams();
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
+  stat = testDrv.getParamInfo(testParamID_WA, param);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   int paramID;
-  stat = testDrv.findParam(paramInfo.name.c_str(), &paramID);
+  stat = testDrv.findParam(param.name.c_str(), &paramID);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(paramID, Eq(testParamID_WA));
 }
@@ -279,10 +284,10 @@ TEST_F(AnFGPDBDriver, rangeCheckReturnsValidResults) {
   bool validRange = testDrv.inDefinedRegRange(0, 10);
   ASSERT_THAT(validRange, Eq(false));
 
-  auto stat = testDrv.getParamInfo(maxParamID_RO, paramInfo);
+  auto stat = testDrv.getParamInfo(maxParamID_RO, param);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  uint numRegsRO = paramInfo.regAddr - 0x10000;
+  uint numRegsRO = param.regAddr - 0x10000;
   validRange = testDrv.inDefinedRegRange(0x10000, numRegsRO);
   ASSERT_THAT(validRange, Eq(true));
 }
@@ -293,15 +298,21 @@ TEST_F(AnFGPDBDriver, rangeCheckReturnsValidResults) {
 TEST_F(AnFGPDBDriver, readsWithinDefinedRegRange) {
   createAddrToParamMaps();
 
-  auto stat = testDrv.getParamInfo(maxParamID_RO, paramInfo);
+  auto stat = testDrv.getParamInfo(maxParamID_RO, param);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv.readRegs(paramInfo.regAddr, 1);
+  stat = testDrv.readRegs(param.regAddr, 1);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
 //-----------------------------------------------------------------------------
-// NOTE: This requires the LCP simulator appl to be running on the same mach
+TEST_F(AnFGPDBDriver, failsOnWriteForUnmappedRegValue) {
+  createAddrToParamMaps();
+
+  auto stat = testDrv.writeRegs(0x20001, 1);
+  ASSERT_THAT(stat, Eq(asynError));
+}
+
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, failsOnReadOutsideDefinedRegRange) {
   createAddrToParamMaps();
@@ -311,12 +322,32 @@ TEST_F(AnFGPDBDriver, failsOnReadOutsideDefinedRegRange) {
 }
 
 //-----------------------------------------------------------------------------
-// NOTE: This requires the LCP simulator appl to be running on the same mach
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, writesWithinDefinedRegRange) {
+TEST_F(AnFGPDBDriver, failsOnWriteWithUnsetRegs) {
   createAddrToParamMaps();
 
-  auto stat = testDrv.writeRegs(0x20000, 2);
+  auto stat = testDrv.writeRegs(0x20002, 4);
+  ASSERT_THAT(stat, Eq(asynError));
+}
+
+
+//-----------------------------------------------------------------------------
+// NOTE: This requires the LCP simulator appl to be running on the same mach
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, writesGroupOfSetRegs) {
+  createAddrToParamMaps();
+
+  pasynUser->reason = testParamID_WA;
+  auto stat = testDrv.writeInt32(pasynUser, 222);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  pasynUser->reason = testParamID_WA + 1;
+  stat = testDrv.writeInt32(pasynUser, 333);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.getParamInfo(testParamID_WA, param);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.writeRegs(param.regAddr, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
@@ -324,7 +355,10 @@ TEST_F(AnFGPDBDriver, writesWithinDefinedRegRange) {
 TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
   createAddrToParamMaps();
 
-  auto stat = testDrv.writeRegs(0x20004, 10);
+  auto stat = testDrv.getParamInfo(testParamID_WA, param);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.writeRegs(param.regAddr, 10);
   ASSERT_THAT(stat, Eq(asynError));
 }
 
@@ -332,10 +366,10 @@ TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
 TEST_F(AnFGPDBDriver, failsOnAttemptToSendReadOnlyRegs) {
   createAddrToParamMaps();
 
-  auto stat = testDrv.getParamInfo(testParamID_RO, paramInfo);
+  auto stat = testDrv.getParamInfo(testParamID_RO, param);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv.writeRegs(paramInfo.regAddr, 1);
+  stat = testDrv.writeRegs(param.regAddr, 1);
   ASSERT_THAT(stat, Eq(asynError));
 }
 
@@ -355,7 +389,10 @@ TEST_F(AnFGPDBDriver, failsOnWriteToReadOnlyParam) {
 TEST_F(AnFGPDBDriver, writeRegValues) {
   createAddrToParamMaps();
 
-  auto stat = testDrv.writeRegs(0x20000, 2);
+  auto stat = testDrv.getParamInfo(testParamID_WA, param);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  stat = testDrv.writeRegs(param.regAddr, 2);
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
@@ -396,9 +433,9 @@ TEST_F(AnFGPDBDriver, processesPendingWrites) {
   auto ackdWrites = testDrv.processPendingWrites();
   ASSERT_THAT(ackdWrites, Eq(1));
 
-  auto stat = testDrv.getParamInfo(testParamID_WA, paramInfo);
+  auto stat = testDrv.getParamInfo(testParamID_WA, param);
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(paramInfo.setState, Eq(SetState::Sent));
+  ASSERT_THAT(param.setState, Eq(SetState::Sent));
 }
 
 //-----------------------------------------------------------------------------
