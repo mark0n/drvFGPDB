@@ -84,7 +84,7 @@ public:
     syncIO(new asynOctetSyncIOWrapperMock),
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
-    testDrv(drvFGPDB(drvName, syncIO, UDPPortName, maxParams)),
+    testDrv(drvName, syncIO, UDPPortName, maxParams),
     testParamID_RO(-1),
     maxParamID_RO(-1),
     testParamID_WA(-1)
