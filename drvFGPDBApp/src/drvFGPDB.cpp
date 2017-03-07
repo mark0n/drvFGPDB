@@ -423,11 +423,9 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 {
   int  eomReason;
   asynStatus stat;
-  size_t  pktSize, sent, rcvd;
+  size_t  rcvd;
   char  *pBuf;
-  char  cmdBuf[32];
   char  respBuf[1024];
-
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
@@ -438,19 +436,21 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   size_t expectedRespSize = numRegs * 4 + 20;
   if (expectedRespSize > sizeof(respBuf))  return asynError;
 
-  pBuf = cmdBuf;
+  vector<uint32_t> cmdBuf;
+  cmdBuf.push_back(htonl(packetID));
+  cmdBuf.push_back(htonl(static_cast<int32_t>(LCPCommand::READ_REGS)));
+  cmdBuf.push_back(htonl(firstReg));
+  cmdBuf.push_back(htonl(numRegs));
+  cmdBuf.push_back(htonl(0));
 
-  *(U32 *)pBuf = htonl(packetID);   pBuf += 4;
-  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::READ_REGS));  pBuf += 4;
-  *(U32 *)pBuf = htonl(firstReg);   pBuf += 4;
-  *(U32 *)pBuf = htonl(numRegs);    pBuf += 4;
-  *(U32 *)pBuf = htonl(0);          pBuf += 4;
+  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
+  size_t bytesSent;
 
-  pktSize = pBuf - cmdBuf;
-
-  stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
+  stat = pasynOctetSyncIO->write(pAsynUserUDP,
+                                 reinterpret_cast<char *>(cmdBuf.data()),
+                                 bytesToSend, 2.0, &bytesSent);
   if (stat != asynSuccess)  return stat;
-  if (sent != pktSize)  return asynError;
+  if (bytesSent != bytesToSend)  return asynError;
 
   ++packetID;
 
