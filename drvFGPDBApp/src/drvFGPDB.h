@@ -32,7 +32,6 @@
 #include <asynOctetSyncIO.h>
 
 #include <initHooks.h>
-#include <epicsThread.h>
 
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"

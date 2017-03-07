@@ -442,7 +442,7 @@ TEST_F(AnFGPDBDriver, processesPendingWrites) {
 TEST_F(AnFGPDBDriver, launchesSyncComThread) {
   for (int i=0; i<200; ++i)  {
     if (testDrv.syncThreadInitialized)  break;
-    epicsThreadSleep(0.010);
+    this_thread::sleep_for(chrono::milliseconds(10));
   }
   ASSERT_THAT(testDrv.syncThreadInitialized, Eq(true));
 }
