@@ -119,7 +119,7 @@ void drvFGPDB::syncComLCP()
 
     //processPendingWrites();
 
-    this_thread::sleep_for(chrono::milliseconds(200));
+//     this_thread::sleep_for(chrono::milliseconds(200));
   }
 }
 
