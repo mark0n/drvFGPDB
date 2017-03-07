@@ -437,6 +437,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   if (expectedRespSize > sizeof(respBuf))  return asynError;
 
   vector<uint32_t> cmdBuf;
+  cmdBuf.reserve(5);
   cmdBuf.push_back(htonl(packetID));
   cmdBuf.push_back(htonl(static_cast<int32_t>(LCPCommand::READ_REGS)));
   cmdBuf.push_back(htonl(firstReg));
@@ -486,24 +487,19 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 {
   int  eomReason;
   asynStatus stat;
-  size_t  pktSize, sent, rcvd;
-  char  *pBuf;
-  char  cmdBuf[1024];
+  size_t rcvd;
   char  respBuf[32];
 
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
   if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
-  uint maxNumRegs = (sizeof(cmdBuf) - 20) / 4;
-  if (numRegs > maxNumRegs)  return asynError;
-
-  pBuf = cmdBuf;
-
-  *(U32 *)pBuf = htonl(packetID);    pBuf += 4;
-  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS));  pBuf += 4;
-  *(U32 *)pBuf = htonl(firstReg);    pBuf += 4;
-  *(U32 *)pBuf = htonl(numRegs);     pBuf += 4;
+  vector<uint32_t> cmdBuf;
+  cmdBuf.reserve(4 + numRegs);
+  cmdBuf.push_back(htonl(packetID));
+  cmdBuf.push_back(htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS)));
+  cmdBuf.push_back(htonl(firstReg));
+  cmdBuf.push_back(htonl(numRegs));
 
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
@@ -514,15 +510,17 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     uint paramID = group.paramIDs.at(offset);
     if (paramID > paramList.size())  return asynError;
     ParamInfo param = paramList.at(paramID);
-    *(U32 *)pBuf = htonl(param.ctlrValSet);  pBuf += 4;
+    cmdBuf.push_back(htonl(param.ctlrValSet));
   }
 
-  pktSize = pBuf - cmdBuf;
+  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
+  size_t bytesSent;
 
-
-  stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
+  stat = pasynOctetSyncIO->write(pAsynUserUDP,
+                                 reinterpret_cast<char *>(cmdBuf.data()),
+                                 bytesToSend, 2.0, &bytesSent);
   if (stat != asynSuccess)  return stat;
-  if (sent != pktSize)  return asynError;
+  if (bytesSent != bytesToSend)  return asynError;
 
   ++packetID;
 
