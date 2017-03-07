@@ -56,19 +56,6 @@ static const list<string> driverParamDefs = {
 };
 
 
-//-----------------------------------------------------------------------------
-// Return the time as a millisecond counter that wraps around
-//-----------------------------------------------------------------------------
-ulong GetMS(void)
-{
-  struct timespec  timeData;
-  clock_gettime(CLOCK_REALTIME, &timeData);
-  return (timeData.tv_sec * 1000L) + (timeData.tv_nsec / 1000000L);
-}
-
-ulong MSSince(ulong msTime) { return GetMS() - msTime; }
-
-
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
