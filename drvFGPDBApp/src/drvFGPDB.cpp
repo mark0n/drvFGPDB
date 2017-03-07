@@ -113,8 +113,7 @@ drvFGPDB::~drvFGPDB()
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
 //  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 
-  for (auto it = drvList.begin(); it != drvList.end(); ++it)
-    if ((*it) == this) { drvList.erase(it);  break; }
+  drvList.remove(this);
 }
 
 //-----------------------------------------------------------------------------
@@ -215,10 +214,9 @@ void drvFGPDB::addDriverParams(void)
 //-----------------------------------------------------------------------------
 int drvFGPDB::findParamByName(const string &name)
 {
-  for (auto param = paramList.begin(); param != paramList.end(); ++param)
-    if (param->name == name)  return param - paramList.begin();
-
-  return -1;
+  auto it = find_if(paramList.begin(), paramList.end(), [&] (const ParamInfo& p)
+                    { return p.name == name; } );
+  return (it != paramList.end()) ? it - paramList.begin() : -1;
 }
 
 //-----------------------------------------------------------------------------
@@ -301,8 +299,8 @@ asynStatus drvFGPDB::createAsynParams(void)
 
   int paramID;
   asynStatus stat;
-  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
-    stat = createParam(param->name.c_str(), param->asynType, &paramID);
+  for (auto const& param : paramList)  {
+    stat = createParam(param.name.c_str(), param.asynType, &paramID);
     if (stat != asynSuccess)  return stat;
 //  cout << "  created '" << param->name << "' [" << paramID << "]" << endl;
   }
@@ -344,9 +342,9 @@ asynStatus drvFGPDB::determineAddrRanges(void)
 {
   asynStatus stat = asynSuccess;
 
-  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
+  for (auto const& param : paramList) {
 
-    auto addr = param->regAddr;
+    auto addr = param.regAddr;
     uint groupID = LCPUtil::addrGroupID(addr);
     uint offset = LCPUtil::addrOffset(addr);
 
@@ -355,7 +353,7 @@ asynStatus drvFGPDB::determineAddrRanges(void)
       if (offset > group.maxOffset)  group.maxOffset = offset;
     } else {
       if (groupID == 0)  continue;  // Driver parameter
-      cout << "Invalid addr/group ID for parameter: " << param->name << endl;
+      cout << "Invalid addr/group ID for parameter: " << param.name << endl;
       stat = asynError;
     }
   }
@@ -370,13 +368,13 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
 {
   asynStatus stat = asynSuccess;
 
-  for (auto group = regGroup.begin(); group != regGroup.end(); ++group)  {
-    if (group->maxOffset < 1)  continue;
-    group->paramIDs = vector<int>(group->maxOffset+1, -1);
+  for(auto& group : regGroup) {
+    if (group.maxOffset < 1)  continue;
+    group.paramIDs = vector<int>(group.maxOffset + 1, -1);
   }
 
 
-  for (auto param = paramList.begin(); param != paramList.end(); ++param)  {
+  for (auto param = paramList.cbegin(); param != paramList.cend(); ++param) {
 
     auto addr = param->regAddr;
     if (!LCPUtil::validRegAddr(addr))  continue;
@@ -411,9 +409,7 @@ void drvFGPDB_initHookFunc(initHookState state)
 {
   if (state != initHookAfterInitDatabase)  return;
 
-  for (auto it = drvList.begin(); it != drvList.end(); ++it)  {
-    drvFGPDB *drv = *it;
-
+  for(drvFGPDB *drv : drvList) {
     if (drv->createAsynParams() != asynSuccess)  continue;
     if (drv->determineAddrRanges() != asynSuccess)  continue;
     if (drv->createAddrToParamMaps() != asynSuccess)  continue;
