@@ -455,8 +455,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   ++packetID;
 
   rcvd = 0;
-  pasynOctetSyncIO->read(pAsynUserUDP, (char *)respBuf, sizeof(respBuf),
-                         2.0, &rcvd, &eomReason);
+  pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0, &rcvd,
+                         &eomReason);
   if (rcvd != expectedRespSize)  return asynError;
 
   //todo:  Check header values in returned packet
@@ -526,8 +526,8 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   ++packetID;
 
-  pasynOctetSyncIO->read(pAsynUserUDP, (char *)respBuf, sizeof(respBuf),
-                         2.0, &rcvd, &eomReason);
+  pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0, &rcvd,
+                         &eomReason);
   if (rcvd != 20)  return asynError;
 
   //todo:
