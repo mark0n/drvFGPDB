@@ -475,15 +475,22 @@ asynStatus drvFGPDB::postNewReadVal(uint paramID)
 asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 {
   int  eomReason;
+<<<<<<< HEAD
   asynStatus stat, returnStat = asynSuccess;
   size_t  pktSize, sent, rcvd;
+=======
+  asynStatus stat;
+  size_t  rcvd;
+>>>>>>> e128c4b60b08c448adb2879e84b9275787eabd06
   char  *pBuf;
-  char  cmdBuf[32];
   char  respBuf[1024];
 
+<<<<<<< HEAD
   //cout << endl << portName << ":readRegs()" << endl  //tdebug
   //     << "  firstReg: " << hex << firstReg << "  numRegs: " << numRegs << endl;  //tdebug
 
+=======
+>>>>>>> e128c4b60b08c448adb2879e84b9275787eabd06
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
   //cout << "  range OK" << endl;  //tdebug
@@ -494,19 +501,22 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
     return asynError;
   }
 
-  pBuf = cmdBuf;
+  vector<uint32_t> cmdBuf;
+  cmdBuf.reserve(5);
+  cmdBuf.push_back(htonl(packetID));
+  cmdBuf.push_back(htonl(static_cast<int32_t>(LCPCommand::READ_REGS)));
+  cmdBuf.push_back(htonl(firstReg));
+  cmdBuf.push_back(htonl(numRegs));
+  cmdBuf.push_back(htonl(0));
 
-  *(U32 *)pBuf = htonl(packetID);   pBuf += 4;
-  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::READ_REGS));  pBuf += 4;
-  *(U32 *)pBuf = htonl(firstReg);   pBuf += 4;
-  *(U32 *)pBuf = htonl(numRegs);    pBuf += 4;
-  *(U32 *)pBuf = htonl(0);          pBuf += 4;
+  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
+  size_t bytesSent;
 
-  pktSize = pBuf - cmdBuf;
-
-  stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
+  stat = pasynOctetSyncIO->write(pAsynUserUDP,
+                                 reinterpret_cast<char *>(cmdBuf.data()),
+                                 bytesToSend, 2.0, &bytesSent);
   if (stat != asynSuccess)  return stat;
-  if (sent != pktSize)  return asynError;
+  if (bytesSent != bytesToSend)  return asynError;
 
   ++packetID;
 
@@ -558,24 +568,19 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 {
   int  eomReason;
   asynStatus stat;
-  size_t  pktSize, sent, rcvd;
-  char  *pBuf;
-  char  cmdBuf[1024];
+  size_t rcvd;
   char  respBuf[32];
 
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
   if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
-  uint maxNumRegs = (sizeof(cmdBuf) - 20) / 4;
-  if (numRegs > maxNumRegs)  return asynError;
-
-  pBuf = cmdBuf;
-
-  *(U32 *)pBuf = htonl(packetID);    pBuf += 4;
-  *(U32 *)pBuf = htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS));  pBuf += 4;
-  *(U32 *)pBuf = htonl(firstReg);    pBuf += 4;
-  *(U32 *)pBuf = htonl(numRegs);     pBuf += 4;
+  vector<uint32_t> cmdBuf;
+  cmdBuf.reserve(4 + numRegs);
+  cmdBuf.push_back(htonl(packetID));
+  cmdBuf.push_back(htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS)));
+  cmdBuf.push_back(htonl(firstReg));
+  cmdBuf.push_back(htonl(numRegs));
 
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
@@ -585,16 +590,23 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   for (uint u=0; u<numRegs; ++u,++offset)  {
     uint paramID = group.paramIDs.at(offset);
     if (paramID > paramList.size())  return asynError;
+<<<<<<< HEAD
     ParamInfo &param = paramList.at(paramID);
     *(U32 *)pBuf = htonl(param.ctlrValSet);  pBuf += 4;
+=======
+    ParamInfo param = paramList.at(paramID);
+    cmdBuf.push_back(htonl(param.ctlrValSet));
+>>>>>>> e128c4b60b08c448adb2879e84b9275787eabd06
   }
 
-  pktSize = pBuf - cmdBuf;
+  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
+  size_t bytesSent;
 
-
-  stat = pasynOctetSyncIO->write(pAsynUserUDP, cmdBuf, pktSize, 2.0, &sent);
+  stat = pasynOctetSyncIO->write(pAsynUserUDP,
+                                 reinterpret_cast<char *>(cmdBuf.data()),
+                                 bytesToSend, 2.0, &bytesSent);
   if (stat != asynSuccess)  return stat;
-  if (sent != pktSize)  return asynError;
+  if (bytesSent != bytesToSend)  return asynError;
 
   ++packetID;
 
