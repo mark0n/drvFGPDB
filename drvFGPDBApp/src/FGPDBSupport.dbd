@@ -1,5 +1,0 @@
-################
-# Register global functions
-################
-registrar(drvFGPDB_Register)
-
