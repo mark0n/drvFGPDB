@@ -90,6 +90,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     packetID(0),
     syncThreadInitialized(false),
     stopProcessing(false)
+    stopSyncThread(false),
+    syncThread(&drvFGPDB::syncComLCP, this)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -112,46 +114,18 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
 //  cout << "  asyn driver for: " << drvPortName
 //       << " connected to asyn UDP port: " << udpPortName << endl;
-
-  startThread(string("sync"), (EPICSTHREADFUNC)::syncComLCP);
 }
 
 //-----------------------------------------------------------------------------
 drvFGPDB::~drvFGPDB()
 {
+  stopSyncThread = true;
+  syncThread.join();
+
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
 //  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 
   drvList.remove(this);
-}
-
-//-----------------------------------------------------------------------------
-// Create a thread to manage ongoing communication with the controller
-//-----------------------------------------------------------------------------
-void drvFGPDB::startThread(const string &prefix, EPICSTHREADFUNC funcPtr)
-{
-  string threadName(prefix + portName);
-
-  if ( epicsThreadCreate(threadName.c_str(),
-                         epicsThreadPriorityMedium,
-                         epicsThreadGetStackSize(epicsThreadStackMedium),
-                         funcPtr, this) == NULL)  {
-    cout << typeid(this).name() << "::" << __func__ << ": "
-         << "epicsThreadCreate failure" << endl;
-    throw runtime_error("Unable to start new thread");
-  }
-
-  ulong startTime = GetMS();
-  while (!syncThreadInitialized)  {
-    if (MSSince(startTime) > 10000)  {
-      cout << typeid(this).name() << "::" << __func__ << ": "
-           "Thread " << threadName << " failed to initialize" << endl;
-      throw runtime_error("New thread did not initialize");
-    }
-    if (syncThreadInitialized)  break;
-    this_thread::sleep_for(chrono::milliseconds(10));
-  }
-
 }
 
 //-----------------------------------------------------------------------------
@@ -166,13 +140,12 @@ static void syncComLCP(void *drvPvt)
 //  Task run in a separate thread to manage synchronous communication with a
 //  controller that supports LCP.
 //-----------------------------------------------------------------------------
-void drvFGPDB::syncComLCP(void)
+void drvFGPDB::syncComLCP()
 {
   syncThreadInitialized = true;
 
 
   cout << endl << portName << ": sync com thread started" <<endl;
-
   while (!stopProcessing)  {
     if (!initComplete)  {
       this_thread::sleep_for(chrono::milliseconds(5));  continue; }

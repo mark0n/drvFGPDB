@@ -32,7 +32,6 @@
 #include <asynOctetSyncIO.h>
 
 #include <initHooks.h>
-#include <epicsThread.h>
 
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
@@ -87,8 +86,6 @@ class drvFGPDB : public asynPortDriver {
 #endif
     friend void drvFGPDB_initHookFunc(initHookState state);
 
-    void startThread(const std::string &prefix, EPICSTHREADFUNC funcPtr);
-
     void addDriverParams(void);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
@@ -134,8 +131,9 @@ class drvFGPDB : public asynPortDriver {
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
-    bool  syncThreadInitialized;
-    bool  stopProcessing;
+    std::atomic<bool> syncThreadInitialized;
+    std::atomic<bool> stopProcessing;
+    std::thread syncThread;
 };
 
 //-----------------------------------------------------------------------------
