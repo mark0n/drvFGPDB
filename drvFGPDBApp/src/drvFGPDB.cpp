@@ -149,7 +149,7 @@ void drvFGPDB::startThread(const string &prefix, EPICSTHREADFUNC funcPtr)
       throw runtime_error("New thread did not initialize");
     }
     if (syncThreadInitialized)  break;
-    epicsThreadSleep(0.010);
+    this_thread::sleep_for(chrono::milliseconds(10));
   }
 
 }
@@ -174,9 +174,10 @@ void drvFGPDB::syncComLCP(void)
   cout << endl << portName << ": sync com thread started" <<endl;
 
   while (!stopProcessing)  {
-    epicsThreadSleep(0.200);
+    if (!initComplete)  {
+      this_thread::sleep_for(chrono::milliseconds(5));  continue; }
 
-    if (!initComplete)  continue;
+    this_thread::sleep_for(chrono::milliseconds(200));
 
     readRegs(0x10000, regGroup.at(ProcGroup_LCP_RO-1).maxOffset);
     readRegs(0x20000, regGroup.at(ProcGroup_LCP_WA-1).maxOffset);
@@ -342,7 +343,7 @@ RegGroup & drvFGPDB::getRegGroup(uint groupID)
 }
 
 //-----------------------------------------------------------------------------
-// Returns true if the range of LCP addresses is within the defined ones
+// Returns true if the range of LCP addrs is within the defined ranges
 //-----------------------------------------------------------------------------
 bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
 {
@@ -382,7 +383,7 @@ asynStatus drvFGPDB::determineAddrRanges(void)
 }
 
 //-----------------------------------------------------------------------------
-// Create the lists that map reg addrs to params
+// Create the lists that maps reg addrs to params
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::createAddrToParamMaps(void)
 {
