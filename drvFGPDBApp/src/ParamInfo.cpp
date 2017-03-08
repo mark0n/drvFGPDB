@@ -32,8 +32,9 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
          : ParamInfo()
 {
   if (!regex_match(paramStr, generateParamStrRegex()))  {
-    cout << "*** Param def error: Device: " << portName << " ***" << endl
-         << "[" << paramStr << "]" << endl;
+    cout << endl
+         << "*** Param def error: Device: " << portName << " ***" << endl
+         << "    [" << paramStr << "]" << endl;
     throw invalid_argument("Invalid parameter definition.");
   }
 

@@ -23,6 +23,9 @@
 
 #include <arpa/inet.h>
 
+#include <iocsh.h>
+#include <epicsExport.h>
+
 #include "drvFGPDB.h"
 #include "LCPProtocol.h"
 
@@ -48,6 +51,7 @@ static list<drvFGPDB *> drvList;
 
 // list of driver values accessable via asyn interface
 static const list<string> driverParamDefs = {
+  "devName     0x1 Octet",
   "syncPktID   0x1 Int32",
   "asyncPktID  0x1 Int32",
   "ctlrAddr    0x1 Int32",
@@ -57,6 +61,8 @@ static const list<string> driverParamDefs = {
 
 
 static void syncComLCP(void *drvPvt);
+
+static bool  initComplete;
 
 //-----------------------------------------------------------------------------
 // Return the time as a millisecond counter that wraps around
@@ -80,7 +86,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     syncIO(syncIOWrapper),
     maxParams(maxParams_),
     packetID(0),
-    syncThreadInitialized(false)
+    syncThreadInitialized(false),
+    stopProcessing(false)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -162,13 +169,17 @@ void drvFGPDB::syncComLCP(void)
   syncThreadInitialized = true;
 
 
-  for (;;)  {
-    //readRegs(0, regGroup.at(ProcGroup_LCP_RO).maxOffset);
-    //readRegs(0, regGroup.at(ProcGroup_LCP_WA).maxOffset);
+  cout << endl << portName << ": sync com thread started" <<endl;
 
-    //processPendingWrites();
-
+  while (!stopProcessing)  {
     epicsThreadSleep(0.200);
+
+    if (!initComplete)  continue;
+
+    readRegs(0x10000, regGroup.at(ProcGroup_LCP_RO-1).maxOffset);
+    readRegs(0x20000, regGroup.at(ProcGroup_LCP_WA-1).maxOffset);
+
+    processPendingWrites();
   }
 }
 
@@ -280,13 +291,13 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   if (paramID < 0)  {
     if (paramList.size() >= (uint)maxParams)  return asynError;
     paramList.push_back(param);
-    pasynUser->reason = paramList.size()-1;  return asynSuccess;
+    pasynUser->reason = paramList.size()-1;
+    return asynSuccess;
   }
 
   pasynUser->reason = paramID;
 
-  // Update the existing entry (in case the old one was incomplete)
-  return updateParamDef(paramID, param);
+  return updateParamDef(paramID, param);  // in case prev def was incomplete
 }
 
 //-----------------------------------------------------------------------------
@@ -299,12 +310,19 @@ asynStatus drvFGPDB::createAsynParams(void)
 
   int paramID;
   asynStatus stat;
-  for (auto const& param : paramList)  {
-    stat = createParam(param.name.c_str(), param.asynType, &paramID);
+  for (auto param = paramList.cbegin(); param != paramList.cend(); ++param) {
+    if (param->asynType == asynParamNotDefined)  {
+      cout << endl
+           <<"  *** " << portName << ":" << param->name
+           << " [" << (param - paramList.begin()) << "]: "
+              "No asyn type specified in INP/OUT field ***" << endl;
+      throw invalid_argument("Configuration error");
+    }
+    stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-//  cout << "  created '" << param->name << "' [" << paramID << "]" << endl;
+//  cout << "  created " << param->name << " [" << paramID << "]" << endl; //tdebug
   }
-//cout << endl;
+  cout << endl;
 
   return asynSuccess;
 }
@@ -407,6 +425,10 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
 //-----------------------------------------------------------------------------
 void drvFGPDB_initHookFunc(initHookState state)
 {
+  cout << endl << "initHookState: " << state << endl << endl;
+
+  if (state >= initHookAfterIocRunning)  { initComplete = true;  return; }
+
   if (state != initHookAfterInitDatabase)  return;
 
   for(drvFGPDB *drv : drvList) {
@@ -414,6 +436,37 @@ void drvFGPDB_initHookFunc(initHookState state)
     if (drv->determineAddrRanges() != asynSuccess)  continue;
     if (drv->createAddrToParamMaps() != asynSuccess)  continue;
   }
+
+}
+
+//----------------------------------------------------------------------------
+//  Post a new read value for a parameter
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::postNewReadVal(uint paramID)
+{
+  ParamInfo &param = paramList.at(paramID);
+  asynStatus stat = asynError;
+
+
+  switch (param.asynType)  {
+
+    case asynParamInt32:
+      stat = setIntegerParam((int)paramID, param.ctlrValRead);
+      break;
+
+    case asynParamUInt32Digital:
+      stat = setUIntDigitalParam((int)paramID, param.ctlrValRead, 0xFFFFFFFF);
+      break;
+
+    case asynParamFloat64:
+      //finish - remember to convert from ctlr to asyn format
+      break;
+
+    default:
+      break;
+  }
+
+  return stat;
 }
 
 //----------------------------------------------------------------------------
@@ -422,21 +475,24 @@ void drvFGPDB_initHookFunc(initHookState state)
 asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 {
   int  eomReason;
-  asynStatus stat;
+  asynStatus stat, returnStat = asynSuccess;
   size_t  pktSize, sent, rcvd;
   char  *pBuf;
   char  cmdBuf[32];
   char  respBuf[1024];
 
+  //cout << endl << portName << ":readRegs()" << endl  //tdebug
+  //     << "  firstReg: " << hex << firstReg << "  numRegs: " << numRegs << endl;  //tdebug
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
-//uint groupID = LCPUtil::addrGroupID(addr);
-//uint offset = LCPUtil::addrOffset(addr);
-
+  //cout << "  range OK" << endl;  //tdebug
 
   size_t expectedRespSize = numRegs * 4 + 20;
-  if (expectedRespSize > sizeof(respBuf))  return asynError;
+  if (expectedRespSize > sizeof(respBuf))  {
+    cout << portName << ": readRegs() respBuf[] too small" << endl;
+    return asynError;
+  }
 
   pBuf = cmdBuf;
 
@@ -467,16 +523,32 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   RegGroup &group = getRegGroup(groupID);
 
+  bool chgsToBePosted = false;
+
   for (uint u=0; u<numRegs; ++u,++offset)  {
     uint paramID = group.paramIDs.at(offset);
+    U32 justReadVal = ntohl(*(U32 *)pBuf);  pBuf += 4;
+
     if (paramID > paramList.size())  continue;
-    ParamInfo param = paramList.at(paramID);
-    param.ctlrValRead = ntohl(*(U32 *)pBuf);  pBuf += 4;
+
+    ParamInfo &param = paramList.at(paramID);
+    if ((justReadVal == param.ctlrValRead)
+      and (param.readState == ReadState::Current))  continue;
+
+    param.ctlrValRead = justReadVal;
     param.readState = ReadState::Current;
+    auto stat = postNewReadVal(paramID);
+    if (stat == asynSuccess)
+      chgsToBePosted = true;
+    else
+      if (returnStat == asynSuccess)  returnStat = stat;
   }
 
-  return asynSuccess;
+  if (chgsToBePosted)  callParamCallbacks();
+
+  return returnStat;
 }
+
 
 //----------------------------------------------------------------------------
 // Send the driver's current value for one or more writeable LCP registers to
@@ -513,7 +585,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   for (uint u=0; u<numRegs; ++u,++offset)  {
     uint paramID = group.paramIDs.at(offset);
     if (paramID > paramList.size())  return asynError;
-    ParamInfo param = paramList.at(paramID);
+    ParamInfo &param = paramList.at(paramID);
     *(U32 *)pBuf = htonl(param.ctlrValSet);  pBuf += 4;
   }
 
@@ -536,6 +608,18 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   return asynSuccess;
 }
+
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
+{  return asynDisconnected; }
+
+asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
+{  return asynDisconnected; }
+
+asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
+                                         epicsUInt32 *value, epicsUInt32 mask)
+{  return asynDisconnected; }
+
 
 //----------------------------------------------------------------------------
 // Process a request to write to one of the Int32 parameters
@@ -588,4 +672,76 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   return stat;
 }
 
+
+//=============================================================================
+// Configuration routine.  Called directly, or from the iocsh function below
+//=============================================================================
+
+extern "C" {
+
 //-----------------------------------------------------------------------------
+// EPICS iocsh callable func to call constructor for the drvFGPDB class.
+//
+//  \param[in] drvPortName The name of the asyn port driver to be created and
+//             that this module extends.
+//  \param[in] udpPortName The name of the asyn port for the UDP connection to
+//             the device.
+//  \maxParams[in] max # of asyn parameters that can be defined.
+//-----------------------------------------------------------------------------
+int drvFGPDB_Config(char *drvPortName, char *udpPortName, int maxParams)
+{
+  new drvFGPDB(string(drvPortName),
+                   NULL, //new asynOctetSyncIOInterface,
+                   string(udpPortName), maxParams);
+
+  return 0;
+}
+
+
+//-----------------------------------------------------------------------------
+// EPICS iocsh shell commands
+//-----------------------------------------------------------------------------
+
+//=== Argment definitions: Description and type for each one ===
+static const iocshArg config_Arg0 = { "drvPortName", iocshArgString };
+static const iocshArg config_Arg1 = { "udpPortName", iocshArgString };
+static const iocshArg config_Arg2 = { "maxParams",   iocshArgInt    };
+
+//=== A list of the argument definitions ===
+static const iocshArg * const config_Args[] = {
+  &config_Arg0,
+  &config_Arg1,
+  &config_Arg2
+};
+
+//=== Func def struct:  Pointer to func, # args, arg list ===
+static const iocshFuncDef config_FuncDef =
+  { "drvFGPDB_Config", 3, config_Args };
+
+//=== Func to call the func using elements from the generic argument list ===
+static void config_CallFunc(const iocshArgBuf *args)
+{
+  drvFGPDB_Config(args[0].sval, args[1].sval, args[2].ival);
+}
+
+
+//-----------------------------------------------------------------------------
+//  The function that registers the IOC shell functions
+//-----------------------------------------------------------------------------
+void drvFGPDB_Register(void)
+{
+  static bool firstTime = true;
+
+  if (firstTime)
+  {
+    iocshRegister(&config_FuncDef, config_CallFunc);
+    firstTime = false;
+  }
+}
+
+epicsExportRegistrar(drvFGPDB_Register);
+
+}  // extern "C"
+
+//-----------------------------------------------------------------------------
+

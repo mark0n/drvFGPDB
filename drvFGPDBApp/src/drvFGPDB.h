@@ -62,6 +62,13 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                      const char **pptypeName, size_t *psize);
 
+    virtual asynStatus getIntegerParam(int list, int index, int *value);
+
+    virtual asynStatus getDoubleParam(int list, int index, double * value);
+
+    virtual asynStatus getUIntDigitalParam(int list, int index,
+                                           epicsUInt32 *value, epicsUInt32 mask);
+
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
 
     void syncComLCP(void);
@@ -84,6 +91,8 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
+
+    asynStatus postNewReadVal(uint paramID);
 
     // clients should use asynPortDriver::findParam() instead
     int findParamByName(const std::string &name);
@@ -124,6 +133,7 @@ class drvFGPDB : public asynPortDriver {
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
     bool  syncThreadInitialized;
+    bool  stopProcessing;
 };
 
 //-----------------------------------------------------------------------------
