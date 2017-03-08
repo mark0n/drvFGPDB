@@ -130,7 +130,7 @@ class ParamInfo {
   private:
 #endif
 
-    static std::regex generateParamStrRegex();
+    static const std::regex& generateParamStrRegex();
 
     static const std::map<std::string, asynParamType> asynTypes;
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;

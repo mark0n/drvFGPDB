@@ -55,7 +55,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 //-----------------------------------------------------------------------------
 // Generate a regex for basic validation of strings that define a parameter
 //-----------------------------------------------------------------------------
-regex ParamInfo::generateParamStrRegex()
+const regex& ParamInfo::generateParamStrRegex()
 {
   const string paramName    = "\\w+";
   const string whiteSpaces  = "\\s+";
@@ -65,7 +65,8 @@ regex ParamInfo::generateParamStrRegex()
   const string optionalPart = "(" + whiteSpaces + address
                                   + whiteSpaces + asynType
                                   + "(" + whiteSpaces + ctlrFmt + ")?)?";
-  return regex(paramName + optionalPart);
+  static const regex re(paramName + optionalPart);
+  return re;
 }
 
 //-----------------------------------------------------------------------------
