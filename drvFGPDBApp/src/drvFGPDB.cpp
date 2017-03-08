@@ -62,8 +62,6 @@ static const list<string> driverParamDefs = {
 
 static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
 
-static void syncComLCP(void *drvPvt);
-
 static bool  initComplete;
 
 //-----------------------------------------------------------------------------
@@ -89,8 +87,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     maxParams(maxParams_),
     packetID(0),
     syncThreadInitialized(false),
-    stopProcessing(false)
-    stopSyncThread(false),
+    stopProcessing(false),
     syncThread(&drvFGPDB::syncComLCP, this)
 {
   initHookRegister(drvFGPDB_initHookFunc);
@@ -119,21 +116,13 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 //-----------------------------------------------------------------------------
 drvFGPDB::~drvFGPDB()
 {
-  stopSyncThread = true;
+  stopProcessing = true;
   syncThread.join();
 
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
 //  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 
   drvList.remove(this);
-}
-
-//-----------------------------------------------------------------------------
-static void syncComLCP(void *drvPvt)
-{
-  drvFGPDB *pdrv = (drvFGPDB *)drvPvt;
-
-  pdrv->syncComLCP();
 }
 
 //-----------------------------------------------------------------------------
