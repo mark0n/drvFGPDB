@@ -44,6 +44,12 @@ set(DRVFGPDBTEST_COMPONENTS
 add_executable(drvFGPDBTests ${DRVFGPDBTEST_COMPONENTS})
 target_link_libraries(drvFGPDBTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
 
+set(DRVFGPDBINTEGRATIONTEST_COMPONENTS
+  drvFGPDBIntegrationTests.cpp
+)
+add_executable(drvFGPDBIntegrationTests ${DRVFGPDBINTEGRATIONTEST_COMPONENTS})
+target_link_libraries(drvFGPDBIntegrationTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
+
 set(PARAMINFOTEST_COMPONENTS
   ParamInfoTests.cpp
 )
@@ -69,5 +75,6 @@ add_unit_tests(ParamInfoTests)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests drvFGPDBCoverage '*Tests.cpp')
+  setup_target_for_coverage(drvFGPDBIntegrationTests_coverage drvFGPDBIntegrationTests drvFGPDBIntegrationCoverage '*Tests.cpp')
   setup_target_for_coverage(ParamInfoTests_coverage ParamInfoTests ParamInfoCoverage '*Tests.cpp')
 endif(CMAKE_BUILD_TYPE MATCHES Debug)

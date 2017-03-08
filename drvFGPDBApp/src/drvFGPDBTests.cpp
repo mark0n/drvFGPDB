@@ -381,68 +381,6 @@ TEST_F(AnFGPDBDriver, determineAddrRanges) { determineAddrRanges(); }
 
 TEST_F(AnFGPDBDriver, createAddrToParamMaps) { createAddrToParamMaps(); }
 
-
-
-//=============================================================================
-// NOTE: The following tests all require the LCP simulator appl to be running
-// on the same machine
-//=============================================================================
 TEST_F(AnFGPDBDriver, setsPendingWriteStateForAParam) {
   setsPendingWriteStateForAParam();
 }
-
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, readsWithinDefinedRegRange) {
-  createAddrToParamMaps();
-
-  auto stat = testDrv.getParamInfo(testParamID_RO, param);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  stat = testDrv.readRegs(param.regAddr, 4);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-}
-
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, writesGroupOfSetRegs) {
-  createAddrToParamMaps();
-
-  pasynUser->reason = testParamID_WA;
-  auto stat = testDrv.writeInt32(pasynUser, 222);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  pasynUser->reason = testParamID_WA + 1;
-  stat = testDrv.writeInt32(pasynUser, 333);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  stat = testDrv.getParamInfo(testParamID_WA, param);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  stat = testDrv.writeRegs(param.regAddr, 2);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-}
-
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, writeRegValues) {
-  createAddrToParamMaps();
-
-  auto stat = testDrv.getParamInfo(testParamID_WA, param);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  stat = testDrv.writeRegs(param.regAddr, 2);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-}
-
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, processesPendingWrites) {
-  setsPendingWriteStateForAParam();
-
-  auto ackdWrites = testDrv.processPendingWrites();
-  ASSERT_THAT(ackdWrites, Eq(1));
-
-  auto stat = testDrv.getParamInfo(testParamID_WA, param);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(param.setState, Eq(SetState::Sent));
-}
-
-//-----------------------------------------------------------------------------
-
