@@ -32,9 +32,9 @@
 using namespace std;
 
 // Much more compact, easily read names for freq used types
-typedef  epicsInt8      I8;
-typedef  epicsInt16     I16;
-typedef  epicsInt32     I32;
+typedef  epicsInt8      S8;
+typedef  epicsInt16     S16;
+typedef  epicsInt32     S32;
 
 typedef  epicsUInt8     U8;
 typedef  epicsUInt16    U16;
@@ -59,6 +59,8 @@ static const list<string> driverParamDefs = {
   "diagFlags   0x2 UInt32Digital"
 };
 
+
+static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
 
 static void syncComLCP(void *drvPvt);
 
@@ -440,12 +442,43 @@ void drvFGPDB_initHookFunc(initHookState state)
 }
 
 //----------------------------------------------------------------------------
+//  Convert a value from the format used the controller to a float
+//----------------------------------------------------------------------------
+double cltrFmtToDouble(U32 ctlrVal, CtlrDataFmt ctlrFmt)
+{
+  float dval = 0.0;
+
+  switch (ctlrFmt)  {
+    case CtlrDataFmt::NotDefined:
+      break;
+
+    case CtlrDataFmt::S32:
+      dval = (S32)ctlrVal;  break;
+
+    case CtlrDataFmt::U32:
+      dval = ctlrVal;  break;
+
+    case CtlrDataFmt::F32:
+      dval = *((F32 *)&ctlrVal);  break;
+
+    case CtlrDataFmt::U16_16:
+      dval = (float)((double)ctlrVal / 65536.0);  break;
+
+    case CtlrDataFmt::PHASE:
+      dval = (double)ctlrVal * PhaseConvFactor32;  break;
+  }
+
+  return dval;
+}
+
+//----------------------------------------------------------------------------
 //  Post a new read value for a parameter
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::postNewReadVal(uint paramID)
 {
   ParamInfo &param = paramList.at(paramID);
   asynStatus stat = asynError;
+  double dval;
 
 
   switch (param.asynType)  {
@@ -459,7 +492,8 @@ asynStatus drvFGPDB::postNewReadVal(uint paramID)
       break;
 
     case asynParamFloat64:
-      //finish - remember to convert from ctlr to asyn format
+      dval = cltrFmtToDouble(param.ctlrValRead, param.ctlrFmt);
+      stat = setDoubleParam((int)paramID, dval);
       break;
 
     default:
@@ -474,23 +508,12 @@ asynStatus drvFGPDB::postNewReadVal(uint paramID)
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 {
-  int  eomReason;
-<<<<<<< HEAD
-  asynStatus stat, returnStat = asynSuccess;
-  size_t  pktSize, sent, rcvd;
-=======
   asynStatus stat;
-  size_t  rcvd;
->>>>>>> e128c4b60b08c448adb2879e84b9275787eabd06
+  int  eomReason;
   char  *pBuf;
   char  respBuf[1024];
 
-<<<<<<< HEAD
-  //cout << endl << portName << ":readRegs()" << endl  //tdebug
-  //     << "  firstReg: " << hex << firstReg << "  numRegs: " << numRegs << endl;  //tdebug
 
-=======
->>>>>>> e128c4b60b08c448adb2879e84b9275787eabd06
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
   //cout << "  range OK" << endl;  //tdebug
@@ -520,9 +543,11 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   ++packetID;
 
-  rcvd = 0;
-  pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0, &rcvd,
-                         &eomReason);
+
+  asynStatus returnStat = asynSuccess;  size_t rcvd = 0;
+  stat = pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0,
+                                &rcvd, &eomReason);
+  if (stat != asynSuccess)  return stat;
   if (rcvd != expectedRespSize)  return asynError;
 
   //todo:  Check header values in returned packet
@@ -590,13 +615,8 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   for (uint u=0; u<numRegs; ++u,++offset)  {
     uint paramID = group.paramIDs.at(offset);
     if (paramID > paramList.size())  return asynError;
-<<<<<<< HEAD
     ParamInfo &param = paramList.at(paramID);
-    *(U32 *)pBuf = htonl(param.ctlrValSet);  pBuf += 4;
-=======
-    ParamInfo param = paramList.at(paramID);
     cmdBuf.push_back(htonl(param.ctlrValSet));
->>>>>>> e128c4b60b08c448adb2879e84b9275787eabd06
   }
 
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);

@@ -25,6 +25,8 @@
 #include <vector>
 #include <list>
 #include <memory>
+#include <thread>
+#include <atomic>
 
 #include <asynPortDriver.h>
 #include <asynOctetSyncIO.h>

@@ -200,6 +200,15 @@ TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
 }
 
 //-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriver, launchesSyncComThread) {
+  for (int i=0; i<200; ++i)  {
+    if (testDrv.syncThreadInitialized)  break;
+    this_thread::sleep_for(chrono::milliseconds(10));
+  }
+  ASSERT_THAT(testDrv.syncThreadInitialized, Eq(true));
+}
+
+//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, newDriverInstanceContainsDriverParams) {
   ASSERT_THAT(numDrvParams, Gt(0));
 }
@@ -375,8 +384,8 @@ TEST_F(AnFGPDBDriver, createAddrToParamMaps) { createAddrToParamMaps(); }
 
 
 //=============================================================================
-// NOTE: The follow tests all require the LCP simulator appl to be running on
-// the same machine
+// NOTE: The following tests all require the LCP simulator appl to be running
+// on the same machine
 //=============================================================================
 TEST_F(AnFGPDBDriver, setsPendingWriteStateForAParam) {
   setsPendingWriteStateForAParam();
@@ -413,9 +422,6 @@ TEST_F(AnFGPDBDriver, writesGroupOfSetRegs) {
 }
 
 //-----------------------------------------------------------------------------
-// Test writing LCP register values
-// NOTE: This requires the LCP simulator appl to be running on the same mach
-//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriver, writeRegValues) {
   createAddrToParamMaps();
 
@@ -436,15 +442,6 @@ TEST_F(AnFGPDBDriver, processesPendingWrites) {
   auto stat = testDrv.getParamInfo(testParamID_WA, param);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.setState, Eq(SetState::Sent));
-}
-
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, launchesSyncComThread) {
-  for (int i=0; i<200; ++i)  {
-    if (testDrv.syncThreadInitialized)  break;
-    epicsThreadSleep(0.010);
-  }
-  ASSERT_THAT(testDrv.syncThreadInitialized, Eq(true));
 }
 
 //-----------------------------------------------------------------------------
