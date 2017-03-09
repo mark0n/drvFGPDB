@@ -11,10 +11,10 @@ static int testNum = 0;
 //=============================================================================
 int createPortUDP(void)
 {
-  static int  stat = 0;
-
-  if (testNum == 1)
-    stat = drvAsynIPPortConfigure(UDPPortName, "127.0.0.1:2005 udp", 0, 0, 1);
+  // Asyn does not provide a way to destroy a drvAsynIPPort, yet. For now we
+  // only create it once and reuse it for all our tests. As soon as Asyn
+  // supports destroying it we should make our tests 100% independent again.
+  static int stat = drvAsynIPPortConfigure(UDPPortName.c_str(), "127.0.0.1:2005 udp", 0, 0, 1);
 
   return stat;
 }
