@@ -6,7 +6,7 @@ using namespace std;
 
 static int testNum = 0;
 
-#define UDPPortName  "FGPDB_com"
+const string UDPPortName("FGPDB_com");
 
 //=============================================================================
 int createPortUDP(void)
