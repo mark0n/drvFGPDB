@@ -1,3 +1,4 @@
+#include <memory>
 
 #include "gmock/gmock.h"
 
@@ -5,10 +6,7 @@
 #include "drvFGPDB.h"
 #include "drvAsynIPPort.h"
 #include "asynOctetSyncIOInterface.h"
-
-using namespace testing;
-using namespace std;
-
+#include "drvFGPDBTestCommon.h"
 
 class asynOctetSyncIOWrapperMock: public asynOctetSyncIOInterface {
 public:
@@ -58,133 +56,13 @@ public:
                                             const char *drvInfo));
 };
 
-//-----------------------------------------------------------------------------
-
-static int testNum = 0;
-
-#define UDPPortName  "FGPDB_com"
-
-//=============================================================================
-int createPortUDP(void)
-{
-  static int  stat = 0;
-
-  if (testNum == 1)
-    stat = drvAsynIPPortConfigure(UDPPortName, "127.0.0.1:2005 udp", 0, 0, 1);
-
-  return stat;
-}
-
-//=============================================================================
-class AnFGPDBDriver: public ::testing::Test
+class AnFGPDBDriverUsingIOSyncMock : public AnFGPDBDriver
 {
 public:
-  AnFGPDBDriver() :
-    pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
-    syncIO(new asynOctetSyncIOWrapperMock),
-    drvName("testDriver" + std::to_string(++testNum)),
-    udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
-    testDrv(drvName, syncIO, UDPPortName, maxParams),
-    testParamID_RO(-1),
-    maxParamID_RO(-1),
-    testParamID_WA(-1)
-  {
-    if (udpPortStat)
-      cout << drvName << " unable to create asyn UDP port: " << UDPPortName
-           << endl << endl;
-
-    numDrvParams = testDrv.paramList.size();
-  };
-
-  //---------------------------------------------
-  ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
-
-  //---------------------------------------------
-  int addParam(string paramStr) {
-    asynStatus stat;
-    pasynUser->reason = -1;
-    stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), nullptr, nullptr);
-    return (stat == asynSuccess) ? pasynUser->reason : -1;
-  }
-
-  //---------------------------------------------
-  void addParams()  {
-    // Np params for addrs 0x10000 - 0x10001
-    auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams));  testParamID_RO = stat;
-    // No params for addrs 0x10003 - 0x10004
-    stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
-    ASSERT_THAT(stat, Eq(numDrvParams+1));  maxParamID_RO = stat;
-
-    stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+2));
-    //No param defined for addr 0x20001
-    stat = addParam("lcpRegWA_2 0x20002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID_WA = stat;
-    stat = addParam("lcpRegWA_3 0x20003 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+4));
-    stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
-    ASSERT_THAT(stat, Eq(numDrvParams+5));
-
-    stat = addParam("lcpRegWO_2 0x30002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+6));
-  }
-
-  //---------------------------------------------
-  void determineAddrRanges()  {
-    addParams();
-
-    auto stat = testDrv.createAsynParams();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    stat = testDrv.determineAddrRanges();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    ASSERT_THAT(testDrv.regGroup[0].maxOffset, Eq(5));
-    ASSERT_THAT(testDrv.regGroup[1].maxOffset, Eq(4));
-    ASSERT_THAT(testDrv.regGroup[2].maxOffset, Eq(2));
-  }
-
-  //---------------------------------------------
-  void createAddrToParamMaps()  {
-    determineAddrRanges();
-
-    auto stat = testDrv.createAddrToParamMaps();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    ASSERT_THAT(testDrv.regGroup[0].paramIDs.size(), Eq(6));
-    ASSERT_THAT(testDrv.regGroup[1].paramIDs.size(), Eq(5));
-    ASSERT_THAT(testDrv.regGroup[2].paramIDs.size(), Eq(3));
-  }
-
-//---------------------------------------------
-  void setsPendingWriteStateForAParam()  {
-    createAddrToParamMaps();
-
-    pasynUser->reason = testParamID_WA;
-    auto stat = testDrv.writeInt32(pasynUser, 42);
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    stat = testDrv.getParamInfo(testParamID_WA, param);
-    ASSERT_THAT(param.ctlrValSet, Eq(42));
-    ASSERT_THAT(param.setState, Eq(SetState::Pending));
-  }
-
-  //---------------------------------------------
-  const int  maxParams = 200;
-  asynUser  *pasynUser;
-  shared_ptr<asynOctetSyncIOWrapperMock>  syncIO;
-  std::string  drvName;
-  int  udpPortStat;
-  drvFGPDB  testDrv;
-  int  testParamID_RO, maxParamID_RO, testParamID_WA;
-  int  numDrvParams;
-  ParamInfo  param;
+  AnFGPDBDriverUsingIOSyncMock() : AnFGPDBDriver(make_shared<asynOctetSyncIOWrapperMock>()) {};
 };
 
-
-//=============================================================================
-class AnFGPDBDriverWithAParameter: public AnFGPDBDriver {
+class AnFGPDBDriverUsingIOSyncMockWithAParameter: public AnFGPDBDriverUsingIOSyncMock {
 public:
   virtual void SetUp() {
     auto stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
@@ -193,14 +71,12 @@ public:
 };
 
 
-
-//=============================================================================
-TEST_F(AnFGPDBDriver, canBeConstructedWithoutAnyErrors) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, canBeConstructedWithoutAnyErrors) {
   ASSERT_THAT(udpPortStat, Eq(0));
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, launchesSyncComThread) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, launchesSyncComThread) {
   for (int i=0; i<200; ++i)  {
     if (testDrv.syncThreadInitialized)  break;
     this_thread::sleep_for(chrono::milliseconds(10));
@@ -209,12 +85,12 @@ TEST_F(AnFGPDBDriver, launchesSyncComThread) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, newDriverInstanceContainsDriverParams) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, newDriverInstanceContainsDriverParams) {
   ASSERT_THAT(numDrvParams, Gt(0));
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, rejectsEmptyParamDef) {
   const char *paramDesc = { " " };
 
   ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, nullptr,
@@ -222,7 +98,7 @@ TEST_F(AnFGPDBDriver, rejectsEmptyParamDef) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, rejectsMultipleParamDefinitions) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, rejectsMultipleParamDefinitions) {
   const char *paramDesc = "testParam1 0x10001 Float64 F32 0x10001 Float64 F32";
 
   ASSERT_ANY_THROW(testDrv.drvUserCreate(pasynUser, paramDesc, nullptr,
@@ -230,13 +106,13 @@ TEST_F(AnFGPDBDriver, rejectsMultipleParamDefinitions) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, canCreateIncompleteParam) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, canCreateIncompleteParam) {
   int id = addParam("testParam1");
   ASSERT_THAT(id, Eq(numDrvParams));
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, canAddAnotherParam) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddAnotherParam) {
   int id = addParam("testParam1");
   ASSERT_THAT(id, Eq(numDrvParams));
 
@@ -245,7 +121,7 @@ TEST_F(AnFGPDBDriver, canAddAnotherParam) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   int id = addParam("testParam1");
   ASSERT_THAT(id, Eq(numDrvParams));
 
@@ -261,7 +137,7 @@ TEST_F(AnFGPDBDriver, canAddPropertiesToExistingParam) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnParamDefConflict) {
   int id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
 
@@ -271,7 +147,7 @@ TEST_F(AnFGPDBDriver, failsOnParamDefConflict) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, createsAsynParams) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
   addParams();
 
   auto stat = testDrv.createAsynParams();
@@ -287,7 +163,7 @@ TEST_F(AnFGPDBDriver, createsAsynParams) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, rangeCheckReturnsValidResults) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   createAddrToParamMaps();
 
   bool validRange = testDrv.inDefinedRegRange(0, 10);
@@ -302,7 +178,7 @@ TEST_F(AnFGPDBDriver, rangeCheckReturnsValidResults) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnWriteForUnmappedRegValue) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteForUnmappedRegValue) {
   createAddrToParamMaps();
 
   auto stat = testDrv.writeRegs(0x20001, 1);
@@ -310,7 +186,7 @@ TEST_F(AnFGPDBDriver, failsOnWriteForUnmappedRegValue) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnReadOutsideDefinedRegRange) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnReadOutsideDefinedRegRange) {
   createAddrToParamMaps();
 
   auto stat = testDrv.readRegs(0x10005, 10);
@@ -318,7 +194,7 @@ TEST_F(AnFGPDBDriver, failsOnReadOutsideDefinedRegRange) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnWriteWithUnsetRegs) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteWithUnsetRegs) {
   createAddrToParamMaps();
 
   auto stat = testDrv.writeRegs(0x20002, 4);
@@ -326,7 +202,7 @@ TEST_F(AnFGPDBDriver, failsOnWriteWithUnsetRegs) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   createAddrToParamMaps();
 
   auto stat = testDrv.getParamInfo(testParamID_WA, param);
@@ -337,7 +213,7 @@ TEST_F(AnFGPDBDriver, failsOnWritesOutsideDefinedRegRange) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnAttemptToSendReadOnlyRegs) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnAttemptToSendReadOnlyRegs) {
   createAddrToParamMaps();
 
   auto stat = testDrv.getParamInfo(testParamID_RO, param);
@@ -348,7 +224,7 @@ TEST_F(AnFGPDBDriver, failsOnAttemptToSendReadOnlyRegs) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, failsOnWriteToReadOnlyParam) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteToReadOnlyParam) {
   createAddrToParamMaps();
 
   pasynUser->reason = testParamID_RO;
@@ -357,7 +233,7 @@ TEST_F(AnFGPDBDriver, failsOnWriteToReadOnlyParam) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverWithAParameter, failsIfMultParamsWithSameRegAddr) {
+TEST_F(AnFGPDBDriverUsingIOSyncMockWithAParameter, failsIfMultParamsWithSameRegAddr) {
   auto stat = addParam("lcpRegWA_01 0x20001 Int32 U32");
   ASSERT_THAT(stat, Eq(numDrvParams+1));
 
@@ -377,10 +253,10 @@ TEST_F(AnFGPDBDriver, writesDataToAsyn) {
 */
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriver, determineAddrRanges) { determineAddrRanges(); }
+TEST_F(AnFGPDBDriverUsingIOSyncMock, determineAddrRanges) { determineAddrRanges(); }
 
-TEST_F(AnFGPDBDriver, createAddrToParamMaps) { createAddrToParamMaps(); }
+TEST_F(AnFGPDBDriverUsingIOSyncMock, createAddrToParamMaps) { createAddrToParamMaps(); }
 
-TEST_F(AnFGPDBDriver, setsPendingWriteStateForAParam) {
+TEST_F(AnFGPDBDriverUsingIOSyncMock, setsPendingWriteStateForAParam) {
   setsPendingWriteStateForAParam();
 }
