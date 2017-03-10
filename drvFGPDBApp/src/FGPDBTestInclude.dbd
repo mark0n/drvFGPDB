@@ -1,5 +1,0 @@
-include "base.dbd"
-include "asyn.dbd"
-# Comment out the following line except for vxWorks
-#include "FGPDBSupport.dbd"
-
