@@ -1,4 +1,4 @@
-//----- drvFGPDB.h ----- 02/17/17 --- (01/24/17)----
+//----- drvFGPDB.h ----- 03/10/17 --- (01/24/17)----
 
 //-----------------------------------------------------------------------------
 //  asynPortDriver-based interface for controllers that support the FRIB LCP
@@ -50,6 +50,14 @@ class RegGroup {
 };
 
 //-----------------------------------------------------------------------------
+class RequiredParam {
+  public:
+    int         *id;    // addr of int value to save the paramID
+    std::string  def;   // string that defines the parameter
+};
+
+
+//-----------------------------------------------------------------------------
 class drvFGPDB : public asynPortDriver {
 
   public:
@@ -72,12 +80,13 @@ class drvFGPDB : public asynPortDriver {
 
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
 
-    void syncComLCP(void);
+    virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
 
-    int processPendingWrites(void);
+    // functions that clients can use safely
+    bool isWritableTypeOf(const std::string &caller,
+                          int paramID, asynParamType asynType);
 
-    RegGroup & getRegGroup(uint groupID);
-    bool inDefinedRegRange(uint firstReg, uint numRegs);
+    uint numParams(void) { return paramList.size(); }
 
 
 
@@ -86,7 +95,19 @@ class drvFGPDB : public asynPortDriver {
 #endif
     friend void drvFGPDB_initHookFunc(initHookState state);
 
-    void addDriverParams(void);
+    void syncComLCP(void);
+
+    int getWriteAccess(void);
+
+    int processPendingWrites(void);
+
+    bool validParamID(int paramID)  {
+      return ((uint)paramID < paramList.size()); }
+
+    RegGroup & getRegGroup(uint groupID);
+    bool inDefinedRegRange(uint firstReg, uint numRegs);
+
+    void addRequiredParams(void);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
@@ -119,6 +140,7 @@ class drvFGPDB : public asynPortDriver {
     static const int Priority = 0;
     static const int StackSize = 0;
 
+
     std::shared_ptr<asynOctetSyncIOInterface> syncIO;
 
     int maxParams;  // upper limit on total # params
@@ -133,7 +155,30 @@ class drvFGPDB : public asynPortDriver {
 
     std::atomic<bool> syncThreadInitialized;
     std::atomic<bool> stopProcessing;
+
     std::thread syncThread;
+
+    std::atomic<bool> writeAccess;
+
+    // paramIDs for required parameters
+    int idDevName;
+    int idSyncPktID;
+    int idAsyncPktID;
+    int idCtlrAddr;
+    int idStateFlags;
+    int idDiagFlags;
+    int idSessionID;
+
+    const std::list<RequiredParam> requiredParamDefs = {
+       { &idDevName,    "devName     0x1 Octet"          },
+       { &idSyncPktID,  "syncPktID   0x1 Int32"          },
+       { &idAsyncPktID, "asyncPktID  0x1 Int32"          },
+       { &idCtlrAddr,   "ctlrAddr    0x1 Int32"          },
+       { &idStateFlags, "stateFlags  0x1 UInt32Digital"  },
+       { &idDiagFlags,  "diagFlags   0x2 UInt32Digital"  },
+       { &idSessionID,  "sessionID   0x3000E Int32 U32"  }
+     };
+;
 };
 
 //-----------------------------------------------------------------------------
