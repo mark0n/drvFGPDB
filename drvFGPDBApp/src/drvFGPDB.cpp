@@ -72,11 +72,10 @@ void sleepMS(uint ms)  { this_thread::sleep_for(chrono::milliseconds(ms)); }
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-                   const string &udpPortName, int maxParams_) :
-    asynPortDriver(drvPortName.c_str(), MaxAddr, maxParams_, InterfaceMask,
+                   const string &udpPortName) :
+    asynPortDriver(drvPortName.c_str(), MaxAddr, 0, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
-    maxParams(maxParams_),
     packetID(0),
     stopProcessing(false),
     syncThread(&drvFGPDB::syncComLCP, this),
@@ -230,13 +229,6 @@ int drvFGPDB::processPendingWrites(void)
 void drvFGPDB::addRequiredParams(void)
 {
   for (auto const &paramDef : requiredParamDefs) {
-
-    if (paramList.size() >= (uint)maxParams)  {
-      string msg(string("***") + portName + ": # driver params > maxParams ***");
-      cout << endl << msg << endl;
-      throw invalid_argument(msg);
-    }
-
     ParamInfo param(paramDef.def, portName);
     paramList.push_back(param);
     *paramDef.id = paramList.size() - 1;
@@ -282,7 +274,7 @@ void conflictingParamDefs(const string &portName,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::updateParamDef(int paramID, const ParamInfo &newParam)
 {
-  if ((uint)paramID >= (uint)maxParams)  return asynError;  //msg
+  if ((uint)paramID >= paramList.size())  return asynError;  //msg
 
   ParamInfo &curParam = paramList.at(paramID);
 
@@ -329,7 +321,6 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   // If the parameter is not already in the list, then add it
   int  paramID = findParamByName(param.name);
   if (paramID < 0)  {
-    if (paramList.size() >= (uint)maxParams)  return asynError;
     paramList.push_back(param);
     pasynUser->reason = paramList.size()-1;
     cout << endl << "    add: [" << paramCfgStr << "] " //tdebug
@@ -944,13 +935,12 @@ extern "C" {
 //             that this module extends.
 //  \param[in] udpPortName The name of the asyn port for the UDP connection to
 //             the device.
-//  \maxParams[in] max # of asyn parameters that can be defined.
 //-----------------------------------------------------------------------------
-int drvFGPDB_Config(char *drvPortName, char *udpPortName, int maxParams)
+int drvFGPDB_Config(char *drvPortName, char *udpPortName)
 {
   new drvFGPDB(string(drvPortName),
                    NULL, //new asynOctetSyncIOInterface,
-                   string(udpPortName), maxParams);
+                   string(udpPortName));
 
   return 0;
 }
@@ -963,13 +953,11 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int maxParams)
 //=== Argment definitions: Description and type for each one ===
 static const iocshArg config_Arg0 = { "drvPortName", iocshArgString };
 static const iocshArg config_Arg1 = { "udpPortName", iocshArgString };
-static const iocshArg config_Arg2 = { "maxParams",   iocshArgInt    };
 
 //=== A list of the argument definitions ===
 static const iocshArg * const config_Args[] = {
   &config_Arg0,
   &config_Arg1,
-  &config_Arg2
 };
 
 //=== Func def struct:  Pointer to func, # args, arg list ===
@@ -979,7 +967,7 @@ static const iocshFuncDef config_FuncDef =
 //=== Func to call the func using elements from the generic argument list ===
 static void config_CallFunc(const iocshArgBuf *args)
 {
-  drvFGPDB_Config(args[0].sval, args[1].sval, args[2].ival);
+  drvFGPDB_Config(args[0].sval, args[1].sval);
 }
 
 

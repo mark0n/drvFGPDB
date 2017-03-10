@@ -29,7 +29,7 @@ public:
     syncIO(syncIOIn),
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
-    testDrv(drvName, syncIO, UDPPortName, maxParams),
+    testDrv(drvName, syncIO, UDPPortName),
     testParamID_RO(-1),
     maxParamID_RO(-1),
     testParamID_WA(-1)
@@ -117,7 +117,6 @@ public:
   }
 
   //---------------------------------------------
-  const int  maxParams = 200;
   asynUser  *pasynUser;
   shared_ptr<asynOctetSyncIOInterface>  syncIO;
   std::string  drvName;
