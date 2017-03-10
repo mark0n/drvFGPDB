@@ -166,7 +166,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   createAddrToParamMaps();
 
-  bool validRange = testDrv.inDefinedRegRange(0, 10);
+  bool validRange = testDrv.inDefinedRegRange(0, 1000);
   ASSERT_THAT(validRange, Eq(false));
 
   auto stat = testDrv.getParamInfo(maxParamID_RO, param);

@@ -38,7 +38,7 @@ public:
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
            << endl << endl;
 
-    numDrvParams = testDrv.paramList.size();
+    numDrvParams = testDrv.numParams();
   };
 
   //---------------------------------------------
@@ -71,7 +71,7 @@ public:
     stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+5));
 
-    stat = addParam("lcpRegWO_2 0x30002 Int32 U32");
+    stat = addParam("lcpRegWO_2 0x300FF Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+6));
   }
 
@@ -85,9 +85,9 @@ public:
     stat = testDrv.determineAddrRanges();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.regGroup[0].maxOffset, Eq(5));
-    ASSERT_THAT(testDrv.regGroup[1].maxOffset, Eq(4));
-    ASSERT_THAT(testDrv.regGroup[2].maxOffset, Eq(2));
+    ASSERT_THAT(testDrv.regGroup[0].maxOffset, Eq(0x0005));
+    ASSERT_THAT(testDrv.regGroup[1].maxOffset, Eq(0x0004));
+    ASSERT_THAT(testDrv.regGroup[2].maxOffset, Eq(0x00FF));
   }
 
   //---------------------------------------------
@@ -97,9 +97,9 @@ public:
     auto stat = testDrv.createAddrToParamMaps();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.regGroup[0].paramIDs.size(), Eq(6));
-    ASSERT_THAT(testDrv.regGroup[1].paramIDs.size(), Eq(5));
-    ASSERT_THAT(testDrv.regGroup[2].paramIDs.size(), Eq(3));
+    ASSERT_THAT(testDrv.regGroup[0].paramIDs.size(), Eq(0x0006));
+    ASSERT_THAT(testDrv.regGroup[1].paramIDs.size(), Eq(0x0005));
+    ASSERT_THAT(testDrv.regGroup[2].paramIDs.size(), Eq(0x0100));
   }
 
 //---------------------------------------------
