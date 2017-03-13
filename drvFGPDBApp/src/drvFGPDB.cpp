@@ -198,6 +198,8 @@ int drvFGPDB::getWriteAccess(void)
 //-----------------------------------------------------------------------------
 int drvFGPDB::processPendingWrites(void)
 {
+  asynStatus  stat = asynError;
+
   //ToDo: Use a linked-list of params with pending writes
 
   if (!writeAccess)  return -1;
@@ -206,7 +208,11 @@ int drvFGPDB::processPendingWrites(void)
   for (auto &param : paramList)  {
     if (param.setState != SetState::Pending)  continue;
 
-    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
+    for (int attempt = 0; attempt < 3; ++attempt)  {
+      if ((stat = writeRegs(param.regAddr, 1)) == asynSuccess)  break;
+      if (!writeAccess)  getWriteAccess();
+    }
+    if (stat != asynSuccess)  continue;
 
     param.setState = SetState::Sent;
     ++ackdCount;
@@ -486,6 +492,36 @@ double cltrFmtToDouble(U32 ctlrVal, CtlrDataFmt ctlrFmt)
 }
 
 //----------------------------------------------------------------------------
+//  Convert a value from a floating point to the format used the controller
+//----------------------------------------------------------------------------
+uint32_t doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
+{
+  uint32_t  ctlrVal = 0;
+  F32  f32val = 0.0;
+
+  switch (ctlrFmt)  {
+    case CtlrDataFmt::NotDefined:  break;
+
+    case CtlrDataFmt::S32:
+      dval = (int32_t) ctlrVal;  break;
+
+    case CtlrDataFmt::U32:
+      dval = (uint32_t) ctlrVal;  break;
+
+    case CtlrDataFmt::F32:
+      f32val = dval;  ctlrVal = *((uint32_t *)&f32val);  break;
+
+    case CtlrDataFmt::U16_16:
+      ctlrVal = (uint32_t) (dval * 65536.0);  break;
+
+    case CtlrDataFmt::PHASE:
+      ctlrVal = (uint32_t) (dval / PhaseConvFactor32);  break;
+  }
+
+  return ctlrVal;
+}
+
+//----------------------------------------------------------------------------
 //  Post a new read value for a parameter
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::postNewReadVal(uint paramID)
@@ -608,13 +644,17 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   int  eomReason;
   asynStatus stat;
   size_t rcvd;
+  uint32_t  respSessionID = 0, respStatus = -999;
+  ParamInfo &sessionID = paramList.at(idSessionID);
 
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
   if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
 
-  // Construct cmd packet and send it
+  ++packetID;
+
+  // Construct cmd packet
   vector<uint32_t> cmdBuf;
   cmdBuf.reserve(4 + numRegs);
   cmdBuf.push_back(htonl(packetID));
@@ -639,13 +679,11 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
   size_t bytesSent;
 
+  // Send the cmd pkt
   stat = pasynOctetSyncIO->write(pAsynUserUDP,
                                  reinterpret_cast<char *>(cmdBuf.data()),
                                  bytesToSend, 2.0, &bytesSent);
-  if (stat != asynSuccess)  return stat;
-  if (bytesSent != bytesToSend)  return asynError;
-
-  ++packetID;
+  if ((stat != asynSuccess) or (bytesSent != bytesToSend))  return asynError;
 
 
   // Read and process response packet
@@ -657,12 +695,12 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   if (rcvd != expectedRespLen)  return asynError;
 
   uint32_t sessID_and_status = ntohl(respBuf[4]);
-  uint32_t respSessionID = (sessID_and_status >> 16) & 0xFFFF;
-  uint32_t respStatus = sessID_and_status & 0xFFFF;
+  respSessionID = (sessID_and_status >> 16) & 0xFFFF;
+  respStatus = sessID_and_status & 0xFFFF;
 
-  ParamInfo &sessionID = paramList.at(idSessionID);
-  if (respStatus or (respSessionID != sessionID.ctlrValSet))
-    writeAccess = false;
+  writeAccess = (respSessionID == sessionID.ctlrValSet);
+
+  if (respStatus)  return asynError;
 
   //todo:
   //  - Check all header values in returned packet
@@ -745,8 +783,8 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   ParamInfo &param = paramList.at(paramID);
 
 
-  cout << endl << "  === write 0x" << hex << newVal   //tdebug
-       << " to " << param.name << endl;  //tdebug
+  cout << endl << "  === write << " << newVal << "(0x" << hex << newVal << ")"
+       << " to " << param.name << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamInt32))  {
@@ -785,14 +823,16 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   ParamInfo &param = paramList.at(paramID);
 
 
-  cout << endl << "  === write 0x" << newVal   //tdebug
-       << " to " << param.name << endl;  //tdebug
+  uint32_t ctlrVal = doubleToCtlrFmt(newVal, param.ctlrFmt);
+
+  cout << endl << "  === write " << newVal << " (0x" << hex << ctlrVal << ")"
+       << " to " << param.name << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamFloat64))  {
       stat = asynError;  break; }
 
-    param.ctlrValSet = newVal;
+    param.ctlrValSet = ctlrVal;
     param.setState = SetState::Pending;
 
   //ToDo: Add param to a linked-list of params with pending writes
