@@ -157,28 +157,28 @@ int drvFGPDB::getWriteAccess(void)
 {
   if (!validParamID(idSessionID))  return -1;
 
-  ParamInfo &param = paramList.at(idSessionID);
+  ParamInfo &sessionID = paramList.at(idSessionID);
 
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  sleepMS(10);
 
     // valid sessionID values are > 0 and < 0xFFFF
-    param.ctlrValSet = getMS() & 0xFFFE;
-    if (!param.ctlrValSet)  param.ctlrValSet = 1;
-    param.setState = SetState::Pending;
+    sessionID.ctlrValSet = getMS() & 0xFFFE;
+    if (!sessionID.ctlrValSet)  sessionID.ctlrValSet = 1;
+    sessionID.setState = SetState::Pending;
 
-    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
+    if (writeRegs(sessionID.regAddr, 1) != asynSuccess)  continue;
 
     //temp: For now we just read the reg value back.  Eventually the
     //      sessionID value in the hdr of every resp pkt will be used to insure
     //      that we set the correct register value and the ctlr really is using
     //      the value we sent (and that we have write access)
-    param.readState = ReadState::Undefined;
-    if (readRegs(param.regAddr, 1) != asynSuccess)  continue;
+    sessionID.readState = ReadState::Undefined;
+    if (readRegs(sessionID.regAddr, 1) != asynSuccess)  continue;
 
-    if ((param.ctlrValRead == param.ctlrValSet) and
-        (param.setState == SetState::Sent) and
-        (param.readState == ReadState::Current))  writeAccess = true;
+    if ((sessionID.ctlrValRead == sessionID.ctlrValSet) and
+        (sessionID.setState == SetState::Sent) and
+        (sessionID.readState == ReadState::Current))  writeAccess = true;
 
     if (writeAccess)  {
       cout << "  === " << portName << " now has write access ===" << endl;
@@ -586,7 +586,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
     param.ctlrValRead = justReadVal;
     param.readState = ReadState::Current;
-    auto stat = postNewReadVal(paramID);
+    stat = postNewReadVal(paramID);
     if (stat == asynSuccess)
       chgsToBePosted = true;
     else
@@ -608,12 +608,13 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   int  eomReason;
   asynStatus stat;
   size_t rcvd;
-  char  respBuf[32];
 
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
   if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
+
+  // Construct cmd packet and send it
   vector<uint32_t> cmdBuf;
   cmdBuf.reserve(4 + numRegs);
   cmdBuf.push_back(htonl(packetID));
@@ -646,14 +647,33 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   ++packetID;
 
-  pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0, &rcvd,
-                         &eomReason);
-  if (rcvd != 20)  return asynError;
+
+  // Read and process response packet
+  vector<uint32_t> respBuf(5, 0);
+  size_t expectedRespLen = respBuf.size() * sizeof(respBuf[0]);
+  pasynOctetSyncIO->read(pAsynUserUDP,
+                         reinterpret_cast<char *>(respBuf.data()),
+                         expectedRespLen, 2.0, &rcvd, &eomReason);
+  if (rcvd != expectedRespLen)  return asynError;
+
+  uint32_t sessID_and_status = ntohl(respBuf[4]);
+  uint32_t respSessionID = (sessID_and_status >> 16) & 0xFFFF;
+  uint32_t respStatus = sessID_and_status & 0xFFFF;
+
+  ParamInfo &sessionID = paramList.at(idSessionID);
+  if (respStatus or (respSessionID != sessionID.ctlrValSet))
+    writeAccess = false;
 
   //todo:
-  //  - Check header values in returned packet
-  //  - Update the setState of the params
-  //  - return the status value from the response pkt
+  //  - Check all header values in returned packet
+  //  - Finish logic for updating the setState of the params
+  //  - Return the status value from the response pkt (change the return type
+  //    for the function to LCPStatus?  Or return the rcvd status in another
+  //    argument)? Consider what the caller really needs/wants to know:  Just
+  //    whether or not the send/rcv worked vs it worked but the controller did
+  //    or didn't return an error (especially given that a resp status of
+  //    SUCCESS does NOT necessarily meant that all the values written were
+  //    accepted as-is)
 
   offset = LCPUtil::addrOffset(firstReg);
 
@@ -668,14 +688,20 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 }
 
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
+asynStatus drvFGPDB::getIntegerParam(__attribute__((unused)) int list,
+                                     __attribute__((unused)) int index,
+                                     __attribute__((unused)) int *value)
 {  return asynDisconnected; }
 
-asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
+asynStatus drvFGPDB::getDoubleParam(__attribute__((unused)) int list,
+                                    __attribute__((unused)) int index,
+                                    __attribute__((unused)) double * value)
 {  return asynDisconnected; }
 
-asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
-                                         epicsUInt32 *value, epicsUInt32 mask)
+asynStatus drvFGPDB::getUIntDigitalParam(__attribute__((unused)) int list,
+                                         __attribute__((unused)) int index,
+                                         __attribute__((unused)) epicsUInt32 *value,
+                                         __attribute__((unused)) epicsUInt32 mask)
 {  return asynDisconnected; }
 
 
