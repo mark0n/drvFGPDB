@@ -54,7 +54,7 @@ public:
 
   //---------------------------------------------
   void addParams()  {
-    // Np params for addrs 0x10000 - 0x10001
+    // No params for addrs 0x10000 - 0x10001
     auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams));  testParamID_RO = stat;
     // No params for addrs 0x10003 - 0x10004
@@ -71,6 +71,7 @@ public:
     stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
     ASSERT_THAT(stat, Eq(numDrvParams+5));
 
+    stat = addParam("sessionID  0x3000E Int32 U32");
     stat = addParam("lcpRegWO_2 0x300FF Int32 U32");
     ASSERT_THAT(stat, Eq(numDrvParams+6));
   }
