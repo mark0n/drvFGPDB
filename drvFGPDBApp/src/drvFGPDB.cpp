@@ -57,11 +57,13 @@ static bool  initComplete;
 //-----------------------------------------------------------------------------
 // Return the time as a millisecond counter that wraps around
 //-----------------------------------------------------------------------------
-ulong getSystemClockInMS(void)
+ulong getMS(void)
 {
-  using namespace std::chrono;
-  auto duration = system_clock::now().time_since_epoch();
-  return duration_cast<milliseconds>(duration).count();
+  //todo: Replace the following with the equiv chrono:: class/func?
+
+  struct timespec  timeData;
+  clock_gettime(CLOCK_REALTIME, &timeData);
+  return (timeData.tv_sec * 1000L) + (timeData.tv_nsec / 1000000L);
 }
 
 //ulong msSince(ulong msTime) { return getMS() - msTime; }
@@ -84,7 +86,9 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     writeAccess(false),
     idDevName(-1),
     idSyncPktID(-1),
+    idSyncPktsRcvd(-1),
     idAsyncPktID(-1),
+    idAsyncPktsRcvd(-1),
     idCtlrAddr(-1),
     idStateFlags(-1),
     idDiagFlags(-1),
@@ -161,7 +165,7 @@ int drvFGPDB::getWriteAccess(void)
     if (attempt)  sleepMS(10);
 
     // valid sessionID values are > 0 and < 0xFFFF
-    sessionID.ctlrValSet = getSystemClockInMS() & 0xFFFE;
+    sessionID.ctlrValSet = getMS() & 0xFFFE;
     if (!sessionID.ctlrValSet)  sessionID.ctlrValSet = 1;
     sessionID.setState = SetState::Pending;
 
@@ -261,6 +265,16 @@ asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
 }
 
 //-----------------------------------------------------------------------------
+void conflictingParamDefs(const string &portName,
+                          const ParamInfo &curDef, const ParamInfo &newDef)
+{
+  cout << "*** " << portName << ":" << curDef.name << ": "
+          "Conflicting parameter definitions ***" << endl
+       << "  cur: " << curDef << endl
+       << "  new: " << newDef << endl;
+}
+
+//-----------------------------------------------------------------------------
 //  Update the properties for an existing parameter.
 //
 //  Checks for conflicts and updates any missing property values using ones
@@ -270,7 +284,11 @@ asynStatus drvFGPDB::updateParamDef(int paramID, const ParamInfo &newParam)
 {
   if ((uint)paramID >= (uint)maxParams)  return asynError;  //msg
 
-  ParamInfo  &curParam = paramList.at(paramID);
+  ParamInfo &curParam = paramList.at(paramID);
+
+cout << endl
+     << "  update: " << curParam << endl  //tdebug
+     << "    from: " << newParam << endl;
 
   if (curParam.name != newParam.name)  return asynError;
 
@@ -278,8 +296,10 @@ asynStatus drvFGPDB::updateParamDef(int paramID, const ParamInfo &newParam)
   if (curParam.prop == (NotDef))  \
     curParam.prop = newParam.prop;  \
   else  \
-    if ((newParam.prop != (NotDef)) and (curParam.prop != newParam.prop))  \
-      return asynError;  //msg
+    if ((newParam.prop != (NotDef)) and (curParam.prop != newParam.prop))  { \
+      conflictingParamDefs(portName, curParam, newParam);  \
+      return asynError; \
+    }
 
   UpdateProp(regAddr, 0);
   UpdateProp(asynType, asynParamNotDefined);
@@ -312,6 +332,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
     if (paramList.size() >= (uint)maxParams)  return asynError;
     paramList.push_back(param);
     pasynUser->reason = paramList.size()-1;
+    cout << endl << "    add: [" << paramCfgStr << "]" << endl;  //tdebug
     return asynSuccess;
   }
 
@@ -333,9 +354,8 @@ asynStatus drvFGPDB::createAsynParams(void)
   for (auto param = paramList.cbegin(); param != paramList.cend(); ++param) {
     if (param->asynType == asynParamNotDefined)  {
       cout << endl
-           <<"  *** " << portName << ":" << param->name
-           << " [" << (param - paramList.begin()) << "]: "
-              "No asyn type specified in INP/OUT field ***" << endl;
+           << "  *** " << portName << " [" << *param << "]" << endl
+           << "      No asyn type specified in INP/OUT field" << endl;
       throw invalid_argument("Configuration error");
     }
     stat = createParam(param->name.c_str(), param->asynType, &paramID);

@@ -20,8 +20,13 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "S32",    CtlrDataFmt::S32    },
   { "U32",    CtlrDataFmt::U32    },
   { "F32",    CtlrDataFmt::F32    },
-  { "U16_16", CtlrDataFmt::U16_16 }
+  { "U16_16", CtlrDataFmt::U16_16 },
+  { "PHASE",  CtlrDataFmt::PHASE  }
 };
+
+
+static string NotDefined("<NotDefined>");
+
 
 //-----------------------------------------------------------------------------
 // Construct a ParamInfo object from a string description of the form:
@@ -59,15 +64,29 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 const regex& ParamInfo::generateParamStrRegex()
 {
   const string paramName    = "\\w+";
+
   const string whiteSpaces  = "\\s+";
   const string address      = "0x[0-9a-fA-F]+";
   const string asynType     = "(" + joinMapKeys(asynTypes, "|") + ")";
   const string ctlrFmt      = "(" + joinMapKeys(ctlrFmts,  "|") + ")";
+
   const string optionalPart = "(" + whiteSpaces + address
                                   + whiteSpaces + asynType
                                   + "(" + whiteSpaces + ctlrFmt + ")?)?";
+
   static const regex re(paramName + optionalPart);
   return re;
+}
+
+//-----------------------------------------------------------------------------
+//  Return a string definition for a parameter
+//-----------------------------------------------------------------------------
+ostream& operator<<(ostream& os, const ParamInfo &param)
+{
+  os << param.name << " 0x" << hex << param.regAddr << " "
+     << ParamInfo::asynTypeToStr(param.asynType) << " "
+     << ParamInfo::ctlrFmtToStr(param.ctlrFmt);
+  return os;
 }
 
 //-----------------------------------------------------------------------------
@@ -88,4 +107,23 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
   return it == ctlrFmts.end() ? CtlrDataFmt::NotDefined : it->second;
 }
 
+//-----------------------------------------------------------------------------
+//  Return the string associated with an asynParamType
+//-----------------------------------------------------------------------------
+const string & ParamInfo::asynTypeToStr(const asynParamType asynType)
+{
+  for (auto& x: asynTypes)  if (x.second == asynType)  return x.first;
+
+  return NotDefined;
+}
+
+//-----------------------------------------------------------------------------
+//  Return the string associated with a ClrDataFmt
+//-----------------------------------------------------------------------------
+const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
+{
+  for (auto& x: ctlrFmts)  if (x.second == ctlrFmt)  return x.first;
+
+  return NotDefined;
+}
 

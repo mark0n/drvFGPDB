@@ -163,21 +163,24 @@ class drvFGPDB : public asynPortDriver {
     // paramIDs for required parameters
     int idDevName;
     int idSyncPktID;
+    int idSyncPktsRcvd;
     int idAsyncPktID;
+    int idAsyncPktsRcvd;
     int idCtlrAddr;
     int idStateFlags;
     int idDiagFlags;
     int idSessionID;
 
     const std::list<RequiredParam> requiredParamDefs = {
-       { &idDevName,    "devName     0x1 Octet"          },
-       { &idSyncPktID,  "syncPktID   0x1 Int32"          },
-       { &idAsyncPktID, "asyncPktID  0x1 Int32"          },
-       { &idCtlrAddr,   "ctlrAddr    0x1 Int32"          },
-       { &idStateFlags, "stateFlags  0x1 UInt32Digital"  },
-       { &idDiagFlags,  "diagFlags   0x2 UInt32Digital"  },
-//       { &idSessionID,  "sessionID   0x3000E Int32 U32"  }
-       { &idSessionID,  "sessionID"  }
+       { &idDevName,       "devName        0x1 Octet"         },
+       { &idSyncPktID,     "syncPktID      0x1 Int32"         },
+       { &idSyncPktsRcvd,  "syncPktsRcvd   0x1 Int32"         },
+       { &idAsyncPktID,    "asyncPktID     0x1 Int32"         },
+       { &idAsyncPktsRcvd, "asyncPktsRcvd  0x1 Int32"         },
+       { &idCtlrAddr,      "ctlrAddr       0x1 Int32"         },
+       { &idStateFlags,    "stateFlags     0x1 UInt32Digital" },
+       { &idDiagFlags,     "diagFlags      0x2 UInt32Digital" },
+       { &idSessionID,     "sessionID"  }
      };
 ;
 };

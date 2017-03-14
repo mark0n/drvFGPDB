@@ -3,6 +3,7 @@
 
 #include <regex>
 #include <map>
+#include <iostream>
 
 #include <asynPortDriver.h>
 
@@ -108,8 +109,13 @@ class ParamInfo {
 
 
     static asynParamType strToAsynType(const std::string &typeName);
-
     static CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
+
+    static const std::string & asynTypeToStr(const asynParamType asynType);
+    static const std::string & ctlrFmtToStr(const CtlrDataFmt ctlrFmt);
+
+    friend std::ostream& operator<<(std::ostream& os, const ParamInfo &param);
+
 
 
     std::string    name;
