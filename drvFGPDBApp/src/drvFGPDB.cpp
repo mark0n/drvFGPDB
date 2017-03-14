@@ -57,13 +57,11 @@ static bool  initComplete;
 //-----------------------------------------------------------------------------
 // Return the time as a millisecond counter that wraps around
 //-----------------------------------------------------------------------------
-ulong getMS(void)
+ulong getSystemClockInMS(void)
 {
-  //todo: Replace the following with the equiv chrono:: class/func?
-
-  struct timespec  timeData;
-  clock_gettime(CLOCK_REALTIME, &timeData);
-  return (timeData.tv_sec * 1000L) + (timeData.tv_nsec / 1000000L);
+  using namespace std::chrono;
+  auto duration = system_clock::now().time_since_epoch();
+  return duration_cast<milliseconds>(duration).count();
 }
 
 //ulong msSince(ulong msTime) { return getMS() - msTime; }
@@ -163,7 +161,7 @@ int drvFGPDB::getWriteAccess(void)
     if (attempt)  sleepMS(10);
 
     // valid sessionID values are > 0 and < 0xFFFF
-    sessionID.ctlrValSet = getMS() & 0xFFFE;
+    sessionID.ctlrValSet = getSystemClockInMS() & 0xFFFE;
     if (!sessionID.ctlrValSet)  sessionID.ctlrValSet = 1;
     sessionID.setState = SetState::Pending;
 
