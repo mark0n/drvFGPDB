@@ -80,6 +80,9 @@ class drvFGPDB : public asynPortDriver {
 
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
 
+    virtual asynStatus writeUInt32Digital(asynUser *pasynUser,
+                                          epicsUInt32 newVal, epicsUInt32 mask);
+
     virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
 
     // functions that clients can use safely

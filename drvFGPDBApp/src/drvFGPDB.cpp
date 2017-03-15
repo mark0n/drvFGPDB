@@ -799,7 +799,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   ParamInfo &param = paramList.at(paramID);
 
 
-  cout << endl << "  === write << " << newVal << "(0x" << hex << newVal << ")"
+  cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
        << " to " << param.name << endl;
 
   do {
@@ -830,7 +830,53 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 
 
 //----------------------------------------------------------------------------
-// Process a request to write to one of the Int32 parameters
+// Process a request to write to one of the UInt32Digital parameters
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::
+  writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal, epicsUInt32 mask)
+{
+  asynStatus  stat = asynSuccess;
+  uint32_t  setVal;
+  int  paramID = pasynUser->reason;
+  ParamInfo &param = paramList.at(paramID);
+
+
+  cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
+       << " to " << param.name << endl;
+
+  do {
+    if (!isWritableTypeOf(__func__, paramID, asynParamUInt32Digital))  {
+      stat = asynError;  break; }
+
+    // Compute result of applying specified changes
+    setVal = param.ctlrValSet;   // start with cur value of all the bits
+    setVal |= (newVal & mask);   // set bits set in value and the mask
+    setVal &= (newVal | ~mask);  // clear bits clear in value but set in mask
+
+    param.ctlrValSet = setVal;
+    param.setState = SetState::Pending;
+
+  //ToDo: Add param to a linked-list of params with pending writes
+
+  } while (0);
+
+
+  if (stat != asynSuccess)
+    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
+                  "%s::%s: status=%d, paramID=%d, name=%s, value=0x%08X",
+                  typeid(this).name(), __func__,
+                  stat, paramID, param.name.c_str(), newVal);
+  else
+    asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+              "%s::%s():  paramID=%d, name=%s, value=0x%08X\n",
+              typeid(this).name(), __func__,
+              paramID, param.name.c_str(), newVal);
+
+  return stat;
+}
+
+//----------------------------------------------------------------------------
+// Process a request to write to one of the Float64 parameters
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 {
