@@ -1,4 +1,4 @@
-//----- drvFGPDB.cpp ----- 03/10/17 --- (01/24/17)----
+//----- drvFGPDB.cpp ----- 03/16/17 --- (01/24/17)----
 
 //-----------------------------------------------------------------------------
 //  asynPortDriver-based interface for controllers that support the FRIB LCP
@@ -140,8 +140,8 @@ void drvFGPDB::syncComLCP()
 
     sleepMS(200);
 
-    readRegs(0x10000, getRegGroup(ProcGroup_LCP_RO).maxOffset);
-    readRegs(0x20000, getRegGroup(ProcGroup_LCP_WA).maxOffset);
+    readRegs(0x10000, getRegGroup(ProcGroup_LCP_RO).maxOffset+1);
+    readRegs(0x20000, getRegGroup(ProcGroup_LCP_WA).maxOffset+1);
 
     if (!writeAccess)  getWriteAccess();
 
@@ -358,7 +358,7 @@ asynStatus drvFGPDB::createAsynParams(void)
     }
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-//  cout << "  created " << param->name << " [" << paramID << "]" << endl; //tdebug
+//  cout << "  created " << param->name << " [" << dec << paramID << "]" << endl; //tdebug
   }
   cout << endl;
 
@@ -445,8 +445,8 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
     if (paramIDs.at(offset) >= 0)  {
       cout << "Device: " << portName << ": "
            "*** Multiple params with same LCP reg addr ***" << endl
-           << "  " << paramList.at(paramIDs.at(offset)).name
-           << " and " << paramList.at(paramID).name << endl;
+           << "  [" << paramList.at(paramIDs.at(offset)) << "]"
+              " and [" << paramList.at(paramID) << "]" << endl;
       stat = asynError;
     }
 
@@ -463,7 +463,8 @@ asynStatus drvFGPDB::createAddrToParamMaps(void)
 //-----------------------------------------------------------------------------
 void drvFGPDB_initHookFunc(initHookState state)
 {
-  cout << endl << "initHookState: " << state << endl << endl;
+  cout << endl << "initHookState: " << dec << state << endl
+       << endl;
 
   if (state >= initHookAfterIocRunning)  { initComplete = true;  return; }
 
@@ -689,7 +690,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     ParamInfo &param = paramList.at(paramID);
     cmdBuf.push_back(htonl(param.ctlrValSet));
     cout << "  === send value 0x" << hex << param.ctlrValSet   //tdebug
-         << " for " << param.name << " ===" << endl;  //tdebug
+         << " for " << param.name << " ===" << dec << endl;  //tdebug
   }
 
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
@@ -800,7 +801,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 
 
   cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
-       << " to " << param.name << endl;
+       << " to " << param.name << dec << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamInt32))  {
@@ -842,7 +843,7 @@ asynStatus drvFGPDB::
 
 
   cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
-       << " to " << param.name << endl;
+       << " to " << param.name << dec << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamUInt32Digital))  {
@@ -888,7 +889,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   uint32_t ctlrVal = doubleToCtlrFmt(newVal, param.ctlrFmt);
 
   cout << endl << "  === write " << newVal << " (0x" << hex << ctlrVal << ")"
-       << " to " << param.name << endl;
+       << " to " << param.name << dec << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamFloat64))  {
