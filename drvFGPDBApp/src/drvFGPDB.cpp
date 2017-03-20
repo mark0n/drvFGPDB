@@ -98,6 +98,9 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   addRequiredParams();
 
+  paramList.at(idSessionID).readOnly = true;
+
+
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
   auto stat = pasynOctetSyncIO->connect(udpPortName.c_str(), 0,
@@ -281,9 +284,9 @@ asynStatus drvFGPDB::updateParamDef(int paramID, const ParamInfo &newParam)
 
   ParamInfo &curParam = paramList.at(paramID);
 
-cout << endl
-     << "  update: " << curParam << endl  //tdebug
-     << "    from: " << newParam << endl;
+  cout << endl  //tdebug
+       << "  update: " << curParam << endl  //tdebug
+       << "   using: " << newParam << endl;  //tdebug
 
   if (curParam.name != newParam.name)  return asynError;
 
@@ -296,9 +299,9 @@ cout << endl
       return asynError; \
     }
 
-  UpdateProp(regAddr, 0);
+  UpdateProp(regAddr,  0);
   UpdateProp(asynType, asynParamNotDefined);
-  UpdateProp(ctlrFmt, CtlrDataFmt::NotDefined);
+  UpdateProp(ctlrFmt,  CtlrDataFmt::NotDefined);
 //UpdateProp(syncMode, SyncMode::NotDefined);
 
   return asynSuccess;
@@ -327,7 +330,8 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
     if (paramList.size() >= (uint)maxParams)  return asynError;
     paramList.push_back(param);
     pasynUser->reason = paramList.size()-1;
-    cout << endl << "    add: [" << paramCfgStr << "]" << endl;  //tdebug
+    cout << endl << "    add: [" << paramCfgStr << "] " //tdebug
+                    "[" << dec << pasynUser->reason << "]" << endl;  //tdebug
     return asynSuccess;
   }
 
@@ -355,7 +359,7 @@ asynStatus drvFGPDB::createAsynParams(void)
     }
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-//  cout << "  created " << param->name << " [" << dec << paramID << "]" << endl; //tdebug
+    cout << "  created " << param->name << " [" << dec << paramID << "]" << endl; //tdebug
   }
   cout << endl;
 
@@ -743,18 +747,24 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 asynStatus drvFGPDB::getIntegerParam(__attribute__((unused)) int list,
                                      __attribute__((unused)) int index,
                                      __attribute__((unused)) int *value)
-{  return asynDisconnected; }
+{
+  cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
+  return asynDisconnected; }
 
 asynStatus drvFGPDB::getDoubleParam(__attribute__((unused)) int list,
                                     __attribute__((unused)) int index,
                                     __attribute__((unused)) double * value)
-{  return asynDisconnected; }
+{
+  cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
+  return asynDisconnected; }
 
 asynStatus drvFGPDB::getUIntDigitalParam(__attribute__((unused)) int list,
                                          __attribute__((unused)) int index,
                                          __attribute__((unused)) epicsUInt32 *value,
                                          __attribute__((unused)) epicsUInt32 mask)
-{  return asynDisconnected; }
+{
+  cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
+  return asynDisconnected; }
 
 
 //----------------------------------------------------------------------------

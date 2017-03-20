@@ -194,11 +194,12 @@ class drvFGPDB : public asynPortDriver {
        { &idCtlrAddr,      "ctlrAddr       0x1 Int32"         },
 
        { &idStateFlags,    "stateFlags     0x1 UInt32Digital" },
+
        { &idDiagFlags,     "diagFlags      0x2 UInt32Digital" },
 
-       { &idSessionID,     "sessionID"  }
+       { &idSessionID,     "sessionID      0x0 Int32 U32"     }
      };
-;
+
 };
 
 //-----------------------------------------------------------------------------
