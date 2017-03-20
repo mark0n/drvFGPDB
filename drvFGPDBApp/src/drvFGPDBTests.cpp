@@ -77,11 +77,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canBeConstructedWithoutAnyErrors) {
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncMock, launchesSyncComThread) {
-  for (int i=0; i<200; ++i)  {
-    if (testDrv.syncThreadInitialized)  break;
-    this_thread::sleep_for(chrono::milliseconds(10));
-  }
-  ASSERT_THAT(testDrv.syncThreadInitialized, Eq(true));
+  ASSERT_THAT(testDrv.syncThread.joinable(), Eq(true));
 }
 
 //-----------------------------------------------------------------------------
