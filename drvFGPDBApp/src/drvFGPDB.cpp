@@ -78,7 +78,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     syncIO(syncIOWrapper),
     maxParams(maxParams_),
     packetID(0),
-    syncThreadInitialized(false),
     stopProcessing(false),
     syncThread(&drvFGPDB::syncComLCP, this),
     writeAccess(false),
@@ -133,8 +132,6 @@ drvFGPDB::~drvFGPDB()
 //-----------------------------------------------------------------------------
 void drvFGPDB::syncComLCP()
 {
-  syncThreadInitialized = true;
-
   while (!stopProcessing)  {
     if (!initComplete)  { sleepMS(5);  continue; }
 

@@ -156,7 +156,6 @@ class drvFGPDB : public asynPortDriver {
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
-    std::atomic<bool> syncThreadInitialized;
     std::atomic<bool> stopProcessing;
 
     std::thread syncThread;
