@@ -100,7 +100,7 @@ class drvFGPDB : public asynPortDriver {
 
     void syncComLCP(void);
 
-    int getWriteAccess(void);
+    asynStatus getWriteAccess(void);
 
     int processPendingWrites(void);
 

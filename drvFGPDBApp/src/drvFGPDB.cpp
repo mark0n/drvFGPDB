@@ -153,9 +153,9 @@ void drvFGPDB::syncComLCP()
 //-----------------------------------------------------------------------------
 //  Attempt to gain write access to the ctlr (by setting the sessionID reg)
 //-----------------------------------------------------------------------------
-int drvFGPDB::getWriteAccess(void)
+asynStatus drvFGPDB::getWriteAccess(void)
 {
-  if (!validParamID(idSessionID))  return -1;
+  if (!validParamID(idSessionID))  return asynError;
 
   ParamInfo &sessionID = paramList.at(idSessionID);
 
@@ -182,14 +182,14 @@ int drvFGPDB::getWriteAccess(void)
 
     if (writeAccess)  {
       cout << "  === " << portName << " now has write access ===" << endl;
-      return 0;
+      return asynSuccess;
     }
 
   }
 
   cout << "  *** " << portName << " failed to get write access ***" << endl;
 
-  return -1;
+  return asynError;
 }
 
 //-----------------------------------------------------------------------------
