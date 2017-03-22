@@ -29,7 +29,6 @@
 #include <atomic>
 
 #include <asynPortDriver.h>
-#include <asynOctetSyncIO.h>
 
 #include <initHooks.h>
 

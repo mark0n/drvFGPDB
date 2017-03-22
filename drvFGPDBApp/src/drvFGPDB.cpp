@@ -98,8 +98,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
-  auto stat = pasynOctetSyncIO->connect(udpPortName.c_str(), 0,
-                                        &pAsynUserUDP, nullptr);
+  auto stat = syncIO->connect(udpPortName.c_str(), 0, &pAsynUserUDP, nullptr);
 
   if (stat) {
     cout << "  asyn driver for: " << drvPortName
@@ -118,7 +117,7 @@ drvFGPDB::~drvFGPDB()
   stopProcessing = true;
   syncThread.join();
 
-  pasynOctetSyncIO->disconnect(pAsynUserUDP);
+  syncIO->disconnect(pAsynUserUDP);
 
   drvList.remove(this);
 }

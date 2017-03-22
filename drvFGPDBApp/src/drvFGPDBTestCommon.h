@@ -1,6 +1,8 @@
 #ifndef DRVFGPDBTESTCOMMON_H
 #define DRVFGPDBTESTCOMMON_H
 
+#include <memory>
+
 using namespace testing;
 using namespace std;
 
@@ -29,17 +31,10 @@ public:
     syncIO(syncIOIn),
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
-    testDrv(drvName, syncIO, UDPPortName),
     testParamID_RO(-1),
     maxParamID_RO(-1),
     testParamID_WA(-1)
-  {
-    if (udpPortStat)
-      cout << drvName << " unable to create asyn UDP port: " << UDPPortName
-           << endl << endl;
-
-    numDrvParams = testDrv.numParams();
-  };
+  {};
 
   //---------------------------------------------
   ~AnFGPDBDriver() { pasynManager->freeAsynUser(pasynUser); };
@@ -48,7 +43,7 @@ public:
   int addParam(string paramStr) {
     asynStatus stat;
     pasynUser->reason = -1;
-    stat = testDrv.drvUserCreate(pasynUser, paramStr.c_str(), nullptr, nullptr);
+    stat = testDrv->drvUserCreate(pasynUser, paramStr.c_str(), nullptr, nullptr);
     return (stat == asynSuccess) ? pasynUser->reason : -1;
   }
 
@@ -80,27 +75,27 @@ public:
   void determineAddrRanges()  {
     addParams();
 
-    auto stat = testDrv.createAsynParams();
+    auto stat = testDrv->createAsynParams();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.determineAddrRanges();
+    stat = testDrv->determineAddrRanges();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.regGroup[0].maxOffset, Eq(0x0005));
-    ASSERT_THAT(testDrv.regGroup[1].maxOffset, Eq(0x0004));
-    ASSERT_THAT(testDrv.regGroup[2].maxOffset, Eq(0x00FF));
+    ASSERT_THAT(testDrv->regGroup[0].maxOffset, Eq(0x0005));
+    ASSERT_THAT(testDrv->regGroup[1].maxOffset, Eq(0x0004));
+    ASSERT_THAT(testDrv->regGroup[2].maxOffset, Eq(0x00FF));
   }
 
   //---------------------------------------------
   void createAddrToParamMaps()  {
     determineAddrRanges();
 
-    auto stat = testDrv.createAddrToParamMaps();
+    auto stat = testDrv->createAddrToParamMaps();
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    ASSERT_THAT(testDrv.regGroup[0].paramIDs.size(), Eq(0x0006));
-    ASSERT_THAT(testDrv.regGroup[1].paramIDs.size(), Eq(0x0005));
-    ASSERT_THAT(testDrv.regGroup[2].paramIDs.size(), Eq(0x0100));
+    ASSERT_THAT(testDrv->regGroup[0].paramIDs.size(), Eq(0x0006));
+    ASSERT_THAT(testDrv->regGroup[1].paramIDs.size(), Eq(0x0005));
+    ASSERT_THAT(testDrv->regGroup[2].paramIDs.size(), Eq(0x0100));
   }
 
 //---------------------------------------------
@@ -108,10 +103,10 @@ public:
     createAddrToParamMaps();
 
     pasynUser->reason = testParamID_WA;
-    auto stat = testDrv.writeInt32(pasynUser, 42);
+    auto stat = testDrv->writeInt32(pasynUser, 42);
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
+    tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
     ASSERT_THAT(param.ctlrValSet, Eq(42));
     ASSERT_THAT(param.setState, Eq(SetState::Pending));
   }
@@ -121,7 +116,7 @@ public:
   shared_ptr<asynOctetSyncIOInterface>  syncIO;
   std::string  drvName;
   int  udpPortStat;
-  drvFGPDB  testDrv;
+  unique_ptr<drvFGPDB> testDrv;
   int  testParamID_RO, maxParamID_RO, testParamID_WA;
   int  numDrvParams;
   ParamInfo  param;
