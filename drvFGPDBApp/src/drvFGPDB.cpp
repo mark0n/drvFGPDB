@@ -701,18 +701,24 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   size_t bytesSent;
 
   // Send the cmd pkt
-  stat = pasynOctetSyncIO->write(pAsynUserUDP,
-                                 reinterpret_cast<char *>(cmdBuf.data()),
-                                 bytesToSend, 2.0, &bytesSent);
+  writeData outData {
+    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
+    .write_buffer_len = bytesToSend,
+    .nbytesOut = &bytesSent
+  };
+  stat = syncIO->write(pAsynUserUDP, outData, 2.0);
   if ((stat != asynSuccess) or (bytesSent != bytesToSend))  return asynError;
 
 
   // Read and process response packet
   vector<uint32_t> respBuf(5, 0);
   size_t expectedRespLen = respBuf.size() * sizeof(respBuf[0]);
-  pasynOctetSyncIO->read(pAsynUserUDP,
-                         reinterpret_cast<char *>(respBuf.data()),
-                         expectedRespLen, 2.0, &rcvd, &eomReason);
+  readData inData {
+    .read_buffer = reinterpret_cast<char *>(respBuf.data()),
+    .read_buffer_len = expectedRespLen,
+    .nbytesIn = &rcvd
+  };
+  syncIO->read(pAsynUserUDP, inData, 2.0, &eomReason);
   if (rcvd != expectedRespLen)  return asynError;
 
   uint32_t sessID_and_status = ntohl(respBuf[4]);
