@@ -1,3 +1,5 @@
+#include <asynOctetSyncIO.h>
+
 #include "asynOctetSyncIOWrapper.h"
 
 asynStatus asynOctetSyncIOWrapper::connect(const char* port, int addr,

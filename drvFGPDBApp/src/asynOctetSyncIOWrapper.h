@@ -1,7 +1,6 @@
 #ifndef ASYNOCTETSYNCIOWRAPPER_H
 #define ASYNOCTETSYNCIOWRAPPER_H
 
-#include <asynOctetSyncIO.h>
 #include "asynOctetSyncIOInterface.h"
 
 // Wrap the C-style code from Asyn to facilitate mocking
