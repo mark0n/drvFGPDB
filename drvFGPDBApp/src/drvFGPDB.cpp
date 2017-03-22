@@ -599,9 +599,12 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
   size_t bytesSent;
 
-  stat = pasynOctetSyncIO->write(pAsynUserUDP,
-                                 reinterpret_cast<char *>(cmdBuf.data()),
-                                 bytesToSend, 2.0, &bytesSent);
+  writeData outData {
+    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
+    .write_buffer_len = bytesToSend,
+    .nbytesOut = &bytesSent
+  };
+  stat = syncIO->write(pAsynUserUDP, outData, 2.0);
   if (stat != asynSuccess)  return stat;
   if (bytesSent != bytesToSend)  return asynError;
 
@@ -609,8 +612,12 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
 
   asynStatus returnStat = asynSuccess;  size_t rcvd = 0;
-  stat = pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0,
-                                &rcvd, &eomReason);
+  readData inData {
+    .read_buffer = respBuf,
+    .read_buffer_len = sizeof(respBuf),
+    .nbytesIn = &rcvd
+  };
+  stat = syncIO->read(pAsynUserUDP, inData, 2.0, &eomReason);
   if (stat != asynSuccess)  return stat;
   if (rcvd != expectedRespSize)  return asynError;
 
