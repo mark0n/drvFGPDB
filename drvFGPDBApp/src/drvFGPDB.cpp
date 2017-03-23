@@ -138,7 +138,7 @@ void drvFGPDB::syncComLCP()
   while (!stopProcessing)  {
     if (!initComplete)  { sleepMS(5);  continue; }
 
-    sleepMS(200);
+    auto start_time = chrono::system_clock::now();
 
     readRegs(0x10000, getRegGroup(ProcGroup_LCP_RO).maxOffset+1);
     readRegs(0x20000, getRegGroup(ProcGroup_LCP_WA).maxOffset+1);
@@ -146,6 +146,8 @@ void drvFGPDB::syncComLCP()
     if (!writeAccess)  getWriteAccess();
 
     processPendingWrites();
+
+    this_thread::sleep_until(start_time + chrono::duration<int, milli>(200));
   }
 }
 
