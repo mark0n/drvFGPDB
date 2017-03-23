@@ -469,16 +469,20 @@ void drvFGPDB_initHookFunc(initHookState state)
   cout << endl << "initHookState: " << dec << state << endl
        << endl;
 
-  if (state >= initHookAfterIocRunning)  { initComplete = true;  return; }
-
-  if (state != initHookAfterInitDatabase)  return;
-
-  for(drvFGPDB *drv : drvList) {
-    if (drv->createAsynParams() != asynSuccess)  continue;
-    if (drv->determineAddrRanges() != asynSuccess)  continue;
-    if (drv->createAddrToParamMaps() != asynSuccess)  continue;
+  switch(state) {
+    case initHookAfterInitDatabase:
+      for(drvFGPDB *drv : drvList) {
+        if (drv->createAsynParams() != asynSuccess)  continue;
+        if (drv->determineAddrRanges() != asynSuccess)  continue;
+        if (drv->createAddrToParamMaps() != asynSuccess)  continue;
+      }
+      break;
+    case initHookAfterIocRunning:
+      initComplete = true;
+      break;
+    default:
+      break;
   }
-
 }
 
 //----------------------------------------------------------------------------
