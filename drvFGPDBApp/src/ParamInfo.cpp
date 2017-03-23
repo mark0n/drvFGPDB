@@ -127,3 +127,46 @@ const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
   return NotDefined;
 }
 
+//-----------------------------------------------------------------------------
+void conflictingParamDefs(const string &context,
+                          const ParamInfo &curDef, const ParamInfo &newDef)
+{
+  cout << "*** " << context << ":" << curDef.name << ": "
+          "Conflicting parameter definitions ***" << endl
+       << "  cur: " << curDef << endl
+       << "  new: " << newDef << endl;
+}
+
+//-----------------------------------------------------------------------------
+//  Update the properties for an existing parameter.
+//
+//  Checks for conflicts and updates any missing property values using ones
+//  from the new set of properties.
+//-----------------------------------------------------------------------------
+asynStatus ParamInfo::updateParamDef(const string &context,
+                                     const ParamInfo &newParam)
+{
+  cout << endl  //tdebug
+       << "  update: " << this << endl  //tdebug
+       << "   using: " << newParam << endl;  //tdebug
+
+  if (name != newParam.name)  return asynError;
+
+#define UpdateProp(prop, NotDef)  \
+  if (prop == (NotDef))  \
+    prop = newParam.prop;  \
+  else  \
+    if ((newParam.prop != (NotDef)) and (prop != newParam.prop))  { \
+      conflictingParamDefs(context, *this, newParam);  \
+      return asynError; \
+    }
+
+  UpdateProp(regAddr,  0);
+  UpdateProp(asynType, asynParamNotDefined);
+  UpdateProp(ctlrFmt,  CtlrDataFmt::NotDefined);
+//UpdateProp(syncMode, SyncMode::NotDefined);
+
+  return asynSuccess;
+}
+
+

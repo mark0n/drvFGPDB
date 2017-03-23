@@ -108,6 +108,10 @@ class ParamInfo {
     ParamInfo(const std::string& paramStr, const std::string& portName);
 
 
+    asynStatus updateParamDef(const std::string &context,
+                              const ParamInfo &newParam);
+
+
     static asynParamType strToAsynType(const std::string &typeName);
     static CtlrDataFmt strToCtlrFmt(const std::string &fmtName);
 
