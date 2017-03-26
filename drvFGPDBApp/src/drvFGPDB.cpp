@@ -64,11 +64,6 @@ ulong getSystemClockInMS(void)
   return duration_cast<milliseconds>(duration).count();
 }
 
-//ulong msSince(ulong msTime) { return getSystemClockInMS() - msTime; }
-
-
-void sleepMS(uint ms)  { this_thread::sleep_for(chrono::milliseconds(ms)); }
-
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
@@ -136,7 +131,7 @@ drvFGPDB::~drvFGPDB()
 void drvFGPDB::syncComLCP()
 {
   while (!stopProcessing)  {
-    if (!initComplete)  { sleepMS(5);  continue; }
+    if (!initComplete)  { this_thread::sleep_for(5ms);  continue; }
 
     auto start_time = chrono::system_clock::now();
 
@@ -147,7 +142,7 @@ void drvFGPDB::syncComLCP()
 
     processPendingWrites();
 
-    this_thread::sleep_until(start_time + chrono::duration<int, milli>(200));
+    this_thread::sleep_until(start_time + 200ms);
   }
 }
 
@@ -162,7 +157,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
   ParamInfo &sessionID = paramList.at(idSessionID);
 
   for (int attempt = 0; attempt <= 5; ++attempt)  {
-    if (attempt)  sleepMS(10);
+    if (attempt)  this_thread::sleep_for(10ms);
 
     // valid sessionID values are > 0 and < 0xFFFF
     sessionID.ctlrValSet = getSystemClockInMS() & 0xFFFE;
