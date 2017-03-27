@@ -19,8 +19,9 @@ public:
 
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
   createAddrToParamMaps();
+  asynStatus stat;
 
-  auto stat = testDrv.getParamInfo(testParamID_RO, param);
+  tie(stat, param) = testDrv.getParamInfo(testParamID_RO);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.readRegs(param.regAddr, 4);
@@ -41,7 +42,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   stat = testDrv.writeInt32(pasynUser, 333);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv.getParamInfo(testParamID_WA, param);
+  tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.writeRegs(param.regAddr, 2);
@@ -54,7 +55,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeRegValues) {
 
   ASSERT_THAT(testDrv.getWriteAccess(), Eq(0));
 
-  auto stat = testDrv.getParamInfo(testParamID_WA, param);
+  asynStatus stat;
+
+  tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.writeRegs(param.regAddr, 2);
@@ -70,7 +73,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   auto ackdWrites = testDrv.processPendingWrites();
   ASSERT_THAT(ackdWrites, Eq(1));
 
-  auto stat = testDrv.getParamInfo(testParamID_WA, param);
+  asynStatus stat;
+
+  tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.setState, Eq(SetState::Sent));
 }

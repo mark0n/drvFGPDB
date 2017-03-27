@@ -111,7 +111,7 @@ public:
     auto stat = testDrv.writeInt32(pasynUser, 42);
     ASSERT_THAT(stat, Eq(asynSuccess));
 
-    stat = testDrv.getParamInfo(testParamID_WA, param);
+    tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
     ASSERT_THAT(param.ctlrValSet, Eq(42));
     ASSERT_THAT(param.setState, Eq(SetState::Pending));
   }

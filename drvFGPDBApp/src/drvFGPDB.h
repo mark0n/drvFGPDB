@@ -120,7 +120,7 @@ class drvFGPDB : public asynPortDriver {
     // clients should use asynPortDriver::findParam() instead
     int findParamByName(const std::string &name);
 
-    asynStatus getParamInfo(int paramID, ParamInfo &paramInfo);
+    std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
 
     asynStatus updateParamDef(int paramID, const ParamInfo &newParam);
 
