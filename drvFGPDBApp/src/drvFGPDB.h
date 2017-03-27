@@ -63,7 +63,7 @@ class drvFGPDB : public asynPortDriver {
   public:
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-             const std::string &udpPortName, int maxParams);
+             const std::string &udpPortName);
     ~drvFGPDB();
 
 
@@ -145,8 +145,6 @@ class drvFGPDB : public asynPortDriver {
 
 
     std::shared_ptr<asynOctetSyncIOInterface> syncIO;
-
-    int maxParams;  // upper limit on total # params
 
     std::array<RegGroup,3> regGroup;
 
