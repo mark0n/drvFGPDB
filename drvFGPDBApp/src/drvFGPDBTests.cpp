@@ -124,7 +124,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
 
-  asynStatus stat = testDrv.getParamInfo(numDrvParams, param);
+  asynStatus stat;
+
+  tie(stat, param) = testDrv.getParamInfo(numDrvParams);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.regAddr,  Eq(0x10001));
@@ -149,7 +151,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
   auto stat = testDrv.createAsynParams();
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv.getParamInfo(testParamID_WA, param);
+  tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   int paramID;
@@ -165,7 +167,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   bool validRange = testDrv.inDefinedRegRange(0, 1000);
   ASSERT_THAT(validRange, Eq(false));
 
-  auto stat = testDrv.getParamInfo(maxParamID_RO, param);
+  asynStatus stat;
+
+  tie(stat, param) = testDrv.getParamInfo(maxParamID_RO);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   uint numRegsRO = param.regAddr - 0x10000;
@@ -200,8 +204,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteWithUnsetRegs) {
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   createAddrToParamMaps();
+  asynStatus stat;
 
-  auto stat = testDrv.getParamInfo(testParamID_WA, param);
+  tie(stat, param) = testDrv.getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.writeRegs(param.regAddr, 10);
@@ -211,8 +216,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnAttemptToSendReadOnlyRegs) {
   createAddrToParamMaps();
+  asynStatus stat;
 
-  auto stat = testDrv.getParamInfo(testParamID_RO, param);
+  tie(stat, param) = testDrv.getParamInfo(testParamID_RO);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   stat = testDrv.writeRegs(param.regAddr, 1);

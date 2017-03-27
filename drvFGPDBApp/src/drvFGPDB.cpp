@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 #include <arpa/inet.h>
 
@@ -257,11 +258,15 @@ int drvFGPDB::findParamByName(const string &name)
 //-----------------------------------------------------------------------------
 //  Return a copy of the ParamInfo struct for a parameter
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::getParamInfo(int paramID, ParamInfo &paramInfo)
+std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
 {
-  if (!validParamID(paramID))  return asynError;
-
-  paramInfo = paramList.at(paramID);  return asynSuccess;
+  ParamInfo paramInfo;
+  asynStatus status = asynError;
+  if (validParamID(paramID)) {
+    paramInfo = paramList.at(paramID);
+    status = asynSuccess;
+  }
+  return make_pair(status, paramInfo);
 }
 
 //-----------------------------------------------------------------------------
