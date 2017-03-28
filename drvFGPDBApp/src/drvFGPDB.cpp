@@ -119,7 +119,6 @@ drvFGPDB::~drvFGPDB()
   syncThread.join();
 
   pasynOctetSyncIO->disconnect(pAsynUserUDP);
-//  pasynManager->freeAsynUser(pAsynUserUDP);  // results in a segment fault...
 
   drvList.remove(this);
 }
