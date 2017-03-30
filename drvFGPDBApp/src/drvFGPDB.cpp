@@ -681,12 +681,6 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
 bool drvFGPDB::isWritableTypeOf(const string &caller,
                                int paramID, asynParamType asynType)
 {
-  if (!validParamID(paramID))  {
-    cout << portName << ": " << caller << ": "
-         " *** paramID [" << paramID << "] is out of bounds ***" << endl;
-    return false;
-  }
-
   ParamInfo &param = paramList.at(paramID);
 
   if (param.asynType != asynType)  {
