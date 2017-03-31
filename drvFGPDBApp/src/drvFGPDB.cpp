@@ -98,8 +98,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
-  auto stat = pasynOctetSyncIO->connect(udpPortName.c_str(), 0,
-                                        &pAsynUserUDP, nullptr);
+  auto stat = syncIO->connect(udpPortName.c_str(), 0, &pAsynUserUDP, nullptr);
 
   if (stat) {
     cout << "  asyn driver for: " << drvPortName
@@ -118,7 +117,7 @@ drvFGPDB::~drvFGPDB()
   stopProcessing = true;
   syncThread.join();
 
-  pasynOctetSyncIO->disconnect(pAsynUserUDP);
+  syncIO->disconnect(pAsynUserUDP);
 
   drvList.remove(this);
 }
@@ -599,9 +598,12 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
   size_t bytesSent;
 
-  stat = pasynOctetSyncIO->write(pAsynUserUDP,
-                                 reinterpret_cast<char *>(cmdBuf.data()),
-                                 bytesToSend, 2.0, &bytesSent);
+  writeData outData {
+    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
+    .write_buffer_len = bytesToSend,
+    .nbytesOut = &bytesSent
+  };
+  stat = syncIO->write(pAsynUserUDP, outData, 2.0);
   if (stat != asynSuccess)  return stat;
   if (bytesSent != bytesToSend)  return asynError;
 
@@ -609,8 +611,12 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
 
   asynStatus returnStat = asynSuccess;  size_t rcvd = 0;
-  stat = pasynOctetSyncIO->read(pAsynUserUDP, respBuf, sizeof(respBuf), 2.0,
-                                &rcvd, &eomReason);
+  readData inData {
+    .read_buffer = respBuf,
+    .read_buffer_len = sizeof(respBuf),
+    .nbytesIn = &rcvd
+  };
+  stat = syncIO->read(pAsynUserUDP, inData, 2.0, &eomReason);
   if (stat != asynSuccess)  return stat;
   if (rcvd != expectedRespSize)  return asynError;
 
@@ -694,18 +700,24 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   size_t bytesSent;
 
   // Send the cmd pkt
-  stat = pasynOctetSyncIO->write(pAsynUserUDP,
-                                 reinterpret_cast<char *>(cmdBuf.data()),
-                                 bytesToSend, 2.0, &bytesSent);
+  writeData outData {
+    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
+    .write_buffer_len = bytesToSend,
+    .nbytesOut = &bytesSent
+  };
+  stat = syncIO->write(pAsynUserUDP, outData, 2.0);
   if ((stat != asynSuccess) or (bytesSent != bytesToSend))  return asynError;
 
 
   // Read and process response packet
   vector<uint32_t> respBuf(5, 0);
   size_t expectedRespLen = respBuf.size() * sizeof(respBuf[0]);
-  pasynOctetSyncIO->read(pAsynUserUDP,
-                         reinterpret_cast<char *>(respBuf.data()),
-                         expectedRespLen, 2.0, &rcvd, &eomReason);
+  readData inData {
+    .read_buffer = reinterpret_cast<char *>(respBuf.data()),
+    .read_buffer_len = expectedRespLen,
+    .nbytesIn = &rcvd
+  };
+  syncIO->read(pAsynUserUDP, inData, 2.0, &eomReason);
   if (rcvd != expectedRespLen)  return asynError;
 
   uint32_t sessID_and_status = ntohl(respBuf[4]);
