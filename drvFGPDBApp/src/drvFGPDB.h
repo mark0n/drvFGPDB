@@ -37,6 +37,30 @@
 
 void drvFGPDB_initHookFunc(initHookState state);
 
+
+// Bit usage for diagFlags parameter
+
+const uint32_t  ShowPackets_    = 0x00000001;
+const uint32_t  ShowContents_   = 0x00000002;
+const uint32_t  ShowRegWrites_  = 0x00000004;
+const uint32_t  ShowRegReads_   = 0x00000008;
+
+const uint32_t  ShowWaveReads_  = 0x00000010;
+const uint32_t  ShowBlkWrites_  = 0x00000020;
+const uint32_t  ShowBlkReads_   = 0x00000040;
+const uint32_t  ShowBlkErase_   = 0x00000080;
+
+const uint32_t  ShowErrors_     = 0x00000100;
+const uint32_t  ShowParamState_ = 0x00000200;
+const uint32_t  ForSyncThread_  = 0x00000400;
+const uint32_t  ForAsyncThread_ = 0x00000800;
+
+const uint32_t  ShowInit_       = 0x00001000;
+const uint32_t  TestMode_       = 0x00002000;
+const uint32_t  DebugTrace_     = 0x00004000;
+const uint32_t  DisableStreams_ = 0x00008000;
+
+
 //-----------------------------------------------------------------------------
 class RegGroup {
   public:
@@ -62,7 +86,7 @@ class drvFGPDB : public asynPortDriver {
   public:
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-             const std::string &udpPortName);
+             const std::string &udpPortName, uint32_t startupDiagFlags);
     ~drvFGPDB();
 
 
@@ -174,6 +198,37 @@ class drvFGPDB : public asynPortDriver {
     int idDiagFlags;
 
     int idSessionID;
+
+
+    uint32_t  startupDiagFlags;
+
+
+    uint32_t DiagFlags()  {
+      return (idDiagFlags < 0) ? startupDiagFlags :
+                                 paramList.at(idDiagFlags).ctlrValSet;
+    }
+
+    bool ShowPackets()      { return DiagFlags() & ShowPackets_;    }
+    bool ShowContents()     { return DiagFlags() & ShowContents_;   }
+    bool ShowRegWrites()    { return DiagFlags() & ShowRegWrites_;  }
+    bool ShowRegReads()     { return DiagFlags() & ShowRegReads_;   }
+
+    bool ShowWaveReads()    { return DiagFlags() & ShowWaveReads_;  }
+    bool ShowBlkWrites()    { return DiagFlags() & ShowBlkWrites_;  }
+    bool ShowBlkReads()     { return DiagFlags() & ShowBlkReads_;   }
+    bool ShowBlkErase()     { return DiagFlags() & ShowBlkErase_;   }
+
+    bool ShowErrors()       { return DiagFlags() & ShowErrors_;     }
+    bool ShowParamState()   { return DiagFlags() & ShowParamState_; }
+    bool ForSyncThread()    { return DiagFlags() & ForSyncThread_;  }
+    bool ForAsyncThread()   { return DiagFlags() & ForAsyncThread_; }
+
+    bool ShowInit()         { return DiagFlags() & ShowInit_;       }
+    bool TestMode()         { return DiagFlags() & TestMode_;       }
+    bool DebugTrace()       { return DiagFlags() & DebugTrace_;     }
+//    bool DisableStreams()   { return (DiagFlags() & _DisableStreams_)
+//                                                    or readOnlyMode; }
+
 
     const std::list<RequiredParam> requiredParamDefs = {
        { &idDevName,       "devName        0x1 Octet"         },

@@ -11,11 +11,15 @@
 #include "asynOctetSyncIOWrapper.h"
 #include "drvFGPDBTestCommon.h"
 
+
+//=============================================================================
 class AnFGPDBDriverUsingIOSyncWrapper : public AnFGPDBDriver
 {
 public:
-  AnFGPDBDriverUsingIOSyncWrapper() : AnFGPDBDriver(make_shared<asynOctetSyncIOWrapper>()) {
-    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName);
+  AnFGPDBDriverUsingIOSyncWrapper() :
+    AnFGPDBDriver(make_shared<asynOctetSyncIOWrapper>())
+  {
+    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName, startupDiagFlags);
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName

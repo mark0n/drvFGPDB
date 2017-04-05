@@ -6,9 +6,12 @@
 using namespace testing;
 using namespace std;
 
+
 static int testNum = 0;
 
 const string UDPPortName("FGPDB_com");
+
+const uint32_t startupDiagFlags = TestMode_;
 
 //=============================================================================
 int createPortUDP(void)
@@ -22,7 +25,6 @@ int createPortUDP(void)
 }
 
 //=============================================================================
-
 class AnFGPDBDriver: public ::testing::Test
 {
 public:

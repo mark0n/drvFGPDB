@@ -56,13 +56,18 @@ public:
                                             const char *drvInfo));
 };
 
+//-----------------------------------------------------------------------------
 class AnFGPDBDriverUsingIOSyncMock : public AnFGPDBDriver
 {
 public:
-  AnFGPDBDriverUsingIOSyncMock() : AnFGPDBDriver(make_shared<asynOctetSyncIOWrapperMock>()) {
-    EXPECT_CALL(*static_pointer_cast<asynOctetSyncIOWrapperMock>(syncIO), connect(_, _, _, _)).WillOnce(Return(asynSuccess));
-    EXPECT_CALL(*static_pointer_cast<asynOctetSyncIOWrapperMock>(syncIO), disconnect(_)).WillOnce(Return(asynSuccess));
-    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName);
+  AnFGPDBDriverUsingIOSyncMock() :
+    AnFGPDBDriver(make_shared<asynOctetSyncIOWrapperMock>())
+  {
+    EXPECT_CALL(*static_pointer_cast<asynOctetSyncIOWrapperMock>(syncIO),
+                connect(_, _, _, _)).WillOnce(Return(asynSuccess));
+    EXPECT_CALL(*static_pointer_cast<asynOctetSyncIOWrapperMock>(syncIO),
+                disconnect(_)).WillOnce(Return(asynSuccess));
+    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName, startupDiagFlags);
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
@@ -72,6 +77,7 @@ public:
   };
 };
 
+//-----------------------------------------------------------------------------
 class AnFGPDBDriverUsingIOSyncMockWithAParameter: public AnFGPDBDriverUsingIOSyncMock {
 public:
   virtual void SetUp() {
@@ -80,7 +86,7 @@ public:
   }
 };
 
-
+//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canBeConstructedWithoutAnyErrors) {
   ASSERT_THAT(udpPortStat, Eq(0));
 }
