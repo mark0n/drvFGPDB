@@ -48,10 +48,11 @@ typedef  unsigned int   uint;
 typedef  unsigned char  uchar;
 
 
-static list<drvFGPDB *> drvList;
-
-
 static bool  initComplete;
+
+
+static const double writeTimeout = 1.0;
+static const double readTimeout  = 1.0;
 
 //-----------------------------------------------------------------------------
 // Return the time as a millisecond counter that wraps around
@@ -71,7 +72,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
     packetID(0),
-    stopProcessing(false),
+    exitDriver(false),
     syncThread(&drvFGPDB::syncComLCP, this),
     writeAccess(false),
     idDevName(-1),
@@ -86,9 +87,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     startupDiagFlags(startupDiagFlags_)
 {
   initHookRegister(drvFGPDB_initHookFunc);
-
-//  cout << "Adding drvPGPDB '" << portName << " to drvList[]" << endl;  //tdebug
-  drvList.push_back(this);
 
   addRequiredParams();
 
@@ -115,12 +113,10 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 //-----------------------------------------------------------------------------
 drvFGPDB::~drvFGPDB()
 {
-  stopProcessing = true;
+  exitDriver = true;
   syncThread.join();
 
   syncIO->disconnect(pAsynUserUDP);
-
-  drvList.remove(this);
 }
 
 //-----------------------------------------------------------------------------
@@ -129,19 +125,20 @@ drvFGPDB::~drvFGPDB()
 //-----------------------------------------------------------------------------
 void drvFGPDB::syncComLCP()
 {
-  while (!stopProcessing)  {
-    if (!initComplete)  { this_thread::sleep_for(5ms);  continue; }
+  while (!initComplete and !exitDriver)  this_thread::sleep_for(5ms);
 
+  while (!exitDriver)  {
     auto start_time = chrono::system_clock::now();
 
-    readRegs(0x10000, getRegGroup(ProcGroup_LCP_RO).maxOffset+1);
-    readRegs(0x20000, getRegGroup(ProcGroup_LCP_WA).maxOffset+1);
+    if (!TestMode())  {
+      // this will normally be done in the async/streaming thread...
+      readRegs(0x10000, getRegGroup(ProcGroup_LCP_RO).paramIDs.size());
+      readRegs(0x20000, getRegGroup(ProcGroup_LCP_WA).paramIDs.size());
 
-    if (!writeAccess)  getWriteAccess();
+      processPendingWrites();
+    }
 
-    processPendingWrites();
-
-    this_thread::sleep_until(start_time + 200ms);
+    if (!exitDriver)  this_thread::sleep_until(start_time + 200ms);
   }
 }
 
@@ -151,6 +148,8 @@ void drvFGPDB::syncComLCP()
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::getWriteAccess(void)
 {
+  if (exitDriver)  return asynError;
+
   if (!validParamID(idSessionID))  return asynError;
 
   ParamInfo &sessionID = paramList.at(idSessionID);
@@ -195,10 +194,13 @@ asynStatus drvFGPDB::getWriteAccess(void)
 //-----------------------------------------------------------------------------
 int drvFGPDB::processPendingWrites(void)
 {
+  if (exitDriver)  return asynError;
+
   asynStatus  stat = asynError;
 
   //ToDo: Use a linked-list of params with pending writes
 
+  if (!writeAccess)  getWriteAccess();
   if (!writeAccess)  return -1;
 
   int ackdCount = 0;
@@ -222,18 +224,18 @@ int drvFGPDB::processPendingWrites(void)
 //-----------------------------------------------------------------------------
 // Add parameters for parameters required by the driver
 //-----------------------------------------------------------------------------
-void drvFGPDB::addRequiredParams(void)
+asynStatus drvFGPDB::addRequiredParams(void)
 {
-  for (auto const &paramDef : requiredParamDefs) {
-    ParamInfo param(paramDef.def, portName);
-    paramList.push_back(param);
-    *paramDef.id = paramList.size() - 1;
-  }
+  for (auto const &paramDef : requiredParamDefs)
+    if ((*paramDef.id = processParamDef(paramDef.def)) < 0)  return asynError;
+
+  return asynSuccess;
 }
 
 //-----------------------------------------------------------------------------
 //  Search the driver's list of parameters for an entry with the given name.
 //  Unlike asynPortDriver::findParam(), this func works during IOC startup.
+//  Returns the paramID (index in to list) or < 0 if param not in the list.
 //-----------------------------------------------------------------------------
 int drvFGPDB::findParamByName(const string &name)
 {
@@ -257,65 +259,84 @@ std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
 }
 
 //-----------------------------------------------------------------------------
-// This func is called during IOC statup to to get the ID for a parameter for a
-// given "port" (device) and "addr" (sub-device).  At least one of the calls
-// for each parameter must include all the properties that define a parameter.
-// For EPICS records, the strings come from the record's INP or OUT field
-// (everything after the "@asyn(port, addr, timeout)" prefix).
+//  Add new parameter to the driver and asyn layer lists
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
-                                   __attribute__((unused)) const char
-                                   **pptypeName,
-                                   __attribute__((unused)) size_t *psize)
+int drvFGPDB::addNewParam(const ParamInfo &newParam)
 {
-  string paramCfgStr = string(drvInfo);
-  ParamInfo  newParam(paramCfgStr, portName);
+  asynStatus  stat;
+  int paramID;
 
-  if (newParam.name.empty())  return asynError;
+  if (newParam.asynType == asynParamNotDefined)  {
+    cout << endl
+         << "  *** " << portName << " [" << newParam << "]" << endl
+         << "      No asyn type specified" << endl;
+    return -1;
+  }
+  stat = createParam(newParam.name.c_str(), newParam.asynType, &paramID);
+  if (stat != asynSuccess)  return -1;
 
-  // If the parameter is not already in the list, then add it
-  int  paramID = findParamByName(newParam.name);
-  if (paramID < 0)  {
-    paramList.push_back(newParam);
-    pasynUser->reason = paramList.size()-1;
-    if (ShowInit())
-      cout << endl << "    add: [" << paramCfgStr << "] "
-                      "[" << dec << pasynUser->reason << "]" << endl;
-    return asynSuccess;
+  setParamStatus(paramID, asynDisconnected);
+
+  if (ShowInit())
+    cout << "  created " << portName << ":"
+         << newParam.name << " [" << dec << paramID << "]" << endl;
+
+  paramList.push_back(newParam);
+
+  if ((uint)paramID != paramList.size() - 1)  {
+    cout << endl << "*** " << portName << ":" << newParam.name << ": "
+            "asyn paramID != driver paramID ***" << endl << endl;
+    throw runtime_error("mismatching paramIDs");
   }
 
-  pasynUser->reason = paramID;
+  if (newParam.regAddr) if (updateRegMap(paramID) != asynSuccess)  return -1;
 
-  ParamInfo &curParam = paramList.at(paramID);
-
-  return curParam.updateParamDef(portName, newParam);
+  return paramID;
 }
 
 //-----------------------------------------------------------------------------
-// Create the asyn params for the driver
+//  Process a param def and add it to the driver and asyn layer lists or update
+//  its properties.
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::createAsynParams(void)
+int drvFGPDB::processParamDef(const string &paramDef)
 {
-//cout << endl
-//     << "create asyn params for: [" << portName << "]" << endl;
+  asynStatus  stat;
+  int  paramID;
 
-  int paramID;
-  asynStatus stat;
-  for (auto param = paramList.cbegin(); param != paramList.cend(); ++param) {
-    if (param->asynType == asynParamNotDefined)  {
-      cout << endl
-           << "  *** " << portName << " [" << *param << "]" << endl
-           << "      No asyn type specified in INP/OUT field" << endl;
-      throw invalid_argument("Configuration error");
-    }
-    stat = createParam(param->name.c_str(), param->asynType, &paramID);
-    if (stat != asynSuccess)  return stat;
-    if (ShowInit())
-      cout << "  created " << param->name << " [" << dec << paramID << "]" << endl;
-  }
-  if (ShowInit())  cout << endl;
+  ParamInfo newParam(paramDef, portName);
+  if (newParam.name.empty())  return -1;
 
-  return asynSuccess;
+  if ((paramID = findParamByName(newParam.name)) < 0)
+    return addNewParam(newParam);
+
+  ParamInfo &curParam = paramList.at(paramID);
+  if (ShowInit())
+    cout << endl
+         << "  update: " << curParam << endl
+         << "   using: " << newParam << endl << endl;
+  stat = curParam.updateParamDef(portName, newParam);
+  if (stat != asynSuccess)  return -1;
+
+  if (newParam.regAddr)
+    if ((stat = updateRegMap(paramID)) != asynSuccess)  return -1;
+
+  return paramID;
+}
+
+//-----------------------------------------------------------------------------
+// This func is called during IOC statup to get the ID for a parameter for a
+// given "port" (device) and "addr" (sub-device).  The first call for any
+// parameter must include the name and asynParamType, and at least one of the
+// calls for each parameter must include all the properties that define a
+// parameter. For EPICS records, the strings come from the record's INP or OUT
+// field (everything after the "@asyn(port, addr, timeout)" prefix).
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
+                               __attribute__((unused)) const char **pptypeName,
+                               __attribute__((unused)) size_t *psize)
+{
+  pasynUser->reason = processParamDef(string(drvInfo));
+  return (pasynUser->reason < 0) ? asynError : asynSuccess;
 }
 
 //-----------------------------------------------------------------------------
@@ -341,104 +362,57 @@ bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
   uint offset = LCPUtil::addrOffset(firstReg);
   const RegGroup &group = getRegGroup(groupID);
 
-  return ((offset + numRegs - 1) <= group.maxOffset);
-}
-
-//-----------------------------------------------------------------------------
-// Determine the range of addresses in each LCP register group
-//-----------------------------------------------------------------------------
-asynStatus drvFGPDB::determineAddrRanges(void)
-{
-  asynStatus stat = asynSuccess;
-
-  for (auto const& param : paramList) {
-
-    auto addr = param.regAddr;
-    uint groupID = LCPUtil::addrGroupID(addr);
-    uint offset = LCPUtil::addrOffset(addr);
-
-    if (LCPUtil::validRegAddr(addr))  {
-      RegGroup &group = getRegGroup(groupID);
-      if (offset > group.maxOffset)  group.maxOffset = offset;
-    } else {
-      if (groupID == 0)  continue;  // Driver parameter
-      cout << "Invalid addr/group ID for parameter: " << param.name << endl;
-      stat = asynError;
-    }
-  }
-
-  return stat;
-}
-
-//-----------------------------------------------------------------------------
-// Create the lists that maps reg addrs to params
-//-----------------------------------------------------------------------------
-asynStatus drvFGPDB::createAddrToParamMaps(void)
-{
-  asynStatus stat = asynSuccess;
-
-  for(auto& group : regGroup) {
-    if (group.maxOffset < 1)  continue;
-    group.paramIDs = vector<int>(group.maxOffset + 1, -1);
-  }
-
-
-  for (auto param = paramList.cbegin(); param != paramList.cend(); ++param) {
-
-    auto addr = param->regAddr;
-    if (!LCPUtil::validRegAddr(addr))  continue;
-
-    int paramID = param - paramList.begin();
-
-    uint groupID = LCPUtil::addrGroupID(addr);
-    uint offset = LCPUtil::addrOffset(addr);
-
-    vector<int> &paramIDs = getRegGroup(groupID).paramIDs;
-
-    if (paramIDs.at(offset) >= 0)  {
-      cout << "Device: " << portName << ": "
-           "*** Multiple params with same LCP reg addr ***" << endl
-           << "  [" << paramList.at(paramIDs.at(offset)) << "]"
-              " and [" << paramList.at(paramID) << "]" << endl;
-      stat = asynError;
-    }
-
-    paramIDs.at(offset) = paramID;
-  }
-
-  return stat;
+  return ((offset + numRegs) <= group.paramIDs.size());
 }
 
 //-----------------------------------------------------------------------------
 // Callback function for EPICS IOC initialization steps.  Used to trigger
-// startup/initialization processes in the correct order and at the correct
-// times.
+// normal processing by the driver.
 //-----------------------------------------------------------------------------
 void drvFGPDB_initHookFunc(initHookState state)
 {
-  cout << endl << "initHookState: " << dec << state << endl
-       << endl;
+  if (state == initHookAfterInitDatabase)  initComplete = true;
+}
 
-  switch(state) {
-    case initHookAfterInitDatabase:
-      for(drvFGPDB *drv : drvList) {
-        if (drv->createAsynParams() != asynSuccess)  continue;
-        if (drv->determineAddrRanges() != asynSuccess)  continue;
-        if (drv->createAddrToParamMaps() != asynSuccess)  continue;
-      }
-      break;
-    case initHookAfterIocRunning:
-      initComplete = true;
-      break;
-    default:
-      break;
+//-----------------------------------------------------------------------------
+// Update the LCP reg addr to paramID maps based on the specified param def.
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::updateRegMap(int paramID)
+{
+  if (!validParamID(paramID))  return asynError;
+
+  ParamInfo &param = paramList.at(paramID);
+
+  auto addr = param.regAddr;
+  uint groupID = LCPUtil::addrGroupID(addr);
+  uint offset = LCPUtil::addrOffset(addr);
+
+  if (LCPUtil::validRegAddr(addr))  {
+    vector<int> &paramIDs = getRegGroup(groupID).paramIDs;
+
+    if (offset >= paramIDs.size())  paramIDs.resize(offset+1, -1);
+    if (paramIDs.at(offset) < 0)   // not set yet
+      paramIDs.at(offset) = paramID;
+    else
+      if (paramIDs.at(offset) != paramID)  {
+      cout << "Device: " << portName << ": "
+           "*** Multiple params with same LCP reg addr ***" << endl
+           << "  [" << paramList.at(paramIDs.at(offset)) << "]"
+              " and [" << paramList.at(paramID) << "]" << endl;
+      return asynError;
+    }
+  } else  if (groupID) {  // not a driver param?
+    cout << "Invalid addr/group ID for parameter: " << param.name << endl;
+    return asynError;
   }
+
+  return asynSuccess;
 }
 
 //----------------------------------------------------------------------------
 //  Post a new read value for a parameter
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::postNewReadVal(uint paramID)
+asynStatus drvFGPDB::postNewReadVal(int paramID)
 {
   ParamInfo &param = paramList.at(paramID);
   asynStatus stat = asynError;
@@ -478,9 +452,14 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   char  respBuf[1024];
 
 
-  if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
+  if (exitDriver)  return asynError;
 
-  //cout << "  range OK" << endl;  //tdebug
+  if (ShowRegReads())
+    cout << endl << "  === " << portName << ":" << "readRegs("
+         "0x" << hex << firstReg << ", "
+         << dec << numRegs << ")" << endl;
+
+  if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
   size_t expectedRespSize = numRegs * 4 + 20;
   if (expectedRespSize > sizeof(respBuf))  {
@@ -504,11 +483,13 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
     .write_buffer_len = bytesToSend,
     .nbytesOut = &bytesSent
   };
-  stat = syncIO->write(pAsynUserUDP, outData, 2.0);
+  stat = syncIO->write(pAsynUserUDP, outData, writeTimeout);
   if (stat != asynSuccess)  return stat;
   if (bytesSent != bytesToSend)  return asynError;
 
   ++packetID;
+
+  if (exitDriver)  return asynError;
 
 
   asynStatus returnStat = asynSuccess;  size_t rcvd = 0;
@@ -517,7 +498,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
     .read_buffer_len = sizeof(respBuf),
     .nbytesIn = &rcvd
   };
-  stat = syncIO->read(pAsynUserUDP, inData, 2.0, &eomReason);
+  stat = syncIO->read(pAsynUserUDP, inData, readTimeout, &eomReason);
   if (stat != asynSuccess)  return stat;
   if (rcvd != expectedRespSize)  return asynError;
 
@@ -569,6 +550,13 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   ParamInfo &sessionID = paramList.at(idSessionID);
 
 
+  if (exitDriver)  return asynError;
+
+  if (ShowRegWrites())
+    cout << endl << "  === " << portName << ":" << "writeRegs("
+         "0x" << hex << firstReg << ", "
+         << dec << numRegs << ")" << endl;
+
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
   if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
@@ -593,9 +581,6 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     if (!validParamID(paramID))  return asynError;
     ParamInfo &param = paramList.at(paramID);
     cmdBuf.push_back(htonl(param.ctlrValSet));
-    if (ShowRegWrites())
-      cout << "  === send value 0x" << hex << param.ctlrValSet   //tdebug
-           << " for " << param.name << " ===" << dec << endl;  //tdebug
   }
 
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
@@ -607,26 +592,30 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     .write_buffer_len = bytesToSend,
     .nbytesOut = &bytesSent
   };
-  stat = syncIO->write(pAsynUserUDP, outData, 2.0);
-  if ((stat != asynSuccess) or (bytesSent != bytesToSend))  return asynError;
+  stat = syncIO->write(pAsynUserUDP, outData, writeTimeout);
+  if (stat != asynSuccess)  return stat;
+  if (bytesSent != bytesToSend)  return asynError;
 
+
+  if (exitDriver)  return asynError;
 
   // Read and process response packet
   vector<uint32_t> respBuf(5, 0);
-  size_t expectedRespLen = respBuf.size() * sizeof(respBuf[0]);
+  size_t expectedRespSize = respBuf.size() * sizeof(respBuf[0]);
   readData inData {
     .read_buffer = reinterpret_cast<char *>(respBuf.data()),
-    .read_buffer_len = expectedRespLen,
+    .read_buffer_len = expectedRespSize,
     .nbytesIn = &rcvd
   };
-  syncIO->read(pAsynUserUDP, inData, 2.0, &eomReason);
-  if (rcvd != expectedRespLen)  return asynError;
+  stat = syncIO->read(pAsynUserUDP, inData, readTimeout, &eomReason);
+  if (stat != asynSuccess)  return stat;
+  if (rcvd != expectedRespSize)  return asynError;
 
   uint32_t sessID_and_status = ntohl(respBuf[4]);
   respSessionID = (sessID_and_status >> 16) & 0xFFFF;
   respStatus = sessID_and_status & 0xFFFF;
 
-  writeAccess = (respSessionID == sessionID.ctlrValSet);
+  writeAccess = (sessionID.ctlrValSet and respSessionID == sessionID.ctlrValSet);
 
   if (respStatus)  return asynError;
 
@@ -654,42 +643,38 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 }
 
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::getIntegerParam(__attribute__((unused)) int list,
-                                     __attribute__((unused)) int index,
-                                     __attribute__((unused)) int *value)
+asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
 {
   if (ShowInit())  {
     cout << "  " << __func__ << " list: " << dec << list;
     if (validParamID(index))  { cout << " " << paramList.at(index).name; }
     cout << " index: " << dec << index << "/" << paramList.size() << endl;
   }
-  return asynDisconnected; }
+  return asynPortDriver::getIntegerParam(list, index, value);
+}
 
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::getDoubleParam(__attribute__((unused)) int list,
-                                    __attribute__((unused)) int index,
-                                    __attribute__((unused)) double * value)
+asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
 {
   if (ShowInit())  {
     cout << "  " << __func__ << " list: " << dec << list;
     if (validParamID(index))  { cout << " " << paramList.at(index).name; }
     cout << " index: " << dec << index << "/" << paramList.size() << endl;
   }
-  cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
-  return asynDisconnected; }
+  return asynPortDriver::getDoubleParam(list, index, value);
+};
 
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::getUIntDigitalParam(__attribute__((unused)) int list,
-                                         __attribute__((unused)) int index,
-                                         __attribute__((unused)) epicsUInt32 *value,
-                                         __attribute__((unused)) epicsUInt32 mask)
+asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
+                                         epicsUInt32 *value, epicsUInt32 mask)
 {
   if (ShowInit())  {
     cout << "  " << __func__ << " list: " << dec << list;
     if (validParamID(index))  { cout << " " << paramList.at(index).name; }
     cout << " index: " << dec << index << "/" << paramList.size() << endl;
   }
-  return asynDisconnected; }
+  return asynPortDriver::getUIntDigitalParam(list, index, value, mask);
+};
 
 
 //----------------------------------------------------------------------------
@@ -707,7 +692,7 @@ bool drvFGPDB::isWritableTypeOf(const string &caller,
   ParamInfo &param = paramList.at(paramID);
 
   if (param.asynType != asynType)  {
-    cout << portName << ":" <<caller << ": "<< param.name << ": "
+    cout << portName << ":" << caller << ": "<< param.name << ": "
          " *** invalid parameter type ***" << endl;
     return false;
   }
@@ -743,7 +728,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
     param.ctlrValSet = newVal;
     param.setState = SetState::Pending;
 
-  //ToDo: Add param to a linked-list of params with pending writes
+    //ToDo: Add param to a linked-list of params with pending writes
 
   } while (0);
 
@@ -791,7 +776,7 @@ asynStatus drvFGPDB::
     param.ctlrValSet = setVal;
     param.setState = SetState::Pending;
 
-  //ToDo: Add param to a linked-list of params with pending writes
+    //ToDo: Add param to a linked-list of params with pending writes
 
   } while (0);
 
@@ -833,7 +818,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
     param.ctlrValSet = ctlrVal;
     param.setState = SetState::Pending;
 
-  //ToDo: Add param to a linked-list of params with pending writes
+    //ToDo: Add param to a linked-list of params with pending writes
 
   } while (0);
 
