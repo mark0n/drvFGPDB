@@ -255,51 +255,6 @@ std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
 }
 
 //-----------------------------------------------------------------------------
-void conflictingParamDefs(const string &portName,
-                          const ParamInfo &curDef, const ParamInfo &newDef)
-{
-  cout << "*** " << portName << ":" << curDef.name << ": "
-          "Conflicting parameter definitions ***" << endl
-       << "  cur: " << curDef << endl
-       << "  new: " << newDef << endl;
-}
-
-//-----------------------------------------------------------------------------
-//  Update the properties for an existing parameter.
-//
-//  Checks for conflicts and updates any missing property values using ones
-//  from the new set of properties.
-//-----------------------------------------------------------------------------
-asynStatus drvFGPDB::updateParamDef(int paramID, const ParamInfo &newParam)
-{
-  if ((uint)paramID >= paramList.size())  return asynError;  //msg
-
-  ParamInfo &curParam = paramList.at(paramID);
-
-  cout << endl  //tdebug
-       << "  update: " << curParam << endl  //tdebug
-       << "   using: " << newParam << endl;  //tdebug
-
-  if (curParam.name != newParam.name)  return asynError;
-
-#define UpdateProp(prop, NotDef)  \
-  if (curParam.prop == (NotDef))  \
-    curParam.prop = newParam.prop;  \
-  else  \
-    if ((newParam.prop != (NotDef)) and (curParam.prop != newParam.prop))  { \
-      conflictingParamDefs(portName, curParam, newParam);  \
-      return asynError; \
-    }
-
-  UpdateProp(regAddr,  0);
-  UpdateProp(asynType, asynParamNotDefined);
-  UpdateProp(ctlrFmt,  CtlrDataFmt::NotDefined);
-//UpdateProp(syncMode, SyncMode::NotDefined);
-
-  return asynSuccess;
-}
-
-//-----------------------------------------------------------------------------
 // This func is called during IOC statup to to get the ID for a parameter for a
 // given "port" (device) and "addr" (sub-device).  At least one of the calls
 // for each parameter must include all the properties that define a parameter.
@@ -312,14 +267,14 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                    __attribute__((unused)) size_t *psize)
 {
   string paramCfgStr = string(drvInfo);
-  ParamInfo  param(paramCfgStr, portName);
+  ParamInfo  newParam(paramCfgStr, portName);
 
-  if (param.name.empty())  return asynError;
+  if (newParam.name.empty())  return asynError;
 
   // If the parameter is not already in the list, then add it
-  int  paramID = findParamByName(param.name);
+  int  paramID = findParamByName(newParam.name);
   if (paramID < 0)  {
-    paramList.push_back(param);
+    paramList.push_back(newParam);
     pasynUser->reason = paramList.size()-1;
     cout << endl << "    add: [" << paramCfgStr << "] " //tdebug
                     "[" << dec << pasynUser->reason << "]" << endl;  //tdebug
@@ -328,7 +283,9 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 
   pasynUser->reason = paramID;
 
-  return updateParamDef(paramID, param);  // in case prev def was incomplete
+  ParamInfo &curParam = paramList.at(paramID);
+
+  return curParam.updateParamDef(portName, newParam);
 }
 
 //-----------------------------------------------------------------------------

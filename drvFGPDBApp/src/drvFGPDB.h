@@ -121,8 +121,6 @@ class drvFGPDB : public asynPortDriver {
 
     std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
 
-    asynStatus updateParamDef(int paramID, const ParamInfo &newParam);
-
     asynStatus createAsynParams(void);
 
     asynStatus determineAddrRanges(void);
