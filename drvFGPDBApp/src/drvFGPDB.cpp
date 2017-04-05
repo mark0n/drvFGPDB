@@ -51,8 +51,6 @@ typedef  unsigned char  uchar;
 static list<drvFGPDB *> drvList;
 
 
-static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
-
 static bool  initComplete;
 
 //-----------------------------------------------------------------------------
@@ -432,66 +430,6 @@ void drvFGPDB_initHookFunc(initHookState state)
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from the format used the controller to a float
-//----------------------------------------------------------------------------
-double cltrFmtToDouble(U32 ctlrVal, CtlrDataFmt ctlrFmt)
-{
-  float dval = 0.0;
-
-  switch (ctlrFmt)  {
-    case CtlrDataFmt::NotDefined:
-      break;
-
-    case CtlrDataFmt::S32:
-      dval = (S32)ctlrVal;  break;
-
-    case CtlrDataFmt::U32:
-      dval = ctlrVal;  break;
-
-    case CtlrDataFmt::F32:
-      dval = *((F32 *)&ctlrVal);  break;
-
-    case CtlrDataFmt::U16_16:
-      dval = (float)((double)ctlrVal / 65536.0);  break;
-
-    case CtlrDataFmt::PHASE:
-      dval = (double)ctlrVal * PhaseConvFactor32;  break;
-  }
-
-  return dval;
-}
-
-//----------------------------------------------------------------------------
-//  Convert a value from a floating point to the format used the controller
-//----------------------------------------------------------------------------
-uint32_t doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
-{
-  uint32_t  ctlrVal = 0;
-  F32  f32val = 0.0;
-
-  switch (ctlrFmt)  {
-    case CtlrDataFmt::NotDefined:  break;
-
-    case CtlrDataFmt::S32:
-      dval = (int32_t) ctlrVal;  break;
-
-    case CtlrDataFmt::U32:
-      dval = (uint32_t) ctlrVal;  break;
-
-    case CtlrDataFmt::F32:
-      f32val = dval;  ctlrVal = *((uint32_t *)&f32val);  break;
-
-    case CtlrDataFmt::U16_16:
-      ctlrVal = (uint32_t) (dval * 65536.0);  break;
-
-    case CtlrDataFmt::PHASE:
-      ctlrVal = (uint32_t) (dval / PhaseConvFactor32);  break;
-  }
-
-  return ctlrVal;
-}
-
-//----------------------------------------------------------------------------
 //  Post a new read value for a parameter
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::postNewReadVal(uint paramID)
@@ -512,7 +450,7 @@ asynStatus drvFGPDB::postNewReadVal(uint paramID)
       break;
 
     case asynParamFloat64:
-      dval = cltrFmtToDouble(param.ctlrValRead, param.ctlrFmt);
+      dval = ParamInfo::ctlrFmtToDouble(param.ctlrValRead, param.ctlrFmt);
       stat = setDoubleParam((int)paramID, dval);
       break;
 
@@ -858,7 +796,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   ParamInfo &param = paramList.at(paramID);
 
 
-  uint32_t ctlrVal = doubleToCtlrFmt(newVal, param.ctlrFmt);
+  uint32_t ctlrVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
 
   cout << endl << "  === write " << newVal << " (0x" << hex << ctlrVal << ")"
        << " to " << param.name << dec << endl;

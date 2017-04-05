@@ -118,6 +118,9 @@ class ParamInfo {
     static const std::string & asynTypeToStr(const asynParamType asynType);
     static const std::string & ctlrFmtToStr(const CtlrDataFmt ctlrFmt);
 
+    static double ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt);
+    static uint32_t doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt);
+
     friend std::ostream& operator<<(std::ostream& os, const ParamInfo &param);
 
 

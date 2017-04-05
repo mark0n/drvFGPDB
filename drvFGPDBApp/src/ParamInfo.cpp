@@ -28,6 +28,8 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 static string NotDefined("<NotDefined>");
 
 
+static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
+
 //-----------------------------------------------------------------------------
 // Construct a ParamInfo object from a string description of the form:
 //
@@ -169,4 +171,65 @@ asynStatus ParamInfo::updateParamDef(const string &context,
   return asynSuccess;
 }
 
+//----------------------------------------------------------------------------
+//  Convert a value from the format used the controller to a float
+//----------------------------------------------------------------------------
+double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
+{
+  float dval = 0.0;
+
+  switch (ctlrFmt)  {
+    case CtlrDataFmt::NotDefined:
+      break;
+
+    case CtlrDataFmt::S32:
+      dval = (int32_t)ctlrVal;  break;
+
+    case CtlrDataFmt::U32:
+      dval = ctlrVal;  break;
+
+    case CtlrDataFmt::F32:
+      dval = *((epicsFloat32 *)&ctlrVal);  break;
+
+    case CtlrDataFmt::U16_16:
+      dval = (float)((double)ctlrVal / 65536.0);  break;
+
+    case CtlrDataFmt::PHASE:
+      dval = (double)ctlrVal * PhaseConvFactor32;  break;
+  }
+
+  return dval;
+}
+
+//----------------------------------------------------------------------------
+//  Convert a value from a floating point to the format used the controller
+//----------------------------------------------------------------------------
+uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
+{
+  uint32_t  ctlrVal = 0;
+  epicsFloat32  f32val = 0.0;
+
+  switch (ctlrFmt)  {
+    case CtlrDataFmt::NotDefined:  break;
+
+    case CtlrDataFmt::S32:
+      dval = (int32_t) ctlrVal;  break;
+
+    case CtlrDataFmt::U32:
+      dval = (uint32_t) ctlrVal;  break;
+
+    case CtlrDataFmt::F32:
+      f32val = dval;  ctlrVal = *((uint32_t *)&f32val);  break;
+
+    case CtlrDataFmt::U16_16:
+      ctlrVal = (uint32_t) (dval * 65536.0);  break;
+
+    case CtlrDataFmt::PHASE:
+      ctlrVal = (uint32_t) (dval / PhaseConvFactor32);  break;
+  }
+
+  return ctlrVal;
+}
+
+//----------------------------------------------------------------------------
 
