@@ -66,7 +66,7 @@ ulong getSystemClockInMS(void)
 //=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-                   const string &udpPortName) :
+                   const string &udpPortName, uint32_t startupDiagFlags_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, 0, InterfaceMask,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
@@ -82,7 +82,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     idCtlrAddr(-1),
     idStateFlags(-1),
     idDiagFlags(-1),
-    idSessionID(-1)
+    idSessionID(-1),
+    startupDiagFlags(startupDiagFlags_)
 {
   initHookRegister(drvFGPDB_initHookFunc);
 
@@ -90,6 +91,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
   drvList.push_back(this);
 
   addRequiredParams();
+
+  paramList.at(idDiagFlags).ctlrValSet = startupDiagFlags;
 
   paramList.at(idSessionID).readOnly = true;
 
@@ -174,7 +177,8 @@ asynStatus drvFGPDB::getWriteAccess(void)
         (sessionID.readState == ReadState::Current))  writeAccess = true;
 
     if (writeAccess)  {
-      cout << "  === " << portName << " now has write access ===" << endl;
+      if (ShowRegWrites())
+        cout << "  === " << portName << " now has write access ===" << endl;
       return asynSuccess;
     }
 
@@ -274,8 +278,9 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
   if (paramID < 0)  {
     paramList.push_back(newParam);
     pasynUser->reason = paramList.size()-1;
-    cout << endl << "    add: [" << paramCfgStr << "] " //tdebug
-                    "[" << dec << pasynUser->reason << "]" << endl;  //tdebug
+    if (ShowInit())
+      cout << endl << "    add: [" << paramCfgStr << "] "
+                      "[" << dec << pasynUser->reason << "]" << endl;
     return asynSuccess;
   }
 
@@ -305,9 +310,10 @@ asynStatus drvFGPDB::createAsynParams(void)
     }
     stat = createParam(param->name.c_str(), param->asynType, &paramID);
     if (stat != asynSuccess)  return stat;
-    cout << "  created " << param->name << " [" << dec << paramID << "]" << endl; //tdebug
+    if (ShowInit())
+      cout << "  created " << param->name << " [" << dec << paramID << "]" << endl;
   }
-  cout << endl;
+  if (ShowInit())  cout << endl;
 
   return asynSuccess;
 }
@@ -587,8 +593,9 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     if (!validParamID(paramID))  return asynError;
     ParamInfo &param = paramList.at(paramID);
     cmdBuf.push_back(htonl(param.ctlrValSet));
-    cout << "  === send value 0x" << hex << param.ctlrValSet   //tdebug
-         << " for " << param.name << " ===" << dec << endl;  //tdebug
+    if (ShowRegWrites())
+      cout << "  === send value 0x" << hex << param.ctlrValSet   //tdebug
+           << " for " << param.name << " ===" << dec << endl;  //tdebug
   }
 
   size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
@@ -651,22 +658,37 @@ asynStatus drvFGPDB::getIntegerParam(__attribute__((unused)) int list,
                                      __attribute__((unused)) int index,
                                      __attribute__((unused)) int *value)
 {
-  cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
+  if (ShowInit())  {
+    cout << "  " << __func__ << " list: " << dec << list;
+    if (validParamID(index))  { cout << " " << paramList.at(index).name; }
+    cout << " index: " << dec << index << "/" << paramList.size() << endl;
+  }
   return asynDisconnected; }
 
+//----------------------------------------------------------------------------
 asynStatus drvFGPDB::getDoubleParam(__attribute__((unused)) int list,
                                     __attribute__((unused)) int index,
                                     __attribute__((unused)) double * value)
 {
+  if (ShowInit())  {
+    cout << "  " << __func__ << " list: " << dec << list;
+    if (validParamID(index))  { cout << " " << paramList.at(index).name; }
+    cout << " index: " << dec << index << "/" << paramList.size() << endl;
+  }
   cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
   return asynDisconnected; }
 
+//----------------------------------------------------------------------------
 asynStatus drvFGPDB::getUIntDigitalParam(__attribute__((unused)) int list,
                                          __attribute__((unused)) int index,
                                          __attribute__((unused)) epicsUInt32 *value,
                                          __attribute__((unused)) epicsUInt32 mask)
 {
-  cout << "  " << __func__ << " list: " << dec << list << " index: " << index << endl;
+  if (ShowInit())  {
+    cout << "  " << __func__ << " list: " << dec << list;
+    if (validParamID(index))  { cout << " " << paramList.at(index).name; }
+    cout << " index: " << dec << index << "/" << paramList.size() << endl;
+  }
   return asynDisconnected; }
 
 
@@ -710,8 +732,9 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   ParamInfo &param = paramList.at(paramID);
 
 
-  cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
-       << " to " << param.name << dec << endl;
+  if (ShowRegWrites())
+    cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
+         << " to " << param.name << dec << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamInt32))  {
@@ -752,8 +775,9 @@ asynStatus drvFGPDB::
   ParamInfo &param = paramList.at(paramID);
 
 
-  cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
-       << " to " << param.name << dec << endl;
+  if (ShowRegWrites())
+    cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
+         << " to " << param.name << dec << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamUInt32Digital))  {
@@ -798,8 +822,9 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 
   uint32_t ctlrVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
 
-  cout << endl << "  === write " << newVal << " (0x" << hex << ctlrVal << ")"
-       << " to " << param.name << dec << endl;
+  if (ShowRegWrites())
+    cout << endl << "  === write " << newVal << " (0x" << hex << ctlrVal << ")"
+         << " to " << param.name << dec << endl;
 
   do {
     if (!isWritableTypeOf(__func__, paramID, asynParamFloat64))  {
@@ -842,11 +867,12 @@ extern "C" {
 //  \param[in] udpPortName The name of the asyn port for the UDP connection to
 //             the device.
 //-----------------------------------------------------------------------------
-int drvFGPDB_Config(char *drvPortName, char *udpPortName)
+int drvFGPDB_Config(char *drvPortName, char *udpPortName,
+                    int startupDiagFlags_)
 {
   new drvFGPDB(string(drvPortName),
-                   NULL, //new asynOctetSyncIOInterface,
-                   string(udpPortName));
+               NULL, //new asynOctetSyncIOInterface,
+               string(udpPortName), startupDiagFlags_);
 
   return 0;
 }
@@ -859,11 +885,13 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName)
 //=== Argment definitions: Description and type for each one ===
 static const iocshArg config_Arg0 = { "drvPortName", iocshArgString };
 static const iocshArg config_Arg1 = { "udpPortName", iocshArgString };
+static const iocshArg config_Arg2 = { "startupDiag", iocshArgInt    };
 
 //=== A list of the argument definitions ===
 static const iocshArg * const config_Args[] = {
   &config_Arg0,
   &config_Arg1,
+  &config_Arg2
 };
 
 //=== Func def struct:  Pointer to func, # args, arg list ===
@@ -873,7 +901,7 @@ static const iocshFuncDef config_FuncDef =
 //=== Func to call the func using elements from the generic argument list ===
 static void config_CallFunc(const iocshArgBuf *args)
 {
-  drvFGPDB_Config(args[0].sval, args[1].sval);
+  drvFGPDB_Config(args[0].sval, args[1].sval, args[2].ival);
 }
 
 
