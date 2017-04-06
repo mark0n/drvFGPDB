@@ -429,21 +429,23 @@ asynStatus drvFGPDB::postNewReadVal(int paramID)
   switch (param.asynType)  {
 
     case asynParamInt32:
-      stat = setIntegerParam((int)paramID, param.ctlrValRead);
+      stat = setIntegerParam(paramID, param.ctlrValRead);
       break;
 
     case asynParamUInt32Digital:
-      stat = setUIntDigitalParam((int)paramID, param.ctlrValRead, 0xFFFFFFFF);
+      stat = setUIntDigitalParam(paramID, param.ctlrValRead, 0xFFFFFFFF);
       break;
 
     case asynParamFloat64:
       dval = ParamInfo::ctlrFmtToDouble(param.ctlrValRead, param.ctlrFmt);
-      stat = setDoubleParam((int)paramID, dval);
+      stat = setDoubleParam(paramID, dval);
       break;
 
     default:
       break;
   }
+
+  if (setParamStatus(paramID, stat) != asynSuccess)  return asynError;
 
   return stat;
 }
