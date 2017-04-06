@@ -90,16 +90,12 @@ ostream& operator<<(ostream& os, const ParamInfo &param)
 }
 
 //-----------------------------------------------------------------------------
-//  Return the asynParamType associated with a string
-//-----------------------------------------------------------------------------
 asynParamType ParamInfo::strToAsynType(const string &typeName)
 {
   auto it = asynTypes.find(typeName);
   return it == asynTypes.end() ? asynParamNotDefined : it->second;
 }
 
-//-----------------------------------------------------------------------------
-//  Return the CtlrDataFmt associated with a string
 //-----------------------------------------------------------------------------
 CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 {
@@ -108,8 +104,6 @@ CtlrDataFmt ParamInfo::strToCtlrFmt(const string &fmtName)
 }
 
 //-----------------------------------------------------------------------------
-//  Return the string associated with an asynParamType
-//-----------------------------------------------------------------------------
 const string & ParamInfo::asynTypeToStr(const asynParamType asynType)
 {
   for (auto& x: asynTypes)  if (x.second == asynType)  return x.first;
@@ -117,8 +111,6 @@ const string & ParamInfo::asynTypeToStr(const asynParamType asynType)
   return NotDefined;
 }
 
-//-----------------------------------------------------------------------------
-//  Return the string associated with a ClrDataFmt
 //-----------------------------------------------------------------------------
 const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
 {
@@ -138,6 +130,17 @@ void conflictingParamDefs(const string &context,
 }
 
 //-----------------------------------------------------------------------------
+template <typename T>
+asynStatus updateProp(T &curVal, const T &newVal, T notDefined)
+{
+  if (curVal == notDefined)  { curVal = newVal;  return asynSuccess; }
+  if (newVal == notDefined)  return asynSuccess;
+  if (newVal != curVal)  return asynError;
+
+  return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
 //  Update the properties for an existing parameter.
 //
 //  Checks for conflicts and updates any missing property values using ones
@@ -146,27 +149,26 @@ void conflictingParamDefs(const string &context,
 asynStatus ParamInfo::updateParamDef(const string &context,
                                      const ParamInfo &newParam)
 {
-  cout << endl  //tdebug
-       << "  update: " << this << endl  //tdebug
-       << "   using: " << newParam << endl;  //tdebug
-
   if (name != newParam.name)  return asynError;
 
-#define UpdateProp(prop, NotDef)  \
-  if (prop == (NotDef))  \
-    prop = newParam.prop;  \
-  else  \
-    if ((newParam.prop != (NotDef)) and (prop != newParam.prop))  { \
-      conflictingParamDefs(context, *this, newParam);  \
-      return asynError; \
-    }
+  bool conflict = false;
 
-  UpdateProp(regAddr,  0);
-  UpdateProp(asynType, asynParamNotDefined);
-  UpdateProp(ctlrFmt,  CtlrDataFmt::NotDefined);
-//UpdateProp(syncMode, SyncMode::NotDefined);
+  conflict |= (updateProp(regAddr, newParam.regAddr,
+                          (uint32_t)0) != asynSuccess);
 
-  return asynSuccess;
+  conflict |= (updateProp(asynType, newParam.asynType,
+                          asynParamNotDefined) != asynSuccess);
+
+  conflict |= (updateProp(ctlrFmt, newParam.ctlrFmt,
+                 CtlrDataFmt::NotDefined) != asynSuccess);
+
+//conflict |= (updateProp(syncMode, newParam.syncMode,
+//               SyncMode::NotDefined) != asynSuccess);
+
+  if (!conflict)  return asynSuccess;
+
+  conflictingParamDefs(context, *this, newParam);
+  return asynError;
 }
 
 //----------------------------------------------------------------------------
