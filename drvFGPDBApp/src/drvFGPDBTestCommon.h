@@ -43,7 +43,6 @@ public:
 
   //---------------------------------------------
   int addParam(string paramStr) {
-    asynStatus stat;
     pasynUser->reason = -1;
     stat = testDrv->drvUserCreate(pasynUser, paramStr.c_str(), nullptr, nullptr);
     return (stat == asynSuccess) ? pasynUser->reason : -1;
@@ -52,86 +51,38 @@ public:
   //---------------------------------------------
   void addParams()  {
     // No params for addrs 0x10000 - 0x10001
-    auto stat = addParam("lcpRegRO_1 0x10002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams));  testParamID_RO = stat;
+    id = addParam("lcpRegRO_1 0x10002 Int32 U32");
+    ASSERT_THAT(id, Eq(numDrvParams));  testParamID_RO = id;
     // No params for addrs 0x10003 - 0x10004
-    stat = addParam("lcpRegRO_5 0x10005 Float64 F32");
-    ASSERT_THAT(stat, Eq(numDrvParams+1));  maxParamID_RO = stat;
+    id = addParam("lcpRegRO_5 0x10005 Float64 F32");
+    ASSERT_THAT(id, Eq(numDrvParams+1));  maxParamID_RO = id;
 
-    stat = addParam("lcpRegWA_1 0x20000 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+2));
+    id = addParam("lcpRegWA_1 0x20000 Int32 U32");
+    ASSERT_THAT(id, Eq(numDrvParams+2));
     //No param defined for addr 0x20001
-    stat = addParam("lcpRegWA_2 0x20002 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+3));  testParamID_WA = stat;
-    stat = addParam("lcpRegWA_3 0x20003 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+4));
-    stat = addParam("lcpRegWA_4 0x20004 Float64 F32");
-    ASSERT_THAT(stat, Eq(numDrvParams+5));
+    id = addParam("lcpRegWA_2 0x20002 Int32 U32");
+    ASSERT_THAT(id, Eq(numDrvParams+3));  testParamID_WA = id;
+    id = addParam("lcpRegWA_3 0x20003 Int32 U32");
+    ASSERT_THAT(id, Eq(numDrvParams+4));
+    id = addParam("lcpRegWA_4 0x20004 Float64 F32");
+    ASSERT_THAT(id, Eq(numDrvParams+5));
 
-    stat = addParam("sessionID  0x3000E Int32 U32");
-    stat = addParam("lcpRegWO_2 0x300FF Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams+6));
-  }
-
-  //---------------------------------------------
-  void determineAddrRanges()  {
-    addParams();
-
-    auto stat = testDrv->createAsynParams();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    stat = testDrv->determineAddrRanges();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    ASSERT_THAT(testDrv->regGroup[0].maxOffset, Eq(0x0005));
-    ASSERT_THAT(testDrv->regGroup[1].maxOffset, Eq(0x0004));
-    ASSERT_THAT(testDrv->regGroup[2].maxOffset, Eq(0x00FF));
-  }
-
-  //---------------------------------------------
-  void createAddrToParamMaps()  {
-    determineAddrRanges();
-
-    auto stat = testDrv->createAddrToParamMaps();
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    ASSERT_THAT(testDrv->regGroup[0].paramIDs.size(), Eq(0x0006));
-    ASSERT_THAT(testDrv->regGroup[1].paramIDs.size(), Eq(0x0005));
-    ASSERT_THAT(testDrv->regGroup[2].paramIDs.size(), Eq(0x0100));
-  }
-
-//---------------------------------------------
-  void setsPendingWriteStateForAParam()  {
-    createAddrToParamMaps();
-
-    pasynUser->reason = testParamID_WA;
-    auto stat = testDrv->writeInt32(pasynUser, 42);
-    ASSERT_THAT(stat, Eq(asynSuccess));
-
-    tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
-    ASSERT_THAT(param.ctlrValSet, Eq(42));
-    ASSERT_THAT(param.setState, Eq(SetState::Pending));
+    id = addParam("sessionID  0x3000E Int32 U32");
+    id = addParam("lcpRegWO_2 0x300FF Int32 U32");
+    ASSERT_THAT(id, Eq(numDrvParams+6));
   }
 
   //---------------------------------------------
   asynUser  *pasynUser;
+  asynStatus  stat;
   shared_ptr<asynOctetSyncIOInterface>  syncIO;
   std::string  drvName;
   int  udpPortStat;
   unique_ptr<drvFGPDB> testDrv;
-  int  testParamID_RO, maxParamID_RO, testParamID_WA;
+  int  id, testParamID_RO, maxParamID_RO, testParamID_WA;
   int  numDrvParams;
   ParamInfo  param;
 };
 
-
-//=============================================================================
-class AnFGPDBDriverWithAParameter: public AnFGPDBDriver {
-public:
-  virtual void SetUp() {
-    auto stat = addParam("lcpRegWA_1 0x20001 Int32 U32");
-    ASSERT_THAT(stat, Eq(numDrvParams));
-  }
-};
 
 #endif // DRVFGPDBTESTCOMMON_H

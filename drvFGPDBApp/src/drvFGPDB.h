@@ -133,22 +133,23 @@ class drvFGPDB : public asynPortDriver {
     RegGroup & getRegGroup(uint groupID);
     bool inDefinedRegRange(uint firstReg, uint numRegs);
 
-    void addRequiredParams(void);
+    int addNewParam(const ParamInfo &newParam);
+
+    int processParamDef(const std::string &paramDef);
+
+    asynStatus addRequiredParams(void);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
-    asynStatus postNewReadVal(uint paramID);
+    asynStatus postNewReadVal(int paramID);
 
     // clients should use asynPortDriver::findParam() instead
     int findParamByName(const std::string &name);
 
     std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
 
-    asynStatus createAsynParams(void);
-
-    asynStatus determineAddrRanges(void);
-    asynStatus createAddrToParamMaps(void);
+    asynStatus updateRegMap(int paramID);
 
 
     static const int MaxAddr = 1;
@@ -175,7 +176,7 @@ class drvFGPDB : public asynPortDriver {
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
-    std::atomic<bool> stopProcessing;
+    std::atomic<bool> exitDriver;
 
     std::thread syncThread;
 

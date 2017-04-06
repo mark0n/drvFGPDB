@@ -42,7 +42,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     cout << endl
          << "*** Param def error: Device: " << portName << " ***" << endl
          << "    [" << paramStr << "]" << endl;
-    throw invalid_argument("Invalid parameter definition.");
+    return;  // use values set by default constructor
   }
 
   stringstream paramStream(paramStr);
@@ -56,8 +56,6 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
   asynType = strToAsynType(asynTypeName);
   ctlrFmt = strToCtlrFmt(ctlrFmtName);
   readOnly = LCPUtil::readOnlyAddr(regAddr);
-  ctlrValSet = 0;
-  setState = SetState::Undefined;
 }
 
 //-----------------------------------------------------------------------------

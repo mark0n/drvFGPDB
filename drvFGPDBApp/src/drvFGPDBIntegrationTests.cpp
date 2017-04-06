@@ -29,9 +29,9 @@ public:
   };
 };
 
+//=============================================================================
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
-  createAddrToParamMaps();
-  asynStatus stat;
+  addParams();
 
   tie(stat, param) = testDrv->getParamInfo(testParamID_RO);
   ASSERT_THAT(stat, Eq(asynSuccess));
@@ -42,12 +42,12 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
-  createAddrToParamMaps();
+  addParams();
 
   ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
 
   pasynUser->reason = testParamID_WA;
-  auto stat = testDrv->writeInt32(pasynUser, 222);
+  stat = testDrv->writeInt32(pasynUser, 222);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   pasynUser->reason = testParamID_WA + 1;
@@ -62,12 +62,10 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
 }
 
 //-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeRegValues) {
-  createAddrToParamMaps();
+TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
+  addParams();
 
   ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
-
-  asynStatus stat;
 
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
@@ -78,16 +76,21 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeRegValues) {
 
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
-  setsPendingWriteStateForAParam();
+  addParams();
 
   ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
 
+  pasynUser->reason = testParamID_WA;
+  stat = testDrv->writeInt32(pasynUser, 222);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
   auto ackdWrites = testDrv->processPendingWrites();
   ASSERT_THAT(ackdWrites, Eq(1));
-
-  asynStatus stat;
 
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.setState, Eq(SetState::Sent));
 }
+
+//-----------------------------------------------------------------------------
+
