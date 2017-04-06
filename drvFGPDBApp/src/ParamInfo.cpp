@@ -24,9 +24,19 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "PHASE",  CtlrDataFmt::PHASE  }
 };
 
+const std::map<SetState, std::string> ParamInfo::setStates = {
+  { SetState::Undefined, "Undefined" },
+  { SetState::Pending,   "Current"   },
+  { SetState::Sent,      "Sent"      }
+};
+
+const std::map<ReadState, std::string> ParamInfo::readStates = {
+  { ReadState::Undefined, "Undefined" },
+  { ReadState::Current,   "Current"   }
+};
+
 
 static string NotDefined("<NotDefined>");
-
 
 static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
 
@@ -117,6 +127,18 @@ const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
   for (auto& x: ctlrFmts)  if (x.second == ctlrFmt)  return x.first;
 
   return NotDefined;
+}
+
+//-----------------------------------------------------------------------------
+const string & ParamInfo::setStateToStr(void)
+{
+  return setStates.at(setState);
+}
+
+//-----------------------------------------------------------------------------
+const string & ParamInfo::readStateToStr(void)
+{
+  return readStates.at(readState);
 }
 
 //-----------------------------------------------------------------------------

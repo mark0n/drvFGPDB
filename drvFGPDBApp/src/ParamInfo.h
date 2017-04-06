@@ -118,6 +118,9 @@ class ParamInfo {
     static const std::string & asynTypeToStr(const asynParamType asynType);
     static const std::string & ctlrFmtToStr(const CtlrDataFmt ctlrFmt);
 
+    const std::string & setStateToStr(void);
+    const std::string & readStateToStr(void);
+
     static double ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt);
     static uint32_t doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt);
 
@@ -147,6 +150,8 @@ class ParamInfo {
 
     static const std::map<std::string, asynParamType> asynTypes;
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;
+    static const std::map<SetState, std::string> setStates;
+    static const std::map<ReadState, std::string> readStates;
 };
 
 
