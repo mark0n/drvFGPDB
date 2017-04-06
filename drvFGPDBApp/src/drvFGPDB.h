@@ -64,11 +64,6 @@ const uint32_t  DisableStreams_ = 0x00008000;
 //-----------------------------------------------------------------------------
 class RegGroup {
   public:
-    RegGroup() :
-      maxOffset(0)
-    { };
-
-    uint  maxOffset;             // largest addr offset (0 - 0xFFFF)
     std::vector<int>  paramIDs;  // offset to paramID map
 };
 
