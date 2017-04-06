@@ -119,8 +119,6 @@ class drvFGPDB : public asynPortDriver {
 #ifndef TEST_DRVFGPDB
   private:
 #endif
-    friend void drvFGPDB_initHookFunc(initHookState state);
-
     void syncComLCP(void);
 
     asynStatus getWriteAccess(void);
