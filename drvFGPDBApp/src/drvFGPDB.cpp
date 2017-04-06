@@ -75,15 +75,17 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     exitDriver(false),
     syncThread(&drvFGPDB::syncComLCP, this),
     writeAccess(false),
+    idSessionID(-1),
     idDevName(-1),
     idSyncPktID(-1),
+    idSyncPktsSent(-1),
     idSyncPktsRcvd(-1),
     idAsyncPktID(-1),
+    idAsyncPktsSent(-1), 
     idAsyncPktsRcvd(-1),
     idCtlrAddr(-1),
     idStateFlags(-1),
     idDiagFlags(-1),
-    idSessionID(-1),
     startupDiagFlags(startupDiagFlags_)
 {
   initHookRegister(drvFGPDB_initHookFunc);
@@ -226,10 +228,15 @@ int drvFGPDB::processPendingWrites(void)
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::addRequiredParams(void)
 {
-  for (auto const &paramDef : requiredParamDefs)
-    if ((*paramDef.id = processParamDef(paramDef.def)) < 0)  return asynError;
+  int  paramID;
+  asynStatus  stat = asynSuccess;
 
-  return asynSuccess;
+  for (auto const &paramDef : requiredParamDefs)  {
+    if ((paramID = processParamDef(paramDef.def)) < 0)  stat = asynError;
+    if (paramDef.id)  *paramDef.id = paramID;
+  }
+
+  return stat;
 }
 
 //-----------------------------------------------------------------------------

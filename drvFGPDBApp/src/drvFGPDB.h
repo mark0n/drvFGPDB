@@ -175,7 +175,11 @@ class drvFGPDB : public asynPortDriver {
 
     std::atomic<bool> writeAccess;
 
-    // paramIDs for required parameters
+    //=== paramIDs for required parameters ===
+    // reg values the ctlr must support
+    int idSessionID;
+
+    //driver-only values
     int idDevName;
 
     int idSyncPktID;
@@ -189,9 +193,8 @@ class drvFGPDB : public asynPortDriver {
     int idCtlrAddr;
 
     int idStateFlags;
-    int idDiagFlags;
 
-    int idSessionID;
+    int idDiagFlags;
 
 
     uint32_t  startupDiagFlags;
@@ -223,8 +226,25 @@ class drvFGPDB : public asynPortDriver {
 //    bool DisableStreams()   { return (DiagFlags() & _DisableStreams_)
 //                                                    or readOnlyMode; }
 
-
     const std::list<RequiredParam> requiredParamDefs = {
+       //--- reg values the ctlr must support ---
+       { nullptr,          "hardVersion    0x0 Int32 U32"     },
+       { nullptr,          "firmVersion    0x0 Int32 U32"     },
+
+       { nullptr,          "flashId        0x0 Int32 U32"     },
+
+       { nullptr,          "devType        0x0 Int32 U32"     },
+       { nullptr,          "devID          0x0 Int32 U32"     },
+
+       { nullptr,          "upSecs         0x0 Int32 U32"     },
+       { nullptr,          "upMs           0x0 Int32 U32"     },
+
+       { nullptr,          "writerIP       0x0 Int32 U32"     },
+       { nullptr,          "writerPort     0x0 Int32 U32"     },
+
+       { &idSessionID,     "sessionID      0x0 Int32 U32"     },
+
+       //--- driver-only values ---
        { &idDevName,       "devName        0x1 Octet"         },
 
        { &idSyncPktID,     "syncPktID      0x1 Int32"         },
@@ -239,9 +259,7 @@ class drvFGPDB : public asynPortDriver {
 
        { &idStateFlags,    "stateFlags     0x1 UInt32Digital" },
 
-       { &idDiagFlags,     "diagFlags      0x2 UInt32Digital" },
-
-       { &idSessionID,     "sessionID      0x0 Int32 U32"     }
+       { &idDiagFlags,     "diagFlags      0x2 UInt32Digital" }
      };
 
 };
