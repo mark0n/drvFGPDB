@@ -718,35 +718,37 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 {
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
-  ParamInfo &param = paramList.at(paramID);
+  const char  *paramName = "<invalid>";
 
+  if (!isWritableTypeOf(__func__, paramID, asynParamInt32))
+    stat = asynError;
+  else {
+    ParamInfo &param = paramList.at(paramID);
+    paramName = param.name.c_str();
 
-  if (ShowRegWrites())
-    cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
-         << " to " << param.name << dec << endl;
+    uint32_t setVal = newVal;
 
-  do {
-    if (!isWritableTypeOf(__func__, paramID, asynParamInt32))  {
-      stat = asynError;  break; }
+    if (ShowRegWrites())
+      cout << endl << "  === write " << newVal << "(0x" << hex << setVal << ")"
+           << " to " << param.name << dec << endl;
 
-    param.ctlrValSet = newVal;
+    param.ctlrValSet = setVal;
     param.setState = SetState::Pending;
 
     //ToDo: Add param to a linked-list of params with pending writes
-
-  } while (0);
+  }
 
 
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
-                  typeid(this).name(), __func__,
-                  stat, paramID, param.name.c_str(), newVal);
+                  typeid(this).name(), __func__, stat,
+                  paramID, paramName, newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%d\n",
               typeid(this).name(), __func__,
-              paramID, param.name.c_str(), newVal);
+              paramID, paramName, newVal);
 
   return stat;
 }
@@ -759,42 +761,45 @@ asynStatus drvFGPDB::
   writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal, epicsUInt32 mask)
 {
   asynStatus  stat = asynSuccess;
-  uint32_t  setVal;
   int  paramID = pasynUser->reason;
-  ParamInfo &param = paramList.at(paramID);
+  const char  *paramName = "<invalid>";
 
-
-  if (ShowRegWrites())
-    cout << endl << "  === write " << newVal << "(0x" << hex << newVal << ")"
-         << " to " << param.name << dec << endl;
-
-  do {
-    if (!isWritableTypeOf(__func__, paramID, asynParamUInt32Digital))  {
-      stat = asynError;  break; }
+  if (!isWritableTypeOf(__func__, paramID, asynParamUInt32Digital))
+    stat = asynError;
+  else {
+    ParamInfo &param = paramList.at(paramID);
+    paramName = param.name.c_str();
 
     // Compute result of applying specified changes
-    setVal = param.ctlrValSet;   // start with cur value of all the bits
-    setVal |= (newVal & mask);   // set bits set in value and the mask
-    setVal &= (newVal | ~mask);  // clear bits clear in value but set in mask
+    uint32_t  setVal;
+    setVal = param.ctlrValSet;   // start with cur value
+    setVal |= (newVal & mask);   // set bits set in newVal and mask
+    setVal &= (newVal | ~mask);  // clear bits clear in newVal but set in mask
+
+    if (ShowRegWrites())
+      cout << endl << "  === write 0x" << hex << setVal
+           << " (cur: 0x" << param.ctlrValSet
+           << " new: 0x" << newVal
+           << " mask: 0x" << mask
+           << " ) to " << param.name << dec << endl;
 
     param.ctlrValSet = setVal;
     param.setState = SetState::Pending;
 
     //ToDo: Add param to a linked-list of params with pending writes
-
-  } while (0);
+  }
 
 
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=0x%08X",
                   typeid(this).name(), __func__,
-                  stat, paramID, param.name.c_str(), newVal);
+                  stat, paramID, paramName, newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=0x%08X\n",
               typeid(this).name(), __func__,
-              paramID, param.name.c_str(), newVal);
+              paramID, paramName, newVal);
 
   return stat;
 }
@@ -806,37 +811,37 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 {
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
-  ParamInfo &param = paramList.at(paramID);
+  const char  *paramName = "<invalid>";
 
+  if (!isWritableTypeOf(__func__, paramID, asynParamFloat64))
+    stat = asynError;
+  else {
+    ParamInfo &param = paramList.at(paramID);
+    paramName = param.name.c_str();
 
-  uint32_t ctlrVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
+    uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
 
-  if (ShowRegWrites())
-    cout << endl << "  === write " << newVal << " (0x" << hex << ctlrVal << ")"
-         << " to " << param.name << dec << endl;
+    if (ShowRegWrites())
+      cout << endl << "  === write " << newVal << "(0x" << hex << setVal << ")"
+           << " to " << param.name << dec << endl;
 
-  do {
-    if (!isWritableTypeOf(__func__, paramID, asynParamFloat64))  {
-      stat = asynError;  break; }
-
-    param.ctlrValSet = ctlrVal;
+    param.ctlrValSet = setVal;
     param.setState = SetState::Pending;
 
     //ToDo: Add param to a linked-list of params with pending writes
-
-  } while (0);
+  }
 
 
   if (stat != asynSuccess)
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s::%s: status=%d, paramID=%d, name=%s, value=%e",
                   typeid(this).name(), __func__,
-                  stat, paramID, param.name.c_str(), newVal);
+                  stat, paramID, paramName, newVal);
   else
     asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
               "%s::%s():  paramID=%d, name=%s, value=%e\n",
               typeid(this).name(), __func__,
-              paramID, param.name.c_str(), newVal);
+              paramID, paramName, newVal);
 
   return stat;
 }
