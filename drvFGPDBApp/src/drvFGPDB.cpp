@@ -467,7 +467,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
-  size_t expectedRespSize = numRegs * 4 + 20;
+  const size_t headerSize = 5 * sizeof(uint32_t);
+  const size_t expectedRespSize = headerSize + numRegs * sizeof(uint32_t);
   if (expectedRespSize > sizeof(respBuf))  {
     cout << portName << ": readRegs() respBuf[] too small" << endl;
     return asynError;
@@ -509,7 +510,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   if (rcvd != expectedRespSize)  return asynError;
 
   //todo:  Check header values in returned packet
-  pBuf = respBuf + 20;
+  pBuf = headerSize + respBuf;
 
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
