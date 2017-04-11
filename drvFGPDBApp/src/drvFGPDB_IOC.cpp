@@ -5,6 +5,7 @@
 #include <initHooks.h>
 #include <iocsh.h>
 #include <epicsExport.h>
+#include <epicsExit.h>
 
 #include "drvFGPDB.h"
 #include "asynOctetSyncIOWrapper.h"
@@ -54,6 +55,11 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName,
   return 0;
 }
 
+static void cleanUp(void *)
+{
+  drvFGPDBs.reset();
+  syncIOWrapper.reset();
+}
 
 //-----------------------------------------------------------------------------
 // EPICS iocsh shell commands
@@ -91,6 +97,7 @@ void drvFGPDB_Register(void)
 
   if (firstTime)
   {
+    epicsAtExit(cleanUp, nullptr);
     initHookRegister(drvFGPDB_initHookFunc);
     iocshRegister(&config_FuncDef, config_CallFunc);
     firstTime = false;
