@@ -31,10 +31,10 @@ enum class ProcessGroup : std::int16_t {
 };
 
 // To reduce clutter in code to make it readable
-#define  ProcGroup_Driver  ( static_cast<std::int16_t> (ProcessGroup::Driver) )
-#define  ProcGroup_LCP_RO  ( static_cast<std::int16_t> (ProcessGroup::LCP_RO) )
-#define  ProcGroup_LCP_WA  ( static_cast<std::int16_t> (ProcessGroup::LCP_WA) )
-#define  ProcGroup_LCP_WO  ( static_cast<std::int16_t> (ProcessGroup::LCP_WO) )
+const auto ProcGroup_Driver = static_cast<std::int16_t>(ProcessGroup::Driver);
+const auto ProcGroup_LCP_RO = static_cast<std::int16_t>(ProcessGroup::LCP_RO);
+const auto ProcGroup_LCP_WA = static_cast<std::int16_t>(ProcessGroup::LCP_WA);
+const auto ProcGroup_LCP_WO = static_cast<std::int16_t>(ProcessGroup::LCP_WO);
 
 
 class LCPUtil {
