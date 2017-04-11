@@ -30,13 +30,8 @@
 
 #include <asynPortDriver.h>
 
-#include <initHooks.h>
-
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
-
-void drvFGPDB_initHookFunc(initHookState state);
-
 
 // Bit usage for diagFlags parameter
 
@@ -88,6 +83,8 @@ class drvFGPDB : public asynPortDriver {
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                      const char **pptypeName, size_t *psize);
+
+    void startCommunication();
 
     virtual asynStatus getIntegerParam(int list, int index, int *value);
 
@@ -169,6 +166,7 @@ class drvFGPDB : public asynPortDriver {
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
+    std::atomic<bool> initComplete;
     std::atomic<bool> exitDriver;
 
     std::thread syncThread;

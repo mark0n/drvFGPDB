@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <initHooks.h>
 #include <iocsh.h>
 #include <epicsExport.h>
 
@@ -11,8 +12,24 @@
 using namespace std;
 
 static shared_ptr<asynOctetSyncIOWrapper> syncIOWrapper;
+static unique_ptr<list<drvFGPDB>> drvFGPDBs;
 
 extern "C" {
+
+//-----------------------------------------------------------------------------
+// Callback function for EPICS IOC initialization steps.  Used to trigger
+// normal processing by the driver.
+//-----------------------------------------------------------------------------
+void drvFGPDB_initHookFunc(initHookState state)
+{
+  if (state == initHookAfterInitDatabase) {
+    if (drvFGPDBs) {
+      for (auto& d : *drvFGPDBs) {
+        d.startCommunication();
+      }
+    }
+  }
+}
 
 //-----------------------------------------------------------------------------
 // EPICS iocsh callable func to call constructor for the drvFGPDB class.
@@ -28,8 +45,11 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName,
   if (!syncIOWrapper) {
     syncIOWrapper = make_shared<asynOctetSyncIOWrapper>();
   }
-  new drvFGPDB(string(drvPortName), syncIOWrapper, string(udpPortName),
-               startupDiagFlags_);
+  if (!drvFGPDBs) {
+    drvFGPDBs = make_unique<list<drvFGPDB>>();
+  }
+  drvFGPDBs->emplace_back(string(drvPortName), syncIOWrapper,
+                          string(udpPortName), startupDiagFlags_);
 
   return 0;
 }
@@ -71,6 +91,7 @@ void drvFGPDB_Register(void)
 
   if (firstTime)
   {
+    initHookRegister(drvFGPDB_initHookFunc);
     iocshRegister(&config_FuncDef, config_CallFunc);
     firstTime = false;
   }
