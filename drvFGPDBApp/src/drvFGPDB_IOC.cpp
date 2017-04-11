@@ -1,19 +1,16 @@
 //----- drvFGPDB_IOC.cpp ----- 04/06/17 --- (01/24/17)----
 
+#include <memory>
 
 #include <iocsh.h>
 #include <epicsExport.h>
 
 #include "drvFGPDB.h"
+#include "asynOctetSyncIOWrapper.h"
 
 using namespace std;
 
-
-//=============================================================================
-// Configuration routine.  Called directly, or from the iocsh function below
-//=============================================================================
-
-#include "asynOctetSyncIOWrapper.h"
+static shared_ptr<asynOctetSyncIOWrapper> syncIOWrapper;
 
 extern "C" {
 
@@ -28,9 +25,11 @@ extern "C" {
 int drvFGPDB_Config(char *drvPortName, char *udpPortName,
                     int startupDiagFlags_)
 {
-  new drvFGPDB(string(drvPortName),
-               make_shared<asynOctetSyncIOWrapper>(),
-               string(udpPortName), startupDiagFlags_);
+  if (!syncIOWrapper) {
+    syncIOWrapper = make_shared<asynOctetSyncIOWrapper>();
+  }
+  new drvFGPDB(string(drvPortName), syncIOWrapper, string(udpPortName),
+               startupDiagFlags_);
 
   return 0;
 }
