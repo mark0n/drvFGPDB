@@ -49,10 +49,11 @@ cmake -DCMAKE_INSTALL_PREFIX=.. -DEPICS_MODULE_PATH=/home/marko/work/RF/LLRF/sup
 To extract useful code coverage information the tool needs to be build without optimization:
 ```
 mkdir build
+cd build/
 cmake -DCMAKE_BUILD_TYPE=Debug ..
-make drvFGPDB_coverage
+make drvFGPDBTests_coverage drvFGPDBIntegrationTests_coverage ParamInfoTests_coverage
 ```
-Coverage data can be found in `build/coverage/index.html`.
+Coverage data can be found in `build/*Coverage/index.html`.
 
 Building a Debian Package
 -------------------------
