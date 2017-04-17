@@ -44,10 +44,6 @@ typedef  epicsFloat64   F64;
 typedef  unsigned int   uint;
 typedef  unsigned char  uchar;
 
-
-static bool  initComplete;
-
-
 static const double writeTimeout = 1.0;
 static const double readTimeout  = 1.0;
 
@@ -69,6 +65,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
                    InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
     packetID(0),
+    initComplete(false),
     exitDriver(false),
     syncThread(&drvFGPDB::syncComLCP, this),
     writeAccess(false),
@@ -85,8 +82,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     idDiagFlags(-1),
     startupDiagFlags(startupDiagFlags_)
 {
-  initHookRegister(drvFGPDB_initHookFunc);
-
   addRequiredParams();
 
   paramList.at(idDiagFlags).ctlrValSet = startupDiagFlags;
@@ -116,6 +111,11 @@ drvFGPDB::~drvFGPDB()
   syncThread.join();
 
   syncIO->disconnect(pAsynUserUDP);
+}
+
+void drvFGPDB::startCommunication()
+{
+  initComplete = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -367,15 +367,6 @@ bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
   const RegGroup &group = getRegGroup(groupID);
 
   return ((offset + numRegs) <= group.paramIDs.size());
-}
-
-//-----------------------------------------------------------------------------
-// Callback function for EPICS IOC initialization steps.  Used to trigger
-// normal processing by the driver.
-//-----------------------------------------------------------------------------
-void drvFGPDB_initHookFunc(initHookState state)
-{
-  if (state == initHookAfterInitDatabase)  initComplete = true;
 }
 
 //-----------------------------------------------------------------------------

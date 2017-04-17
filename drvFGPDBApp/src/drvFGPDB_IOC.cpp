@@ -1,21 +1,36 @@
 //----- drvFGPDB_IOC.cpp ----- 04/06/17 --- (01/24/17)----
 
+#include <memory>
 
+#include <initHooks.h>
 #include <iocsh.h>
 #include <epicsExport.h>
+#include <epicsExit.h>
 
 #include "drvFGPDB.h"
+#include "asynOctetSyncIOWrapper.h"
 
 using namespace std;
 
-
-//=============================================================================
-// Configuration routine.  Called directly, or from the iocsh function below
-//=============================================================================
-
-#include "asynOctetSyncIOWrapper.h"
+static shared_ptr<asynOctetSyncIOWrapper> syncIOWrapper;
+static unique_ptr<list<drvFGPDB>> drvFGPDBs;
 
 extern "C" {
+
+//-----------------------------------------------------------------------------
+// Callback function for EPICS IOC initialization steps.  Used to trigger
+// normal processing by the driver.
+//-----------------------------------------------------------------------------
+void drvFGPDB_initHookFunc(initHookState state)
+{
+  if (state == initHookAfterInitDatabase) {
+    if (drvFGPDBs) {
+      for (auto& d : *drvFGPDBs) {
+        d.startCommunication();
+      }
+    }
+  }
+}
 
 //-----------------------------------------------------------------------------
 // EPICS iocsh callable func to call constructor for the drvFGPDB class.
@@ -28,13 +43,23 @@ extern "C" {
 int drvFGPDB_Config(char *drvPortName, char *udpPortName,
                     int startupDiagFlags_)
 {
-  new drvFGPDB(string(drvPortName),
-               make_shared<asynOctetSyncIOWrapper>(),
-               string(udpPortName), startupDiagFlags_);
+  if (!syncIOWrapper) {
+    syncIOWrapper = make_shared<asynOctetSyncIOWrapper>();
+  }
+  if (!drvFGPDBs) {
+    drvFGPDBs = make_unique<list<drvFGPDB>>();
+  }
+  drvFGPDBs->emplace_back(string(drvPortName), syncIOWrapper,
+                          string(udpPortName), startupDiagFlags_);
 
   return 0;
 }
 
+static void cleanUp(void *)
+{
+  drvFGPDBs.reset();
+  syncIOWrapper.reset();
+}
 
 //-----------------------------------------------------------------------------
 // EPICS iocsh shell commands
@@ -72,6 +97,8 @@ void drvFGPDB_Register(void)
 
   if (firstTime)
   {
+    epicsAtExit(cleanUp, nullptr);
+    initHookRegister(drvFGPDB_initHookFunc);
     iocshRegister(&config_FuncDef, config_CallFunc);
     firstTime = false;
   }
