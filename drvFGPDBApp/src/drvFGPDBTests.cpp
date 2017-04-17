@@ -131,7 +131,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   tie(stat, param) = testDrv->getParamInfo(numDrvParams);
 
   ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(param.regAddr,  Eq(0x10001));
+  ASSERT_THAT(param.regAddr,  Eq(0x10001u));
   ASSERT_THAT(param.asynType, Eq(asynParamInt32));
   ASSERT_THAT(param.ctlrFmt,  Eq(CtlrDataFmt::U32));
 }
@@ -196,9 +196,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, asynAndDriverIDsMatch) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, createsRegAddrToParamMaps) {
   addParams();
 
-  ASSERT_THAT(testDrv->regGroup[0].paramIDs.size(), Eq(0x0006));
-  ASSERT_THAT(testDrv->regGroup[1].paramIDs.size(), Eq(0x0005));
-  ASSERT_THAT(testDrv->regGroup[2].paramIDs.size(), Eq(0x0100));
+  ASSERT_THAT(testDrv->regGroup[0].paramIDs.size(), Eq(0x0006u));
+  ASSERT_THAT(testDrv->regGroup[1].paramIDs.size(), Eq(0x0005u));
+  ASSERT_THAT(testDrv->regGroup[2].paramIDs.size(), Eq(0x0100u));
 }
 
 //-----------------------------------------------------------------------------
@@ -282,14 +282,15 @@ TEST_F(AnFGPDBDriver, writesDataToAsyn) {
 //-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncMock, setsPendingWriteStateForAParam) {
   addParams();
-  int arbitraryInt = 42;
+  epicsInt32 arbitraryInt = 42;
+  auto arbitraryIntUnsigned = static_cast<epicsUInt32>(arbitraryInt);
 
   pasynUser->reason = testParamID_WA;
   stat = testDrv->writeInt32(pasynUser, arbitraryInt);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
-  ASSERT_THAT(param.ctlrValSet, Eq(arbitraryInt));
+  ASSERT_THAT(param.ctlrValSet, Eq(arbitraryIntUnsigned));
   ASSERT_THAT(param.setState, Eq(SetState::Pending));
 }
 
