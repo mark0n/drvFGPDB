@@ -22,7 +22,7 @@ include_directories(${EPICS_INCLUDE_DIRS} ${asyn_INCLUDE_DIRS})
 # Build Google Mock as part of this project as recommended by the project (see
 # Debian's README as well as
 # https://groups.google.com/forum/#!topic/googletestframework/Zo7_HOv1MJ0).
-set(GMOCK_SRC_DIR "/usr/src/gmock")
+find_path(GMOCK_SRC_DIR NAMES CMakeLists.txt PATHS /usr/src/googletest/googlemock /usr/src/gmock NO_DEFAULT_PATH)
 add_subdirectory(${GMOCK_SRC_DIR} ${CMAKE_BINARY_DIR}/gmock-build)
 
 enable_testing()
