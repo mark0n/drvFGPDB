@@ -678,11 +678,9 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
 //----------------------------------------------------------------------------
 // Verify that a parameter is writeable and of the specified type
 //----------------------------------------------------------------------------
-bool drvFGPDB::isWritableTypeOf(const string &caller,
-                               int paramID, asynParamType asynType)
+bool drvFGPDB::isWritableTypeOf(const string &caller, const ParamInfo& param,
+                                asynParamType asynType)
 {
-  ParamInfo &param = paramList.at(paramID);
-
   if (param.asynType != asynType)  {
     cout << portName << ":" << caller << ": "<< param.name << ": "
          " *** invalid parameter type ***" << endl;
@@ -707,11 +705,11 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
   const char  *paramName = "<invalid>";
+  ParamInfo &param = paramList.at(paramID);
 
-  if (!isWritableTypeOf(__func__, paramID, asynParamInt32))
+  if (!isWritableTypeOf(__func__, param, asynParamInt32))
     stat = asynError;
   else {
-    ParamInfo &param = paramList.at(paramID);
     paramName = param.name.c_str();
 
     uint32_t setVal = newVal;
@@ -751,11 +749,11 @@ asynStatus drvFGPDB::
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
   const char  *paramName = "<invalid>";
+  ParamInfo &param = paramList.at(paramID);
 
-  if (!isWritableTypeOf(__func__, paramID, asynParamUInt32Digital))
+  if (!isWritableTypeOf(__func__, param, asynParamUInt32Digital))
     stat = asynError;
   else {
-    ParamInfo &param = paramList.at(paramID);
     paramName = param.name.c_str();
 
     // Compute result of applying specified changes
@@ -800,11 +798,11 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
   const char  *paramName = "<invalid>";
+  ParamInfo &param = paramList.at(paramID);
 
-  if (!isWritableTypeOf(__func__, paramID, asynParamFloat64))
+  if (!isWritableTypeOf(__func__, param, asynParamFloat64))
     stat = asynError;
   else {
-    ParamInfo &param = paramList.at(paramID);
     paramName = param.name.c_str();
 
     uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
