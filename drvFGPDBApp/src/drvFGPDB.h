@@ -104,7 +104,7 @@ class drvFGPDB : public asynPortDriver {
     bool isWritableTypeOf(const std::string &caller, const ParamInfo& param,
                           asynParamType asynType);
 
-    uint numParams(void) { return paramList.size(); }
+    uint numParams(void) { return params.size(); }
 
 
 
@@ -118,7 +118,7 @@ class drvFGPDB : public asynPortDriver {
     int processPendingWrites(void);
 
     bool validParamID(int paramID)  {
-      return ((uint)paramID < paramList.size()); }
+      return ((uint)paramID < params.size()); }
 
     RegGroup & getRegGroup(uint groupID);
     bool inDefinedRegRange(uint firstReg, uint numRegs);
@@ -162,7 +162,7 @@ class drvFGPDB : public asynPortDriver {
 
     epicsUInt32 packetID;
 
-    std::vector<ParamInfo> paramList;
+    std::vector<ParamInfo> params;
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
@@ -200,7 +200,7 @@ class drvFGPDB : public asynPortDriver {
 
     uint32_t DiagFlags()  {
       return (idDiagFlags < 0) ? startupDiagFlags :
-                                 paramList.at(idDiagFlags).ctlrValSet;
+                                 params.at(idDiagFlags).ctlrValSet;
     }
 
     bool ShowPackets()      { return DiagFlags() & ShowPackets_;    }
