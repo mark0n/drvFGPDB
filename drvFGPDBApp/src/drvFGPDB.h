@@ -101,8 +101,8 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
 
     // functions that clients can use safely
-    bool isWritableTypeOf(const std::string &caller,
-                          int paramID, asynParamType asynType);
+    bool isWritableTypeOf(const std::string &caller, const ParamInfo& param,
+                          asynParamType asynType);
 
     uint numParams(void) { return paramList.size(); }
 
