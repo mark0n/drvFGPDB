@@ -84,9 +84,9 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 {
   addRequiredParams();
 
-  paramList.at(idDiagFlags).ctlrValSet = startupDiagFlags;
+  params.at(idDiagFlags).ctlrValSet = startupDiagFlags;
 
-  paramList.at(idSessionID).readOnly = true;
+  params.at(idSessionID).readOnly = true;
 
 
   // Create a pAsynUser and connect it to the asyn port that was created by
@@ -151,7 +151,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
 
   if (!validParamID(idSessionID))  return asynError;
 
-  ParamInfo &sessionID = paramList.at(idSessionID);
+  ParamInfo &sessionID = params.at(idSessionID);
 
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
@@ -203,7 +203,7 @@ int drvFGPDB::processPendingWrites(void)
   if (!writeAccess)  return -1;
 
   int ackdCount = 0;
-  for (auto &param : paramList)  {
+  for (auto &param : params)  {
     if (param.setState != SetState::Pending)  continue;
 
     for (int attempt = 0; attempt < 3; ++attempt)  {
@@ -243,9 +243,9 @@ asynStatus drvFGPDB::addRequiredParams(void)
 //-----------------------------------------------------------------------------
 int drvFGPDB::findParamByName(const string &name)
 {
-  auto it = find_if(paramList.begin(), paramList.end(), [&] (const ParamInfo& p)
+  auto it = find_if(params.begin(), params.end(), [&] (const ParamInfo& p)
                     { return p.name == name; } );
-  return (it != paramList.end()) ? it - paramList.begin() : -1;
+  return (it != params.end()) ? it - params.begin() : -1;
 }
 
 //-----------------------------------------------------------------------------
@@ -256,7 +256,7 @@ std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
   ParamInfo paramInfo;
   asynStatus status = asynError;
   if (validParamID(paramID)) {
-    paramInfo = paramList.at(paramID);
+    paramInfo = params.at(paramID);
     status = asynSuccess;
   }
   return make_pair(status, paramInfo);
@@ -285,9 +285,9 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
     cout << "  created " << portName << ":"
          << newParam.name << " [" << dec << paramID << "]" << endl;
 
-  paramList.push_back(newParam);
+  params.push_back(newParam);
 
-  if ((uint)paramID != paramList.size() - 1)  {
+  if ((uint)paramID != params.size() - 1)  {
     cout << endl << "*** " << portName << ":" << newParam.name << ": "
             "asyn paramID != driver paramID ***" << endl << endl;
     throw runtime_error("mismatching paramIDs");
@@ -313,7 +313,7 @@ int drvFGPDB::processParamDef(const string &paramDef)
   if ((paramID = findParamByName(newParam.name)) < 0)
     return addNewParam(newParam);
 
-  ParamInfo &curParam = paramList.at(paramID);
+  ParamInfo &curParam = params.at(paramID);
   if (ShowInit())
     cout << endl
          << "  update: " << curParam << endl
@@ -376,7 +376,7 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
 {
   if (!validParamID(paramID))  return asynError;
 
-  ParamInfo &param = paramList.at(paramID);
+  ParamInfo &param = params.at(paramID);
 
   auto addr = param.regAddr;
   uint groupID = LCPUtil::addrGroupID(addr);
@@ -392,8 +392,8 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
       if (paramIDs.at(offset) != paramID)  {
       cout << "Device: " << portName << ": "
            "*** Multiple params with same LCP reg addr ***" << endl
-           << "  [" << paramList.at(paramIDs.at(offset)) << "]"
-              " and [" << paramList.at(paramID) << "]" << endl;
+           << "  [" << params.at(paramIDs.at(offset)) << "]"
+              " and [" << params.at(paramID) << "]" << endl;
       return asynError;
     }
   } else  if (groupID) {  // not a driver param?
@@ -409,7 +409,7 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::postNewReadVal(int paramID)
 {
-  ParamInfo &param = paramList.at(paramID);
+  ParamInfo &param = params.at(paramID);
   asynStatus stat = asynError;
   double dval;
 
@@ -516,7 +516,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
 
-    ParamInfo &param = paramList.at(paramID);
+    ParamInfo &param = params.at(paramID);
     if ((justReadVal == param.ctlrValRead)
       and (param.readState == ReadState::Current))  continue;
 
@@ -545,7 +545,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   asynStatus stat;
   size_t rcvd;
   uint32_t  respSessionID = 0, respStatus = -999;
-  ParamInfo &sessionID = paramList.at(idSessionID);
+  ParamInfo &sessionID = params.at(idSessionID);
 
 
   if (exitDriver)  return asynError;
@@ -577,7 +577,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   for (uint u=0; u<numRegs; ++u,++offset)  {
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  return asynError;
-    ParamInfo &param = paramList.at(paramID);
+    ParamInfo &param = params.at(paramID);
     cmdBuf.push_back(htonl(param.ctlrValSet));
   }
 
@@ -633,7 +633,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   for (uint u=0; u<numRegs; ++u,++offset)  {
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
-    ParamInfo &param = paramList.at(paramID);
+    ParamInfo &param = params.at(paramID);
     param.setState = SetState::Sent;
   }
 
@@ -645,8 +645,8 @@ asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
 {
   if (ShowInit())  {
     cout << "  " << __func__ << " list: " << dec << list;
-    if (validParamID(index))  { cout << " " << paramList.at(index).name; }
-    cout << " index: " << dec << index << "/" << paramList.size() << endl;
+    if (validParamID(index))  { cout << " " << params.at(index).name; }
+    cout << " index: " << dec << index << "/" << params.size() << endl;
   }
   return asynPortDriver::getIntegerParam(list, index, value);
 }
@@ -656,8 +656,8 @@ asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
 {
   if (ShowInit())  {
     cout << "  " << __func__ << " list: " << dec << list;
-    if (validParamID(index))  { cout << " " << paramList.at(index).name; }
-    cout << " index: " << dec << index << "/" << paramList.size() << endl;
+    if (validParamID(index))  { cout << " " << params.at(index).name; }
+    cout << " index: " << dec << index << "/" << params.size() << endl;
   }
   return asynPortDriver::getDoubleParam(list, index, value);
 };
@@ -668,8 +668,8 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
 {
   if (ShowInit())  {
     cout << "  " << __func__ << " list: " << dec << list;
-    if (validParamID(index))  { cout << " " << paramList.at(index).name; }
-    cout << " index: " << dec << index << "/" << paramList.size() << endl;
+    if (validParamID(index))  { cout << " " << params.at(index).name; }
+    cout << " index: " << dec << index << "/" << params.size() << endl;
   }
   return asynPortDriver::getUIntDigitalParam(list, index, value, mask);
 };
@@ -706,7 +706,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   int  paramID = pasynUser->reason;
   const char  *paramName = "<invalid>";
   try {
-    ParamInfo &param = paramList.at(paramID);
+    ParamInfo &param = params.at(paramID);
     if (!isWritableTypeOf(__func__, param, asynParamInt32))
       stat = asynError;
     else {
@@ -754,7 +754,7 @@ asynStatus drvFGPDB::
   int  paramID = pasynUser->reason;
   const char  *paramName = "<invalid>";
   try {
-    ParamInfo &param = paramList.at(paramID);
+    ParamInfo &param = params.at(paramID);
     if (!isWritableTypeOf(__func__, param, asynParamUInt32Digital))
       stat = asynError;
     else {
@@ -807,7 +807,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   int  paramID = pasynUser->reason;
   const char  *paramName = "<invalid>";
   try {
-    ParamInfo &param = paramList.at(paramID);
+    ParamInfo &param = params.at(paramID);
     if (!isWritableTypeOf(__func__, param, asynParamFloat64))
       stat = asynError;
     else {
