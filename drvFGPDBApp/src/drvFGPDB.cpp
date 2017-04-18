@@ -47,17 +47,6 @@ typedef  unsigned char  uchar;
 static const double writeTimeout = 1.0;
 static const double readTimeout  = 1.0;
 
-//-----------------------------------------------------------------------------
-// Return the time as a millisecond counter that wraps around
-//-----------------------------------------------------------------------------
-ulong getSystemClockInMS(void)
-{
-  using namespace std::chrono;
-  auto duration = system_clock::now().time_since_epoch();
-  return duration_cast<milliseconds>(duration).count();
-}
-
-//=============================================================================
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
                    const string &udpPortName, uint32_t startupDiagFlags_) :
@@ -157,8 +146,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
     if (attempt)  this_thread::sleep_for(10ms);
 
     // valid sessionID values are > 0 and < 0xFFFF
-    sessionID.ctlrValSet = getSystemClockInMS() & 0xFFFE;
-    if (!sessionID.ctlrValSet)  sessionID.ctlrValSet = 1;
+    sessionID.ctlrValSet = rand() %  0xFFFD + 1;
     sessionID.setState = SetState::Pending;
 
     if (writeRegs(sessionID.regAddr, 1) != asynSuccess)  continue;
