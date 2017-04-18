@@ -26,7 +26,7 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 
 const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Undefined, "Undefined" },
-  { SetState::Pending,   "Current"   },
+  { SetState::Pending,   "Pending"   },
   { SetState::Sent,      "Sent"      }
 };
 
@@ -235,10 +235,10 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
     case CtlrDataFmt::NotDefined:  break;
 
     case CtlrDataFmt::S32:
-      dval = (int32_t) ctlrVal;  break;
+      ctlrVal = (int32_t)dval;  break;
 
     case CtlrDataFmt::U32:
-      dval = (uint32_t) ctlrVal;  break;
+      ctlrVal = (uint32_t)dval;  break;
 
     case CtlrDataFmt::F32:
       f32val = dval;  ctlrVal = *((uint32_t *)&f32val);  break;
