@@ -64,7 +64,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     idSyncPktsSent(-1),
     idSyncPktsRcvd(-1),
     idAsyncPktID(-1),
-    idAsyncPktsSent(-1), 
+    idAsyncPktsSent(-1),
     idAsyncPktsRcvd(-1),
     idCtlrAddr(-1),
     idStateFlags(-1),
@@ -392,6 +392,24 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
   return asynSuccess;
 }
 
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::sendMsg(asynUser *pComPort, vector<uint32_t> &cmdBuf)
+{
+  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
+  size_t bytesSent;
+
+  writeData outData {
+    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
+    .write_buffer_len = bytesToSend,
+    .nbytesOut = &bytesSent
+  };
+  asynStatus stat = syncIO->write(pComPort, outData, writeTimeout);
+  if (stat != asynSuccess)  return stat;
+  if (bytesSent != bytesToSend)  return asynError;
+
+  return asynSuccess;
+}
+
 //----------------------------------------------------------------------------
 //  Post a new read value for a parameter
 //----------------------------------------------------------------------------
@@ -461,17 +479,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   cmdBuf.push_back(htonl(numRegs));
   cmdBuf.push_back(htonl(0));
 
-  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
-  size_t bytesSent;
-
-  writeData outData {
-    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
-    .write_buffer_len = bytesToSend,
-    .nbytesOut = &bytesSent
-  };
-  stat = syncIO->write(pAsynUserUDP, outData, writeTimeout);
-  if (stat != asynSuccess)  return stat;
-  if (bytesSent != bytesToSend)  return asynError;
+  if ((stat = sendMsg(pAsynUserUDP, cmdBuf)) != asynSuccess)  return stat;
 
   ++packetID;
 
@@ -569,18 +577,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     cmdBuf.push_back(htonl(param.ctlrValSet));
   }
 
-  size_t bytesToSend = cmdBuf.size() * sizeof(cmdBuf[0]);
-  size_t bytesSent;
-
-  // Send the cmd pkt
-  writeData outData {
-    .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
-    .write_buffer_len = bytesToSend,
-    .nbytesOut = &bytesSent
-  };
-  stat = syncIO->write(pAsynUserUDP, outData, writeTimeout);
-  if (stat != asynSuccess)  return stat;
-  if (bytesSent != bytesToSend)  return asynError;
+  if ((stat = sendMsg(pAsynUserUDP, cmdBuf)) != asynSuccess)  return stat;
 
 
   if (exitDriver)  return asynError;
