@@ -130,6 +130,8 @@ class drvFGPDB : public asynPortDriver {
     asynStatus addRequiredParams(void);
 
     asynStatus sendMsg(asynUser *pComPort, std::vector<uint32_t> &cmdBuf);
+    asynStatus readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf,
+                        size_t expectedRespSize);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
