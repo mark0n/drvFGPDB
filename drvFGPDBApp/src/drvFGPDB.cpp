@@ -625,7 +625,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   return asynSuccess;
 }
 
-//----------------------------------------------------------------------------
+//=============================================================================
 asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
 {
   if (ShowInit())  {
@@ -660,70 +660,68 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
 };
 
 
-//----------------------------------------------------------------------------
-// Verify that a parameter is writeable and of the specified type
-//----------------------------------------------------------------------------
-bool drvFGPDB::isWritableTypeOf(const string &caller, const ParamInfo& param,
-                                asynParamType asynType)
+//=============================================================================
+bool drvFGPDB::isValidWritableParam(const char *funcName, asynUser *pasynUser)
 {
-  if (param.asynType != asynType)  {
-    cout << portName << ":" << caller << ": "<< param.name << ": "
-         " *** invalid parameter type ***" << endl;
+  int  paramID = pasynUser->reason;
+
+  if (!validParamID(paramID))  {
+    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
+                  "%s::%s() [%s]  Called with invalid param ref: %d",
+                  typeid(this).name(), funcName, portName, paramID);
     return false;
   }
 
+  ParamInfo &param = params.at(paramID);
   if (param.readOnly)  {
-    cout << __func__ << " for " << portName << ":" << param.name << ": "
-           " *** param is read-only ***" << endl;
+    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
+                  "%s::%s() [%s]  Called for read-only param: %s [%d]",
+                  typeid(this).name(), funcName, portName,
+                  param.name.c_str(), paramID);
     return false;
   }
 
   return true;
 }
 
+//----------------------------------------------------------------------------
+void drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
+{
+  param.ctlrValSet = setVal;
+  if (LCPUtil::validRegAddr(param.regAddr))  { // val to be sent to ctlr
+    param.setState = SetState::Pending;
+    //ToDo: Add param to a linked-list of params with pending writes
+  }
+  else  { // driver-only value
+    param.setState = SetState::Current;
+    param.ctlrValRead = setVal;
+    param.readState = ReadState::Current;
+  }
+}
 
 //----------------------------------------------------------------------------
 // Process a request to write to one of the Int32 parameters
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 {
+  if (!isValidWritableParam(__func__, pasynUser))  return asynError;
+
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
-  const char  *paramName = "<invalid>";
-  try {
-    ParamInfo &param = params.at(paramID);
-    if (!isWritableTypeOf(__func__, param, asynParamInt32))
-      stat = asynError;
-    else {
-      paramName = param.name.c_str();
+  ParamInfo &param = params.at(paramID);
 
-      uint32_t setVal = newVal;
+  uint32_t setVal = ParamInfo::int32ToCtlrFmt(newVal, param.ctlrFmt);
 
-      if (ShowRegWrites())
-        cout << endl << "  === write " << newVal << "(0x" << hex << setVal << ")"
-            << " to " << param.name << dec << endl;
+  applyNewParamSetting(param, setVal);
 
-      param.ctlrValSet = setVal;
-      param.setState = SetState::Pending;
+  if (ShowRegWrites())
+    cout << endl << "  === write " << newVal << "(0x" << hex << setVal << ")"
+         << " to " << param.name << dec << endl;
 
-      //ToDo: Add param to a linked-list of params with pending writes
-    }
-  } catch(const out_of_range& e) {
-    cout << "ERROR: " << __func__ << " called with invalid value for "
-         << "pasynUser->reason (" << paramID << ")";
-    stat = asynError;
-  }
-
-  if (stat != asynSuccess)
-    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
-                  "%s::%s: status=%d, paramID=%d, name=%s, value=%d",
-                  typeid(this).name(), __func__, stat,
-                  paramID, paramName, newVal);
-  else
-    asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
-              "%s::%s():  paramID=%d, name=%s, value=%d\n",
-              typeid(this).name(), __func__,
-              paramID, paramName, newVal);
+  asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+            "%s::%s() [%s]:  paramID=%d, name=%s, value=%d\n",
+            typeid(this).name(), __func__, portName,
+            paramID, param.name.c_str(), newVal);
 
   return stat;
 }
@@ -735,50 +733,31 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 asynStatus drvFGPDB::
   writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal, epicsUInt32 mask)
 {
+  if (!isValidWritableParam(__func__, pasynUser))  return asynError;
+
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
-  const char  *paramName = "<invalid>";
-  try {
-    ParamInfo &param = params.at(paramID);
-    if (!isWritableTypeOf(__func__, param, asynParamUInt32Digital))
-      stat = asynError;
-    else {
-      paramName = param.name.c_str();
+  ParamInfo &param = params.at(paramID);
 
-      // Compute result of applying specified changes
-      uint32_t  setVal;
-      setVal = param.ctlrValSet;   // start with cur value
-      setVal |= (newVal & mask);   // set bits set in newVal and mask
-      setVal &= (newVal | ~mask);  // clear bits clear in newVal but set in mask
+  // Compute result of applying specified changes
+  uint32_t  setVal;
+  setVal = param.ctlrValSet;   // start with cur value
+  setVal |= (newVal & mask);   // set bits set in newVal and mask
+  setVal &= (newVal | ~mask);  // clear bits clear in newVal but set in mask
 
-      if (ShowRegWrites())
-        cout << endl << "  === write 0x" << hex << setVal
-            << " (cur: 0x" << param.ctlrValSet
-            << " new: 0x" << newVal
-            << " mask: 0x" << mask
-            << " ) to " << param.name << dec << endl;
+  applyNewParamSetting(param, setVal);
 
-      param.ctlrValSet = setVal;
-      param.setState = SetState::Pending;
+  if (ShowRegWrites())
+    cout << endl << "  === write 0x" << hex << setVal
+        << " (cur: 0x" << param.ctlrValSet
+        << " new: 0x" << newVal
+        << " mask: 0x" << mask
+        << " ) to " << param.name << dec << endl;
 
-      //ToDo: Add param to a linked-list of params with pending writes
-    }
-  } catch(const out_of_range& e) {
-    cout << "ERROR: " << __func__ << " called with invalid value for "
-         << "pasynUser->reason (" << paramID << ")";
-    stat = asynError;
-  }
-
-  if (stat != asynSuccess)
-    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
-                  "%s::%s: status=%d, paramID=%d, name=%s, value=0x%08X",
-                  typeid(this).name(), __func__,
-                  stat, paramID, paramName, newVal);
-  else
-    asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
-              "%s::%s():  paramID=%d, name=%s, value=0x%08X\n",
-              typeid(this).name(), __func__,
-              paramID, paramName, newVal);
+  asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+            "%s::%s() [%s]:  paramID=%d, name=%s, value=0x%08X\n",
+            typeid(this).name(), __func__, portName,
+            paramID, param.name.c_str(), newVal);
 
   return stat;
 }
@@ -788,43 +767,24 @@ asynStatus drvFGPDB::
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 {
+  if (!isValidWritableParam(__func__, pasynUser))  return asynError;
+
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
-  const char  *paramName = "<invalid>";
-  try {
-    ParamInfo &param = params.at(paramID);
-    if (!isWritableTypeOf(__func__, param, asynParamFloat64))
-      stat = asynError;
-    else {
-      paramName = param.name.c_str();
+  ParamInfo &param = params.at(paramID);
 
-      uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
+  uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
 
-      if (ShowRegWrites())
-        cout << endl << "  === write " << newVal << "(0x" << hex << setVal << ")"
-            << " to " << param.name << dec << endl;
+  applyNewParamSetting(param, setVal);
 
-      param.ctlrValSet = setVal;
-      param.setState = SetState::Pending;
+  if (ShowRegWrites())
+    cout << endl << "  === write " << newVal << "(0x" << hex << setVal << ")"
+        << " to " << param.name << dec << endl;
 
-      //ToDo: Add param to a linked-list of params with pending writes
-    }
-  } catch(const out_of_range& e) {
-    cout << "ERROR: " << __func__ << " called with invalid value for "
-         << "pasynUser->reason (" << paramID << ")";
-    stat = asynError;
-  }
-
-  if (stat != asynSuccess)
-    epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
-                  "%s::%s: status=%d, paramID=%d, name=%s, value=%e",
-                  typeid(this).name(), __func__,
-                  stat, paramID, paramName, newVal);
-  else
-    asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
-              "%s::%s():  paramID=%d, name=%s, value=%e\n",
-              typeid(this).name(), __func__,
-              paramID, paramName, newVal);
+  asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+            "%s::%s() [%s]:  paramID=%d, name=%s, value=%e\n",
+            typeid(this).name(), __func__, portName,
+            paramID, param.name.c_str(), newVal);
 
   return stat;
 }
