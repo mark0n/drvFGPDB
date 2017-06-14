@@ -27,7 +27,8 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Undefined, "Undefined" },
   { SetState::Pending,   "Pending"   },
-  { SetState::Sent,      "Sent"      }
+  { SetState::Sent,      "Sent"      },
+  { SetState::Current,   "Current"   }
 };
 
 const std::map<ReadState, std::string> ParamInfo::readStates = {
@@ -248,6 +249,36 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
 
     case CtlrDataFmt::PHASE:
       ctlrVal = (uint32_t) (dval / PhaseConvFactor32);  break;
+  }
+
+  return ctlrVal;
+}
+
+//----------------------------------------------------------------------------
+//  Convert a value from a floating point to the format used the controller
+//----------------------------------------------------------------------------
+uint32_t ParamInfo::int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt)
+{
+  uint32_t  ctlrVal = 0;
+  epicsFloat32  f32val = 0.0;
+
+  switch (ctlrFmt)  {
+    case CtlrDataFmt::NotDefined:  break;
+
+    case CtlrDataFmt::S32:
+      ctlrVal = ival;  break;
+
+    case CtlrDataFmt::U32:
+      ctlrVal = (uint32_t)ival;  break;
+
+    case CtlrDataFmt::F32:
+      f32val = (float)ival;  ctlrVal = *((uint32_t *)&f32val);  break;
+
+    case CtlrDataFmt::U16_16:
+      ctlrVal = (uint32_t) ((double)ival * 65536.0);  break;
+
+    case CtlrDataFmt::PHASE:
+      ctlrVal = (uint32_t) ((double)ival / PhaseConvFactor32);  break;
   }
 
   return ctlrVal;

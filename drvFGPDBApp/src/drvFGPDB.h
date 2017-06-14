@@ -100,9 +100,6 @@ class drvFGPDB : public asynPortDriver {
 
     virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
 
-    // functions that clients can use safely
-    bool isWritableTypeOf(const std::string &caller, const ParamInfo& param,
-                          asynParamType asynType);
 
     uint numParams(void) { return params.size(); }
 
@@ -142,6 +139,10 @@ class drvFGPDB : public asynPortDriver {
     std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
 
     asynStatus updateRegMap(int paramID);
+
+    bool isValidWritableParam(const char *funcName, asynUser *pasynUser);
+
+    void applyNewParamSetting(ParamInfo &param, uint32_t setVal);
 
 
     static const int MaxAddr = 1;
@@ -228,6 +229,8 @@ class drvFGPDB : public asynPortDriver {
 
     const std::list<RequiredParam> requiredParamDefs = {
        //--- reg values the ctlr must support ---
+       // Use 0x0 for LCP reg values (addr is supplied by EPICS record)
+       //ptr-to-paramID    param name     addr asyn  ctlr
        { nullptr,          "hardVersion    0x0 Int32 U32"     },
        { nullptr,          "firmVersion    0x0 Int32 U32"     },
 
@@ -245,6 +248,7 @@ class drvFGPDB : public asynPortDriver {
        { &idSessionID,     "sessionID      0x0 Int32 U32"     },
 
        //--- driver-only values ---
+       // addr 0x1 == Read-Only, 0x2 = Read/Write
        { &idDevName,       "devName        0x1 Octet"         },
 
        { &idSyncPktID,     "syncPktID      0x1 Int32"         },

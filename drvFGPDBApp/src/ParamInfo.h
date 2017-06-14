@@ -21,7 +21,8 @@ enum class CtlrDataFmt {
 enum class SetState {
   Undefined,  // no value written to the parameter yet
   Pending,    // new value waiting to be sent
-  Sent        // ctlr ack'd write cmd (but not necessarily the new value)
+  Sent,       // ctlr ack'd write cmd (but not necessarily the new value)
+  Current     // driver-only value currently in use
 };
 
 enum class ReadState {
@@ -122,7 +123,9 @@ class ParamInfo {
     const std::string & readStateToStr(void);
 
     static double ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt);
+
     static uint32_t doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt);
+    static uint32_t int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt);
 
     friend std::ostream& operator<<(std::ostream& os, const ParamInfo &param);
 
