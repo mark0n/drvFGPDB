@@ -104,8 +104,10 @@ class ParamInfo {
       asynType(info.asynType),
       ctlrFmt(info.ctlrFmt),
       readOnly(info.readOnly),
+      arrayValSet(info.arrayValSet),
       ctlrValSet(info.ctlrValSet),
       setState(info.setState),
+      arrayValRead(info.arrayValRead),
       ctlrValRead(info.ctlrValRead),
       readState(info.readState),
       drvValue(info.drvValue)
@@ -147,9 +149,11 @@ class ParamInfo {
 
     bool           readOnly;    // clients cannot write to the value
 
+    std::vector<uint8_t> arrayValSet;
     epicsUInt32    ctlrValSet;  // value to write to ctlr (in ctlr fmt, host byte order)
     SetState       setState;    // state of ctlrValSet
 
+    std::vector<uint8_t> arrayValRead;
     epicsUInt32    ctlrValRead; // most recently read value (in ctlr fmt, host byte order)
     ReadState      readState;   // state of ctlrValRead
 

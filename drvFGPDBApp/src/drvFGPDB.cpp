@@ -19,6 +19,7 @@
 #include <iostream>
 #include <string>
 #include <utility>
+#include <iomanip>
 
 #include <arpa/inet.h>
 
@@ -197,6 +198,7 @@ int drvFGPDB::processPendingWrites(void)
   for (auto &param : params)  {
     lock();  SetState setState = param.setState;  unlock();
     if (setState != SetState::Pending)  continue;
+    if (!LCPUtil::validRegAddr(param.regAddr))  continue;
 
     if (LCPUtil::validRegAddr(param.regAddr))  { // val to be sent to ctlr
       if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  continue; }
@@ -747,7 +749,6 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
   return asynPortDriver::getUIntDigitalParam(list, index, value, mask);
 };
 
-
 //=============================================================================
 bool drvFGPDB::isValidWritableParam(const char *funcName, asynUser *pasynUser)
 {
@@ -874,6 +875,48 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
             "%s::%s() [%s]:  paramID=%d, name=%s, value=%e\n",
             typeid(this).name(), __func__, portName,
             paramID, param.name.c_str(), newVal);
+
+  return stat;
+}
+
+//----------------------------------------------------------------------------
+//  Only called during init for records with PINI set to "1" (?)
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::readInt8Array(asynUser *pasynUser, epicsInt8 *value,
+                                   size_t nElements, size_t *nIn)
+{
+  cout << "  " << __func__ << " nElements: " << dec << nElements << endl;
+
+//  return asynPortDriver::readInt8Array(pasynUser, value, nElements, nIn);
+  return asynError;
+}
+
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
+                                    size_t nElements)
+{
+  if (!isValidWritableParam(__func__, pasynUser))  return asynError;
+
+  asynStatus  stat = asynSuccess;
+  int  paramID = pasynUser->reason;
+  ParamInfo &param = params.at(paramID);
+
+  param.arrayValSet.assign(&values[0], &values[nElements]);
+  param.setState = SetState::Pending;
+
+  if (ShowRegWrites())  {
+    cout << endl << "  === write " << nElements  << " elements to "
+         << param.name << endl;
+    cout << hex << setfill('0');
+    for (size_t u=0; u<nElements; ++u)
+      cout << " " << setw(2) << (uint)param.arrayValSet[u];
+    cout << setfill(' ') << dec << endl << endl;
+  }
+
+  asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+            "%s::%s() [%s]:  paramID=%d, name=%s, nElements=%lu\n",
+            typeid(this).name(), __func__, portName,
+            paramID, param.name.c_str(), (ulong)nElements);
 
   return stat;
 }

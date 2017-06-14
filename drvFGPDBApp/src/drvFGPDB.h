@@ -101,6 +101,12 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
 
 
+    virtual asynStatus readInt8Array(asynUser *pasynUser, epicsInt8 *value,
+                                     size_t nElements, size_t *nIn);
+
+    virtual asynStatus writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
+                                      size_t nElements);
+
     uint numParams(void) { return params.size(); }
 
 
@@ -157,7 +163,7 @@ class drvFGPDB : public asynPortDriver {
     static const int InterruptMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask;
-    static const int AsynFlags = 0;
+    static const int AsynFlags = ASYN_CANBLOCK;
     static const int AutoConnect = 1;
     static const int Priority = 0;
     static const int StackSize = 0;
@@ -261,7 +267,10 @@ class drvFGPDB : public asynPortDriver {
 
        { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital" },
 
-       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital" }
+       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital" },
+
+       { nullptr,          nullptr,        "testReadWF     0x1 Int8Array"     },
+       { nullptr,          nullptr,        "testWriteWF    0x2 Int8Array"     }
      };
 
 };

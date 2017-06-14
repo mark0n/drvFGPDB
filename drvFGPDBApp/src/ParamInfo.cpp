@@ -13,7 +13,8 @@ const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Int32",         asynParamInt32         },
   { "UInt32Digital", asynParamUInt32Digital },
   { "Float64",       asynParamFloat64       },
-  { "Octet",         asynParamOctet         }
+  { "Octet",         asynParamOctet         },
+  { "Int8Array",     asynParamInt8Array     }
 };
 
 const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
@@ -196,7 +197,7 @@ asynStatus ParamInfo::updateParamDef(const string &context,
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from the format used the controller to a float
+//  Convert a value from the format used by the controller to a float
 //----------------------------------------------------------------------------
 double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
 {
@@ -226,7 +227,7 @@ double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from a floating point to the format used the controller
+//  Convert a value from a floating point to the format used by the controller
 //----------------------------------------------------------------------------
 uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
 {
@@ -256,7 +257,7 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from a floating point to the format used the controller
+//  Convert a value from an int32 to the format used by the controller
 //----------------------------------------------------------------------------
 uint32_t ParamInfo::int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt)
 {
