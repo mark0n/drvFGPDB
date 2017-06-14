@@ -411,6 +411,26 @@ asynStatus drvFGPDB::sendMsg(asynUser *pComPort, vector<uint32_t> &cmdBuf)
 }
 
 //----------------------------------------------------------------------------
+asynStatus drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf,
+                              size_t expectedRespSize)
+{
+  asynStatus stat;
+  int  eomReason;
+
+  size_t rcvd = 0;
+  readData inData {
+    .read_buffer = reinterpret_cast<char *>(respBuf.data()),
+    .read_buffer_len = respBuf.size() * sizeof(respBuf[0]),
+    .nbytesIn = &rcvd
+  };
+  stat = syncIO->read(pComPort, inData, readTimeout, &eomReason);
+  if (stat != asynSuccess)  return stat;
+  if (rcvd != expectedRespSize)  return asynError;
+
+  return asynSuccess;
+}
+
+//----------------------------------------------------------------------------
 //  Post a new read value for a parameter
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::postNewReadVal(int paramID)
@@ -450,10 +470,6 @@ asynStatus drvFGPDB::postNewReadVal(int paramID)
 asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 {
   asynStatus stat;
-  int  eomReason;
-  char  *pBuf;
-  char  respBuf[1024];
-
 
   if (exitDriver)  return asynError;
 
@@ -463,13 +479,6 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
          << dec << numRegs << ")" << endl;
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
-
-  const size_t headerSize = 5 * sizeof(uint32_t);
-  const size_t expectedRespSize = headerSize + numRegs * sizeof(uint32_t);
-  if (expectedRespSize > sizeof(respBuf))  {
-    cout << portName << ": readRegs() respBuf[] too small" << endl;
-    return asynError;
-  }
 
   vector<uint32_t> cmdBuf;
   cmdBuf.reserve(5);
@@ -485,19 +494,13 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   if (exitDriver)  return asynError;
 
-
-  asynStatus returnStat = asynSuccess;  size_t rcvd = 0;
-  readData inData {
-    .read_buffer = respBuf,
-    .read_buffer_len = sizeof(respBuf),
-    .nbytesIn = &rcvd
-  };
-  stat = syncIO->read(pAsynUserUDP, inData, readTimeout, &eomReason);
-  if (stat != asynSuccess)  return stat;
-  if (rcvd != expectedRespSize)  return asynError;
+  const int RespHdrWords = 5;
+  vector<uint32_t> respBuf(RespHdrWords + numRegs, 0);
+  size_t expectedRespSize = respBuf.size() * sizeof(respBuf[0]);
+  if ((stat = readResp(pAsynUserUDP, respBuf, expectedRespSize)) != asynSuccess)
+    return stat;
 
   //todo:  Check header values in returned packet
-  pBuf = headerSize + respBuf;
 
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
@@ -505,9 +508,10 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   RegGroup &group = getRegGroup(groupID);
 
   bool chgsToBePosted = false;
+  asynStatus returnStat = asynSuccess;
 
   for (uint u=0; u<numRegs; ++u,++offset)  {
-    U32 justReadVal = ntohl(*(U32 *)pBuf);  pBuf += 4;
+    U32 justReadVal = ntohl(respBuf.at(RespHdrWords+u));
 
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
@@ -537,9 +541,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 {
-  int  eomReason;
   asynStatus stat;
-  size_t rcvd;
   uint32_t  respSessionID = 0, respStatus = -999;
   ParamInfo &sessionID = params.at(idSessionID);
 
@@ -585,14 +587,8 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   // Read and process response packet
   vector<uint32_t> respBuf(5, 0);
   size_t expectedRespSize = respBuf.size() * sizeof(respBuf[0]);
-  readData inData {
-    .read_buffer = reinterpret_cast<char *>(respBuf.data()),
-    .read_buffer_len = expectedRespSize,
-    .nbytesIn = &rcvd
-  };
-  stat = syncIO->read(pAsynUserUDP, inData, readTimeout, &eomReason);
-  if (stat != asynSuccess)  return stat;
-  if (rcvd != expectedRespSize)  return asynError;
+  if ((stat = readResp(pAsynUserUDP, respBuf, expectedRespSize)) != asynSuccess)
+    return stat;
 
   uint32_t sessID_and_status = ntohl(respBuf[4]);
   respSessionID = (sessID_and_status >> 16) & 0xFFFF;
