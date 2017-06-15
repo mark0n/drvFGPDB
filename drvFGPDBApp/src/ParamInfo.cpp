@@ -25,10 +25,11 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 };
 
 const std::map<SetState, std::string> ParamInfo::setStates = {
-  { SetState::Undefined, "Undefined" },
-  { SetState::Pending,   "Pending"   },
-  { SetState::Sent,      "Sent"      },
-  { SetState::Current,   "Current"   }
+  { SetState::Undefined,  "Undefined"  },
+  { SetState::Pending,    "Pending"    },
+  { SetState::Processing, "Processing" },
+  { SetState::Sent,       "Sent"       },
+  { SetState::Current,    "Current"    }
 };
 
 const std::map<ReadState, std::string> ParamInfo::readStates = {

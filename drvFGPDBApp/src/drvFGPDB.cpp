@@ -192,7 +192,8 @@ int drvFGPDB::processPendingWrites(void)
 
   int ackdCount = 0;
   for (auto &param : params)  {
-    if (param.setState != SetState::Pending)  continue;
+    lock();  SetState setState = param.setState;  unlock();
+    if (setState != SetState::Pending)  continue;
 
     for (int attempt = 0; attempt < 3; ++attempt)  {
       if ((stat = writeRegs(param.regAddr, 1)) == asynSuccess)  break;
@@ -200,7 +201,6 @@ int drvFGPDB::processPendingWrites(void)
     }
     if (stat != asynSuccess)  continue;
 
-    param.setState = SetState::Sent;
     ++ackdCount;
   }
 
@@ -244,7 +244,7 @@ std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
   ParamInfo paramInfo;
   asynStatus status = asynError;
   if (validParamID(paramID)) {
-    paramInfo = params.at(paramID);
+    lock();  paramInfo = params.at(paramID);  unlock();
     status = asynSuccess;
   }
   return make_pair(status, paramInfo);
@@ -510,6 +510,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   bool chgsToBePosted = false;
   asynStatus returnStat = asynSuccess;
 
+  lock();
+
   for (uint u=0; u<numRegs; ++u,++offset)  {
     U32 justReadVal = ntohl(respBuf.at(RespHdrWords+u));
 
@@ -530,6 +532,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   }
 
   if (chgsToBePosted)  callParamCallbacks();
+
+  unlock();
 
   return returnStat;
 }
@@ -572,12 +576,15 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   RegGroup &group = getRegGroup(groupID);
 
+  lock();
   for (uint u=0; u<numRegs; ++u,++offset)  {
     int paramID = group.paramIDs.at(offset);
-    if (!validParamID(paramID))  return asynError;
+    if (!validParamID(paramID))  { unlock();  return asynError; }
     ParamInfo &param = params.at(paramID);
     cmdBuf.push_back(htonl(param.ctlrValSet));
+    param.setState = SetState::Processing;
   }
+  unlock();
 
   if ((stat = sendMsg(pAsynUserUDP, cmdBuf)) != asynSuccess)  return stat;
 
@@ -611,12 +618,16 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   offset = LCPUtil::addrOffset(firstReg);
 
+  lock();
   for (uint u=0; u<numRegs; ++u,++offset)  {
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
     ParamInfo &param = params.at(paramID);
-    param.setState = SetState::Sent;
+    // in case setState was chgd by another thread
+    if (param.setState == SetState::Processing)
+      param.setState = SetState::Sent;
   }
+  unlock();
 
   return asynSuccess;
 }
