@@ -95,7 +95,15 @@ class ParamInfo {
       setState(SetState::Undefined),
       ctlrValRead(0),
       readState(ReadState::Undefined),
+<<<<<<< HEAD
       drvValue(nullptr)
+=======
+      chipNum(0),
+      blockSize(0),
+      eraseReq(false),
+      offset(0),
+      length(0)
+>>>>>>> Crude blocking version of writeInt8Array()
     {};
 
     ParamInfo(const ParamInfo &info) :
@@ -110,7 +118,16 @@ class ParamInfo {
       arrayValRead(info.arrayValRead),
       ctlrValRead(info.ctlrValRead),
       readState(info.readState),
+<<<<<<< HEAD
       drvValue(info.drvValue)
+=======
+      chipNum(info.chipNum),
+      blockSize(info.blockSize),
+      eraseReq(info.eraseReq),
+      offset(info.offset),
+      length(info.length),
+      statusParamName(info.statusParamName)
+>>>>>>> Crude blocking version of writeInt8Array()
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -157,13 +174,26 @@ class ParamInfo {
     epicsUInt32    ctlrValRead; // most recently read value (in ctlr fmt, host byte order)
     ReadState      readState;   // state of ctlrValRead
 
+<<<<<<< HEAD
     uint32_t      *drvValue;    // run-time value for driver-only params
+=======
+    // properties for pmem (array) values
+    uint           chipNum;
+    ulong          blockSize;
+    bool           eraseReq;
+    ulong          offset;
+    ulong          length;
+    std::string    statusParamName;
+
+    std::vector<uint8_t> rwBuf;
+>>>>>>> Crude blocking version of writeInt8Array()
 
 #ifndef TEST_DRVFGPDB
   private:
 #endif
 
-    static const std::regex& generateParamStrRegex();
+    static const std::regex& scalarParamDefRegex();
+    static const std::regex& pmemParamDefRegex();
 
     static const std::map<std::string, asynParamType> asynTypes;
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;

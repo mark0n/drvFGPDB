@@ -155,6 +155,16 @@ class drvFGPDB : public asynPortDriver {
     void applyNewParamSetting(ParamInfo &param, uint32_t setVal);
 
 
+    asynStatus readBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
+                          std::vector<uint8_t> &rwBuf);
+
+    asynStatus eraseBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum);
+
+    asynStatus writeBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
+                          std::vector<uint8_t> &rwBuf);
+
+    asynStatus pmemWrite(ParamInfo &param);
+
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
@@ -186,6 +196,10 @@ class drvFGPDB : public asynPortDriver {
     std::thread syncThread;
 
     std::atomic<bool> writeAccess;
+
+    std::vector<uint32_t> rwCmdBuf;
+    std::vector<uint32_t> rwRespBuf;
+
 
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
