@@ -62,6 +62,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     updateRegs(true),
     connected(false),
     lastRespTime(0s),
+    lastWriteTime(0s),
     idUpSecs(-1),
     upSecs(0),
     prevUpSecs(0),
@@ -139,13 +140,13 @@ void drvFGPDB::syncComLCP()
     unfinishedArrayRWs = false;
 
     if (!TestMode())  {
+      if (!writeAccess)  getWriteAccess();  else  keepWriteAccess();
       updateRegs = (start_time - lastRegUpdateTime >= 200ms);
       if (updateRegs)  lastRegUpdateTime = chrono::system_clock::now();
       updateReadValues();  postNewReadValues();
       processPendingWrites();
+      checkComStatus();
     }
-
-    checkComStatus();
 
     if (!exitDriver)  {
       auto sleepTime = (unfinishedArrayRWs ? 20ms : 200ms);
@@ -236,6 +237,25 @@ asynStatus drvFGPDB::getWriteAccess(void)
 }
 
 //-----------------------------------------------------------------------------
+//  Maintain write access by insuring that it hasn't been too long since we
+//  last sent and got a response to a write command.
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::keepWriteAccess(void)
+{
+  if (chrono::system_clock::now() - lastWriteTime < 2s)  return asynSuccess;
+
+  if (exitDriver)  return asynError;
+
+  if (!validParamID(idSessionID))  return asynError;
+
+  ParamInfo &param = params.at(idSessionID);
+
+  param.setState = SetState::Pending;
+
+  return writeRegs(param.regAddr, 1);
+}
+
+//-----------------------------------------------------------------------------
 int drvFGPDB::processPendingWrites(void)
 {
   if (exitDriver)  return -1;
@@ -254,8 +274,7 @@ int drvFGPDB::processPendingWrites(void)
     // new scalar value to be sent to the controller
     if (LCPUtil::isLCPRegParam(param.regAddr))  {
       if (setState != SetState::Pending)  continue;
-      if (!updateRegs)  continue;
-      if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  return -1; }
+      if (!updateRegs or !connected or !writeAccess)  continue;
       if (writeRegs(param.regAddr, 1) == asynSuccess)  ++ackdCount;
     }
 
@@ -272,7 +291,7 @@ int drvFGPDB::processPendingWrites(void)
     else  if (param.isArrayParam())  {
       if ((setState != SetState::Pending) and
           (setState != SetState::Processing))  continue;
-      if (!connected)  continue;
+      if (!connected or !writeAccess)  continue;
       if (writeNextBlock(param) != asynSuccess)  {
         cout << endl << "*** " << portName << ":" << param.name << ": "
           "unable to write new array value ***" << endl << endl;
@@ -648,7 +667,7 @@ asynStatus drvFGPDB::postNewReadVal(int paramID)
       break;
 
     case asynParamInt8Array:
-      setParamStatus(paramID, asynSuccess);  // req for callback to work
+      setParamStatus(paramID, asynSuccess);  // req for doCallbacksXxxArray to work
       stat = doCallbacksInt8Array((epicsInt8 *)param.arrayValRead.data(),
                                    param.arrayValRead.size(), paramID, 0);
       break;
@@ -807,6 +826,8 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   if (stat != asynSuccess)  return stat;
 
   if (respStatus != LCPStatus::SUCCESS)  return asynError;
+
+  lastWriteTime = chrono::system_clock::now();
 
   if (exitDriver)  return asynError;
 
@@ -1157,18 +1178,18 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
     return asynSuccess;
   }
 
+  if (!writeAccess)  return asynError;
+
   {
     lock_guard<drvFGPDB> asynLock(*this);
     param.setState = SetState::Processing;
   }
 
+
 //--- initialize values used in the loop ---
   arraySize = param.arrayValSet.size();
 
   param.rwBuf.assign(param.blockSize, 0);
-
-  if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  return asynError; }
-
 
   // adjust # of bytes to write to the next block if necessary
   if (param.rwCount > param.bytesLeft)  param.rwCount = param.bytesLeft;

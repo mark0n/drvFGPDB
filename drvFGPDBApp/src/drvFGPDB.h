@@ -262,6 +262,7 @@ class drvFGPDB : public asynPortDriver {
      * @return asynStatus
      */
     asynStatus getWriteAccess(void);
+    asynStatus keepWriteAccess(void);
 
     /**
      * @brief  Method called by the syncComLCP thread to write in the ctrl
@@ -606,7 +607,8 @@ class drvFGPDB : public asynPortDriver {
     bool  updateRegs;                //!< registers must be updated
 
     bool  connected;
-    std::chrono::system_clock::time_point  lastRespTime; //!< time of the last response received from the ctlr
+    std::chrono::system_clock::time_point  lastRespTime //!< time of the last response received from the ctlr
+                                           lastWriteTime;  //!< time of last write to the ctlr
 
 
     //=== paramIDs for required parameters ===
