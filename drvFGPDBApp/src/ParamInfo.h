@@ -18,16 +18,18 @@ enum class CtlrDataFmt {
   PHASE      // = (int) (degrees * (2.0^32) / 360.0)
 };
 
+// Be sure to update ParamInfo::setStates map in ParamInfo.cpp
 enum class SetState {
   Undefined,  // no value written to the parameter yet
-  Pending,    // new value waiting to be sent
+  Pending,    // new setting ready to be processed
   Processing, // writeRegs() in the middle of processing
-  Sent,       // ctlr ack'd write cmd (but not necessarily the new value)
-  Current     // driver-only value currently in use
+  Sent        // ack'd by ctlr or driver-only value updated
 };
 
+// Be sure to update ParamInfo::readStates map in ParamInfo.cpp
 enum class ReadState {
   Undefined,  // no value read from ctlr yet
+  Pending,    // new reading ready to be posted
   Current,    // value recently read from controller
 };
 
@@ -92,7 +94,8 @@ class ParamInfo {
       ctlrValSet(0),
       setState(SetState::Undefined),
       ctlrValRead(0),
-      readState(ReadState::Undefined)
+      readState(ReadState::Undefined),
+      drvValue(nullptr)
     {};
 
     ParamInfo(const ParamInfo &info) :
@@ -104,7 +107,8 @@ class ParamInfo {
       ctlrValSet(info.ctlrValSet),
       setState(info.setState),
       ctlrValRead(info.ctlrValRead),
-      readState(info.readState)
+      readState(info.readState),
+      drvValue(info.drvValue)
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -133,9 +137,12 @@ class ParamInfo {
 
 
     std::string    name;
+
     uint           regAddr;     // LCP reg addr or driver param group
-    asynParamType  asynType;    // format of value used by driver
-    CtlrDataFmt    ctlrFmt;     // format of value sent to/read from controller
+
+    asynParamType  asynType;    // format used by asyn interface
+    CtlrDataFmt    ctlrFmt;     // format of run-time value in ctlr or driver
+
   //SyncMode       syncMode;    // relation between set and read values
 
     bool           readOnly;    // clients cannot write to the value
@@ -145,6 +152,8 @@ class ParamInfo {
 
     epicsUInt32    ctlrValRead; // most recently read value (in ctlr fmt, host byte order)
     ReadState      readState;   // state of ctlrValRead
+
+    uint32_t      *drvValue;    // run-time value for driver-only params
 
 #ifndef TEST_DRVFGPDB
   private:

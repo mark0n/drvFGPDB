@@ -196,9 +196,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, asynAndDriverIDsMatch) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, createsRegAddrToParamMaps) {
   addParams();
 
-  ASSERT_THAT(testDrv->regGroup[0].paramIDs.size(), Eq(0x0006u));
-  ASSERT_THAT(testDrv->regGroup[1].paramIDs.size(), Eq(0x0005u));
-  ASSERT_THAT(testDrv->regGroup[2].paramIDs.size(), Eq(0x0100u));
+  ASSERT_THAT(testDrv->procGroupSize(ProcGroup_LCP_RO), Eq(0x0006u));
+  ASSERT_THAT(testDrv->procGroupSize(ProcGroup_LCP_WA), Eq(0x0005u));
+  ASSERT_THAT(testDrv->procGroupSize(ProcGroup_LCP_WO), Eq(0x0100u));
 }
 
 //-----------------------------------------------------------------------------
@@ -247,7 +247,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
 
-  stat = testDrv->writeRegs(param.regAddr, 10);
+  stat = testDrv->writeRegs(param.regAddr, lastRegID_WA - 0x20000 + 2);
   ASSERT_THAT(stat, Eq(asynError));
 }
 
@@ -292,6 +292,33 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, setsPendingWriteStateForAParam) {
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
   ASSERT_THAT(param.ctlrValSet, Eq(arbitraryIntUnsigned));
   ASSERT_THAT(param.setState, Eq(SetState::Pending));
+}
+
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriverUsingIOSyncMock, writeTo_ReadFrom_DriverOnlyParam) {
+  addParams();
+
+  id = testDrv->findParamByName("diagFlags");
+  ASSERT_THAT(id , Ge(0));
+
+  pasynUser->reason = id;
+  uint32_t  newVal = TestMode_ | ShowInit_ | ShowRegWrites_ | ShowRegReads_;
+  stat = testDrv->writeUInt32Digital(pasynUser, newVal, 0xFFFF);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  auto ackdWrites = testDrv->processPendingWrites();
+  ASSERT_THAT(ackdWrites, Eq(1));
+  stat = testDrv->postDriverParamChgs();
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  uint32_t  curVal;
+  stat = testDrv->readUInt32Digital(pasynUser, &curVal, 0xFFFF);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+  ASSERT_THAT(curVal, Eq(newVal));
+
+  testDrv->writeUInt32Digital(pasynUser, TestMode_, 0xFFFF);
+  testDrv->processPendingWrites();
+  testDrv->postDriverParamChgs();
 }
 
 //-----------------------------------------------------------------------------

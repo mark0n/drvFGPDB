@@ -1,5 +1,3 @@
-//----- drvFGPDB.h ----- 03/10/17 --- (01/24/17)----
-
 //-----------------------------------------------------------------------------
 //  asynPortDriver-based interface for controllers that support the FRIB LCP
 //  protocol.
@@ -32,6 +30,7 @@
 
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
+#include "LCPProtocol.h"
 
 // Bit usage for diagFlags parameter
 
@@ -57,7 +56,7 @@ const uint32_t  DisableStreams_ = 0x00008000;
 
 
 //-----------------------------------------------------------------------------
-class RegGroup {
+class ProcGroup {
   public:
     std::vector<int>  paramIDs;  // offset to paramID map
 };
@@ -65,8 +64,9 @@ class RegGroup {
 //-----------------------------------------------------------------------------
 class RequiredParam {
   public:
-    int         *id;    // addr of int value to save the paramID
-    std::string  def;   // string that defines the parameter
+    int         *id;      // addr of int value to save the paramID
+    void        *drvVal;  // for driver-only params
+    std::string  def;     // string that defines the parameter
 };
 
 
@@ -117,7 +117,6 @@ class drvFGPDB : public asynPortDriver {
     bool validParamID(int paramID)  {
       return ((uint)paramID < params.size()); }
 
-    RegGroup & getRegGroup(uint groupID);
     bool inDefinedRegRange(uint firstReg, uint numRegs);
 
     int addNewParam(const ParamInfo &newParam);
@@ -134,6 +133,9 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
     asynStatus postNewReadVal(int paramID);
+
+    asynStatus postDriverParamChgs(void);
+
 
     // clients should use asynPortDriver::findParam() instead
     int findParamByName(const std::string &name);
@@ -163,9 +165,10 @@ class drvFGPDB : public asynPortDriver {
 
     std::shared_ptr<asynOctetSyncIOInterface> syncIO;
 
-    std::array<RegGroup,3> regGroup;
-
-    epicsUInt32 packetID;
+    std::array<ProcGroup, ProcessGroupSize> procGroup;
+    ProcGroup & getProcGroup(uint groupID);
+    int procGroupSize(uint groupID)  {
+           return getProcGroup(groupID).paramIDs.size(); }
 
     std::vector<ParamInfo> params;
 
@@ -185,87 +188,80 @@ class drvFGPDB : public asynPortDriver {
     //driver-only values
     int idDevName;
 
-    int idSyncPktID;
-    int idSyncPktsSent;
-    int idSyncPktsRcvd;
+    int idSyncPktID ;     uint32_t syncPktID;
+    int idSyncPktsSent;   uint32_t syncPktsSent;
+    int idSyncPktsRcvd;   uint32_t syncPktsRcvd;
 
-    int idAsyncPktID;
-    int idAsyncPktsSent;
-    int idAsyncPktsRcvd;
+    int idAsyncPktID;     uint32_t asyncPktID;
+    int idAsyncPktsSent;  uint32_t asyncPktsSent;
+    int idAsyncPktsRcvd;  uint32_t asyncPktsRcvd;
 
-    int idCtlrAddr;
+    int idCtlrAddr;       uint32_t ctlrAddr;
 
-    int idStateFlags;
+    int idStateFlags;     uint32_t stateFlags;
 
-    int idDiagFlags;
-
-
-    uint32_t  startupDiagFlags;
+    int idDiagFlags;      uint32_t diagFlags;
 
 
-    uint32_t DiagFlags()  {
-      return (idDiagFlags < 0) ? startupDiagFlags :
-                                 params.at(idDiagFlags).ctlrValSet;
-    }
 
-    bool ShowPackets()      { return DiagFlags() & ShowPackets_;    }
-    bool ShowContents()     { return DiagFlags() & ShowContents_;   }
-    bool ShowRegWrites()    { return DiagFlags() & ShowRegWrites_;  }
-    bool ShowRegReads()     { return DiagFlags() & ShowRegReads_;   }
+    bool ShowPackets()      { return diagFlags & ShowPackets_;    }
+    bool ShowContents()     { return diagFlags & ShowContents_;   }
+    bool ShowRegWrites()    { return diagFlags & ShowRegWrites_;  }
+    bool ShowRegReads()     { return diagFlags & ShowRegReads_;   }
 
-    bool ShowWaveReads()    { return DiagFlags() & ShowWaveReads_;  }
-    bool ShowBlkWrites()    { return DiagFlags() & ShowBlkWrites_;  }
-    bool ShowBlkReads()     { return DiagFlags() & ShowBlkReads_;   }
-    bool ShowBlkErase()     { return DiagFlags() & ShowBlkErase_;   }
+    bool ShowWaveReads()    { return diagFlags & ShowWaveReads_;  }
+    bool ShowBlkWrites()    { return diagFlags & ShowBlkWrites_;  }
+    bool ShowBlkReads()     { return diagFlags & ShowBlkReads_;   }
+    bool ShowBlkErase()     { return diagFlags & ShowBlkErase_;   }
 
-    bool ShowErrors()       { return DiagFlags() & ShowErrors_;     }
-    bool ShowParamState()   { return DiagFlags() & ShowParamState_; }
-    bool ForSyncThread()    { return DiagFlags() & ForSyncThread_;  }
-    bool ForAsyncThread()   { return DiagFlags() & ForAsyncThread_; }
+    bool ShowErrors()       { return diagFlags & ShowErrors_;     }
+    bool ShowParamState()   { return diagFlags & ShowParamState_; }
+    bool ForSyncThread()    { return diagFlags & ForSyncThread_;  }
+    bool ForAsyncThread()   { return diagFlags & ForAsyncThread_; }
 
-    bool ShowInit()         { return DiagFlags() & ShowInit_;       }
-    bool TestMode()         { return DiagFlags() & TestMode_;       }
-    bool DebugTrace()       { return DiagFlags() & DebugTrace_;     }
-//    bool DisableStreams()   { return (DiagFlags() & _DisableStreams_)
-//                                                    or readOnlyMode; }
+    bool ShowInit()         { return diagFlags & ShowInit_;       }
+    bool TestMode()         { return diagFlags & TestMode_;       }
+    bool DebugTrace()       { return diagFlags & DebugTrace_;     }
+//  bool DisableStreams()   { return (diagFlags & _DisableStreams_)
+//                                                 or readOnlyMode; }
 
     const std::list<RequiredParam> requiredParamDefs = {
        //--- reg values the ctlr must support ---
        // Use 0x0 for LCP reg values (addr is supplied by EPICS record)
-       //ptr-to-paramID    param name     addr asyn  ctlr
-       { nullptr,          "hardVersion    0x0 Int32 U32"     },
-       { nullptr,          "firmVersion    0x0 Int32 U32"     },
+       //ptr-to-paramID    drvVal          param name     addr asyn  ctlr
+       { nullptr,          nullptr,        "hardVersion    0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "firmVersion    0x0 Int32 U32"     },
 
-       { nullptr,          "flashId        0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "flashId        0x0 Int32 U32"     },
 
-       { nullptr,          "devType        0x0 Int32 U32"     },
-       { nullptr,          "devID          0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "devType        0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "devID          0x0 Int32 U32"     },
 
-       { nullptr,          "upSecs         0x0 Int32 U32"     },
-       { nullptr,          "upMs           0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "upSecs         0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "upMs           0x0 Int32 U32"     },
 
-       { nullptr,          "writerIP       0x0 Int32 U32"     },
-       { nullptr,          "writerPort     0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "writerIP       0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "writerPort     0x0 Int32 U32"     },
 
-       { &idSessionID,     "sessionID      0x0 Int32 U32"     },
+       { &idSessionID,     nullptr,        "sessionID      0x0 Int32 U32"     },
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write
-       { &idDevName,       "devName        0x1 Octet"         },
+       { &idDevName,       nullptr,        "devName        0x1 Octet"         },
 
-       { &idSyncPktID,     "syncPktID      0x1 Int32"         },
-       { &idSyncPktsSent,  "syncPktsSent   0x1 Int32"         },
-       { &idSyncPktsRcvd,  "syncPktsRcvd   0x1 Int32"         },
+       { &idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32"         },
+       { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32"         },
+       { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32"         },
 
-       { &idAsyncPktID,    "asyncPktID     0x1 Int32"         },
-       { &idAsyncPktsSent, "asyncPktsSent  0x1 Int32"         },
-       { &idAsyncPktsRcvd, "asyncPktsRcvd  0x1 Int32"         },
+       { &idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32"         },
+       { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32"         },
+       { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32"         },
 
-       { &idCtlrAddr,      "ctlrAddr       0x1 Int32"         },
+       { &idCtlrAddr,      &ctlrAddr,      "ctlrAddr       0x1 Int32"         },
 
-       { &idStateFlags,    "stateFlags     0x1 UInt32Digital" },
+       { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital" },
 
-       { &idDiagFlags,     "diagFlags      0x2 UInt32Digital" }
+       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital" }
      };
 
 };

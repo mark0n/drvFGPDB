@@ -65,7 +65,7 @@ public:
     id = addParam("lcpRegWA_3 0x20003 Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams+4));
     id = addParam("lcpRegWA_4 0x20004 Float64 F32");
-    ASSERT_THAT(id, Eq(numDrvParams+5));
+    ASSERT_THAT(id, Eq(numDrvParams+5));  lastRegID_WA = id;
 
     id = addParam("sessionID  0x3000E Int32 U32");
     id = addParam("lcpRegWO_2 0x300FF Int32 U32");
@@ -79,7 +79,7 @@ public:
   std::string  drvName;
   int  udpPortStat;
   unique_ptr<drvFGPDB> testDrv;
-  int  id, testParamID_RO, maxParamID_RO, testParamID_WA;
+  int  id, testParamID_RO, maxParamID_RO, testParamID_WA, lastRegID_WA;
   int  numDrvParams;
   ParamInfo  param;
 };

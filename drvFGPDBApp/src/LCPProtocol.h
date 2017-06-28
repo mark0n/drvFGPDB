@@ -29,6 +29,7 @@ enum class ProcessGroup : std::int16_t {
   LCP_WA  =  2,
   LCP_WO  =  3
 };
+const uint ProcessGroupSize = 4;
 
 // To reduce clutter in code to make it readable
 const auto ProcGroup_Driver = static_cast<std::int16_t>(ProcessGroup::Driver);
