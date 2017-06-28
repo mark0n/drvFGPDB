@@ -500,7 +500,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
 
 
 //----------------------------------------------------------------------------
-//  Post any changes to the actual in-use values
+//  Update the read state and value for ParamInfo objects
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::updateReadValues()
 {
@@ -511,21 +511,26 @@ asynStatus drvFGPDB::updateReadValues()
   }
 
 
-  vector<int> &paramIDs = getProcGroup(ProcGroup_Driver).paramIDs;
-
   lock();
 
-  for (auto &paramID : paramIDs)  {
-    ParamInfo &param = params.at(paramID);
-    if (!param.drvValue)  continue;
+  for (auto &param : params)  {
+    // Is there a driver var for this param, and did it chg?
+    if (param.isScalarParam())  {
+      if (!param.drvValue)  continue;
 
-    U32 newValue = *param.drvValue;
+      U32 newValue = *param.drvValue;
 
-    if ((newValue == param.ctlrValRead)
-      and (param.readState == ReadState::Current))  continue;
+      if ((newValue == param.ctlrValRead)
+        and (param.readState == ReadState::Current))  continue;
 
-    param.ctlrValRead = newValue;
-    param.readState = ReadState::Pending;
+      param.ctlrValRead = newValue;
+      param.readState = ReadState::Pending;
+    }
+    // start or continue updating a PMEM array value
+    else  {
+      if (param.readState != ReadState::Update)  continue;
+      readNextBlock(param);
+    }
   }
 
   unlock();
@@ -578,10 +583,20 @@ asynStatus drvFGPDB::postNewReadValues(void)
   for (int paramID=0; (uint)paramID<params.size(); ++paramID)  {
     ParamInfo &param = params.at(paramID);
 
-    if (!param.isScalarParam())  continue;
     if (param.readState != ReadState::Pending)  continue;
 
-    if ((stat = postNewReadVal(paramID)) == asynSuccess)  {
+    if (param.isScalarParam())
+      stat = postNewReadVal(paramID);
+    else  {
+      setParamStatus(paramID, asynSuccess);  //tdebug
+
+      stat = doCallbacksInt8Array((epicsInt8 *)param.arrayValRead.data(),
+                                  param.arrayValRead.size(), paramID, 0);
+
+      setParamStatus(paramID, stat);
+    }
+
+    if (stat == asynSuccess)  {
       param.readState = ReadState::Current;
       chgsToBePosted = true;
     }
@@ -918,6 +933,7 @@ asynStatus drvFGPDB::readBlock(uint chipNum, U32 blockSize, U32 blockNum,
     if (stat != asynSuccess)  return stat;
 
     //todo:  Check cmd-specific header values in returned packet
+    //       (the respStatus in particular!)
 
     memcpy(blockData, respBuf.data() + RespHdrWords, useBlockSize);
 
@@ -986,9 +1002,59 @@ asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
     if (stat != asynSuccess)  return stat;
 
     //todo:  Check cmd-specific header values in returned packet
+    //       (the respStatus in particular!)
 
     blockData += useBlockSize;  ++useBlockNum;  --subBlocks;
   }
+
+  return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
+//  Read next block of a PMEM array value from the controller
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
+{
+  U32  ttl, arraySize;
+  float  perc;
+
+
+  if (!param.bytesLeft)  {
+    lock();  param.readState = ReadState::Pending;  unlock();
+    return asynSuccess;
+  }
+
+  unfinishedArrayRWs = true;
+
+//--- initialize values used in the loop ---
+  arraySize = param.arrayValRead.size();
+
+  param.rwBuf.assign(param.blockSize, 0);
+
+  // adjust # of bytes to read from the next block if necessary
+  if (param.rwCount > param.bytesLeft)  param.rwCount = param.bytesLeft;
+
+  // read the next block of bytes
+  if (readBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf))  {
+    printf("*** error reading block %u ***\r\n", param.blockNum);
+    perror("readBlock()");  return asynError;
+  }
+
+  lock();
+
+  // Copy just read data to the appropriate bytes in the buffer
+  memcpy(param.arrayValRead.data() + param.rwOffset,
+         param.rwBuf.data() + param.dataOffset,
+         param.rwCount);
+
+  ++param.blockNum;  param.dataOffset = 0;  param.bytesLeft -= param.rwCount;
+  param.rwOffset += param.rwCount;  param.rwCount = param.blockSize;
+
+  ttl = arraySize - param.bytesLeft;  perc = (float)ttl / arraySize * 100.0;
+
+  setArrayOperStatus(param, (uint32_t)perc);
+
+  unlock();
 
   return asynSuccess;
 }
@@ -1003,7 +1069,9 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 
 
   if (!param.bytesLeft)  {
-    param.setState = SetState::Sent;  return asynSuccess; }
+    lock();  param.setState = SetState::Sent;  unlock();
+    return asynSuccess;
+  }
 
   unfinishedArrayRWs = true;
 
@@ -1018,18 +1086,18 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 
 
   // adjust # of bytes to write to the next block if necessary
-  if (param.wrCount > param.bytesLeft)  param.wrCount = param.bytesLeft;
+  if (param.rwCount > param.bytesLeft)  param.rwCount = param.bytesLeft;
 
   // If not replacing all the bytes in the block, then read the existing
   // contents of the block to be modified.
-  if (param.wrCount != param.blockSize)
+  if (param.rwCount != param.blockSize)
     if (readBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf))  {
       printf("*** error reading block %u ***\r\n", param.blockNum);
       perror("readBlock()");  /*rwSockMutex->unlock();*/
       return asynError;
     }
 
-  // If req, erase the next block to be written to
+  // If required, 1st erase the next block to be written to
   if (param.eraseReq)
     if (eraseBlock(param.chipNum, param.blockSize, param.blockNum))  {
       printf("*** error erasing block %u ***\r\n", param.blockNum);
@@ -1039,8 +1107,8 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 
   // Copy new data in to the appropriate bytes in the buffer
   memcpy(param.rwBuf.data() + param.dataOffset,
-         param.arrayValSet.data() + param.fromOffset,
-         param.wrCount);
+         param.arrayValSet.data() + param.rwOffset,
+         param.rwCount);
 
   // write the next block of bytes
   if (writeBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf)) {
@@ -1049,11 +1117,12 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
     return asynError;
   }
 
-  ++param.blockNum;  param.dataOffset = 0;  param.bytesLeft -= param.wrCount;
-  param.fromOffset += param.wrCount;  param.wrCount = param.blockSize;
+  ++param.blockNum;  param.dataOffset = 0;  param.bytesLeft -= param.rwCount;
+  param.rwOffset += param.rwCount;  param.rwCount = param.blockSize;
 
   ttl = arraySize - param.bytesLeft;  perc = (float)ttl / arraySize * 100.0;
 
+  // update the status param
   if (param.statusParamID >= 0)  {
     ParamInfo &statusParam = params.at(param.statusParamID);
     lock();
@@ -1159,6 +1228,29 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   return stat;
 }
 
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param, uint32_t percDone)
+{
+  if (param.statusParamID < 0)
+    if (param.statusParamName.size() > 0)
+      if ((param.statusParamID = findParamByName(param.statusParamName)) < 0)  {
+        cout << typeid(this).name() << "::" << __func__
+             << "()  [" << portName << "]: " << endl
+             << "   invalid status parameter name: " << param << endl;
+        return asynError;
+      }
+
+  if (param.statusParamID >= 0)  {
+    ParamInfo &statusParam = params.at(param.statusParamID);
+    statusParam.ctlrValRead = percDone;
+    statusParam.readState = ReadState::Pending;
+    postNewReadValues();
+  }
+
+  return asynSuccess;
+}
+
+
 //----------------------------------------------------------------------------
 //  Only called during init for records with PINI set to "1" (?)
 //----------------------------------------------------------------------------
@@ -1173,8 +1265,15 @@ asynStatus drvFGPDB::readInt8Array(asynUser *pasynUser, epicsInt8 *value,
          << endl << "   read " << dec << nElements << " elements from: "
          << endl << "   " << param << endl;
 
+  size_t count = nElements;
+  if (count > param.arrayValRead.size())  count = param.arrayValRead.size();
+
+  memcpy(value, param.arrayValRead.data(), count);
+
+  *nIn = count;
+
 //  return asynPortDriver::readInt8Array(pasynUser, value, nElements, nIn);
-  return asynError;
+  return asynSuccess;
 }
 
 //-----------------------------------------------------------------------------
@@ -1190,40 +1289,23 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
   if (param.isScalarParam())  return asynError;
 
   if ((param.setState == SetState::Pending) or
-      (param.setState == SetState::Processing))  return asynError;
+      (param.setState == SetState::Processing) or
+      (param.readState != ReadState::Current))  return asynError;
 
-  if (param.statusParamID < 0)
-    if (param.statusParamName.size() > 0)
-      if ((param.statusParamID = findParamByName(param.statusParamName)) < 0)
-        cout << typeid(this).name() << "::" << __func__ << "()  [" << portName << "]: "
-             << endl << "   invalid status parameter name: " << param << endl;
-
-  if (param.statusParamID >= 0)  {
-    applyNewParamSetting(params.at(param.statusParamID), 0);
-  }
+  setArrayOperStatus(param, 0);
 
   // ToDo:  Use shared buffers, so when someone is updating the firmware for N
   // controllers at once, we don't end up with N MORE unique huge buffers, each
   // with the same information (we will ALREADY have that for the records
-  // themselves - no need to compound that problem...)
+  // themselves - no need to compound that problem in the driver...)
   param.arrayValSet.assign(&values[0], &values[nElements]);
   param.setState = SetState::Pending;
 
-  param.fromOffset = 0;
+  param.rwOffset = 0;
   param.blockNum = param.offset / param.blockSize;
   param.dataOffset = param.offset - param.blockNum * param.blockSize;
-  param.wrCount = param.blockSize - param.dataOffset;
+  param.rwCount = param.blockSize - param.dataOffset;
   param.bytesLeft = param.arrayValSet.size();
-
-  if (ShowBlkWrites())  {
-    cout << typeid(this).name() << "::" << __func__ << "()  [" << portName << "]: "
-         << endl << "   write " << dec << nElements << " elements to: "
-         << endl << "   " << param << endl;
-//    cout << hex << setfill('0');
-//    for (size_t u=0; u<nElements; ++u)
-//      cout << " " << setw(2) << (uint)param.arrayValSet[u];
-//    cout << setfill(' ') << dec << endl << endl;
-  }
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
             "%s::%s() [%s]:  paramID=%d, name=%s, nElements=%lu\n",

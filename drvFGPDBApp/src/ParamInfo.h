@@ -29,6 +29,7 @@ enum class SetState {
 enum class ReadState {
   Undefined,  // no value read from ctlr yet
   Pending,    // new reading ready to be posted
+  Update,     // value needs to be/is being updated
   Current,    // most recent value posted to asyn layer
 };
 
@@ -54,7 +55,12 @@ class ParamInfo {
       eraseReq(false),
       offset(0),
       length(0),
-      statusParamID(-1)
+      statusParamID(-1),
+      rwOffset(0),
+      blockNum(0),
+      dataOffset(0),
+      bytesLeft(0),
+      rwCount(0)
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -103,27 +109,27 @@ class ParamInfo {
     epicsUInt32    ctlrValRead; // most recently read value (in ctlr fmt, host byte order)
     ReadState      readState;   // state of ctlrValRead
 
-    uint32_t      *drvValue;    // run-time value for driver-only scalar params
+    uint32_t      *drvValue;    // run-time variable for key freq-used scalar params
 
     // properties for pmem (array) parameters
     std::vector<uint8_t> arrayValSet;
     std::vector<uint8_t> arrayValRead;
 
-    uint           chipNum;
-    ulong          blockSize;
-    bool           eraseReq;
-    ulong          offset;
-    ulong          length;
+    uint           chipNum;     // ID for persistent memory chip
+    ulong          blockSize;   // size to use in PMEM r/w cmds
+    bool           eraseReq;    // is erasing a block reqd before writing to it?
+    ulong          offset;      // offset from start of chips memory
+    ulong          length;      // # of bytes that make up logical entity
 
     std::string    statusParamName;
     int            statusParamID;
 
     // state data for in-progress write of an array value
-    uint32_t       fromOffset;
-    uint32_t       blockNum;
-    uint32_t       dataOffset;
-    uint32_t       bytesLeft;
-    uint           wrCount;
+    uint32_t       rwOffset;    // offset in to arrayValSet/Read buffers
+    uint32_t       blockNum;    // blockNum used in PMEM r/w cmd
+    uint32_t       dataOffset;  // offset in to r/w cmd's block buffer
+    uint32_t       bytesLeft;   // # bytes left to r/w
+    uint           rwCount;     // # bytes req in PMEM r/w cmd
 
     std::vector<uint8_t> rwBuf;
 

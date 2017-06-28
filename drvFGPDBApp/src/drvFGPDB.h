@@ -175,19 +175,23 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
                           std::vector<uint8_t> &rwBuf);
 
+    asynStatus readNextBlock(ParamInfo &param);
     asynStatus writeNextBlock(ParamInfo &param);
 
-//    asynStatus pmemWrite(ParamInfo &param);
+    asynStatus setArrayOperStatus(ParamInfo &param, uint32_t percDone);
+
 
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
+                                     asynInt32ArrayMask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask |
                                      asynDrvUserMask;
     static const int InterruptMask = asynInt8ArrayMask | asynInt32Mask |
+                                     asynInt32ArrayMask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask;
-    static const int AsynFlags = ASYN_CANBLOCK;
+    static const int AsynFlags = 0;  //ASYN_CANBLOCK;
     static const int AutoConnect = 1;
     static const int Priority = 0;
     static const int StackSize = 0;

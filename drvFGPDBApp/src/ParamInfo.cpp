@@ -64,6 +64,14 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     eraseReq = (eraseReqStr.at(0) == 'Y');
     asynType = asynParamInt8Array;
     readOnly = LCPUtil::readOnlyAddr(regAddr);
+    arrayValRead.assign(length, 0);
+    rwOffset = 0;
+    blockNum = offset / blockSize;
+    dataOffset = offset - blockNum * blockSize;
+    rwCount = blockSize - dataOffset;
+    bytesLeft = arrayValRead.size();
+//    rwBuf.assign(blockSize, 0);
+    readState = ReadState::Update;
     return;
   }
 
