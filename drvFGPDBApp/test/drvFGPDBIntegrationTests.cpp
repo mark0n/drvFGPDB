@@ -10,6 +10,7 @@
 
 #define TEST_DRVFGPDB
 #include "drvFGPDB.h"
+#include "LCPProtocol.h"
 #include "drvAsynIPPort.h"
 #include "asynOctetSyncIOWrapper.h"
 #include "drvFGPDBTestCommon.h"
@@ -30,6 +31,21 @@ public:
 
     numDrvParams = testDrv->numParams();
   };
+
+  //----------------------------------------
+  void initConnection()
+  {
+    testDrv->readRegs(0x10000, testDrv->procGroupSize(ProcGroup_LCP_RO));
+    testDrv->readRegs(0x20000, testDrv->procGroupSize(ProcGroup_LCP_WA));
+
+    testDrv->postNewReadValues();
+    testDrv->checkComStatus();
+
+    ASSERT_THAT(testDrv->connected, Eq(true));
+
+    ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  }
+
 };
 
 /**
@@ -51,7 +67,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(asynSuccess));
+  initConnection();
 
   pasynUser->reason = testParamID_WA;
   stat = testDrv->writeInt32(pasynUser, 222);
@@ -74,7 +90,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  initConnection();
 
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
@@ -89,7 +105,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  initConnection();
 
   pasynUser->reason = testParamID_WA;
   stat = testDrv->writeInt32(pasynUser, 222);
@@ -109,7 +125,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeInt8Array) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  initConnection();
 
   epicsInt8 testData[1024];
   pasynUser->reason = testArrayID;
