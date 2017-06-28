@@ -9,6 +9,8 @@
 
 // Definition of the protocol for FGPDB devices.
 
+
+// *** Be sure to update ParamInfo::ctlrFmts in ParamInfo.cpp ***
 enum class CtlrDataFmt {
   NotDefined,
   S32,       // signed 32-bit int
@@ -17,20 +19,21 @@ enum class CtlrDataFmt {
   U16_16,    // = (uint) (value * 2.0^16)
 };
 
-// Be sure to update ParamInfo::setStates map in ParamInfo.cpp
+// *** Be sure to update ParamInfo::setStates map in ParamInfo.cpp ***
 enum class SetState {
   Undefined,  // no value written to the parameter yet
   Pending,    // new setting ready to be processed
   Processing, // in the middle of processing a write
-  Sent        // ack'd by ctlr or driver-only value updated
+  Sent,       // ack'd by ctlr or driver-only value updated
+  Error       // failed while writing new value
 };
 
-// Be sure to update ParamInfo::readStates map in ParamInfo.cpp
+// *** Be sure to update ParamInfo::readStates map in ParamInfo.cpp ***
 enum class ReadState {
   Undefined,  // no value read from ctlr yet
   Pending,    // new reading ready to be posted
   Update,     // value needs to be/is being updated
-  Current,    // most recent value posted to asyn layer
+  Current     // most recent value posted to asyn layer
 };
 
 //-----------------------------------------------------------------------------
@@ -66,6 +69,8 @@ class ParamInfo {
     ParamInfo(const std::string& paramStr, const std::string& portName);
 
 
+    void initBlockRW(uint32_t ttlNumBytes);
+
     asynStatus updateParamDef(const std::string &context,
                               const ParamInfo &newParam);
 
@@ -90,6 +95,15 @@ class ParamInfo {
       return (asynType == asynParamInt32)
           or (asynType == asynParamUInt32Digital)
           or (asynType == asynParamFloat64);
+    }
+
+    bool isArrayParam()  {
+      return (blockSize and length and
+               ((asynType == asynParamInt8Array) or
+                (asynType == asynParamInt16Array) or
+                (asynType == asynParamInt32Array) or
+                (asynType == asynParamFloat32Array) or
+                (asynType == asynParamFloat64Array)) );
     }
 
 
@@ -124,7 +138,7 @@ class ParamInfo {
     std::string    statusParamName;
     int            statusParamID;
 
-    // state data for in-progress write of an array value
+    // state data for in-progress read or write of an array value
     uint32_t       rwOffset;    // offset in to arrayValSet/Read buffers
     uint32_t       blockNum;    // blockNum used in PMEM r/w cmd
     uint32_t       dataOffset;  // offset in to r/w cmd's block buffer
