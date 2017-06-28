@@ -180,7 +180,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
 //-----------------------------------------------------------------------------
 int drvFGPDB::processPendingWrites(void)
 {
-  if (exitDriver)  return asynError;
+  if (exitDriver)  return -1;
 
   //ToDo: Use a list of params with pending writes to improve efficiency
 

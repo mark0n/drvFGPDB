@@ -154,8 +154,6 @@ class drvFGPDB : public asynPortDriver {
     asynStatus updateReadValues();
     asynStatus postNewReadValues();
 
-    asynStatus postDriverParamChgs(void);
-
 
     // clients should use asynPortDriver::findParam() instead
     int findParamByName(const std::string &name);
