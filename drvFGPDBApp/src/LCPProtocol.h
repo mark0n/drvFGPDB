@@ -44,7 +44,7 @@ public:
 
   static uint addrOffset(uint addr)   { return addr & 0xFFFF; }
 
-  static bool validRegAddr(uint addr)  {
+  static bool isLCPRegParam(uint addr)  {
     uint groupID = addrGroupID(addr);
     return (groupID > 0) and (groupID < 4);
   }

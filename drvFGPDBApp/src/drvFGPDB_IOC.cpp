@@ -40,8 +40,7 @@ void drvFGPDB_initHookFunc(initHookState state)
 //  \param[in] udpPortName The name of the asyn port for the UDP connection to
 //             the device.
 //-----------------------------------------------------------------------------
-int drvFGPDB_Config(char *drvPortName, char *udpPortName,
-                    int startupDiagFlags_)
+int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
 {
   if (!syncIOWrapper) {
     syncIOWrapper = make_shared<asynOctetSyncIOWrapper>();
@@ -49,6 +48,7 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName,
   if (!drvFGPDBs) {
     drvFGPDBs = make_unique<list<drvFGPDB>>();
   }
+
   drvFGPDBs->emplace_back(string(drvPortName), syncIOWrapper,
                           string(udpPortName), startupDiagFlags_);
 

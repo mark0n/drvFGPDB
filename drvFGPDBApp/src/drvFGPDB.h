@@ -135,6 +135,10 @@ class drvFGPDB : public asynPortDriver {
     asynStatus readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf,
                         size_t expectedRespSize);
 
+    asynStatus sendCmdGetResp(asynUser *pComPort,
+                              std::vector<uint32_t> &cmdBuf,
+                              std::vector<uint32_t> &respBuf);
+
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
@@ -163,7 +167,9 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
                           std::vector<uint8_t> &rwBuf);
 
-    asynStatus pmemWrite(ParamInfo &param);
+    asynStatus writeNextBlock(ParamInfo &param);
+
+//    asynStatus pmemWrite(ParamInfo &param);
 
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
@@ -196,9 +202,6 @@ class drvFGPDB : public asynPortDriver {
     std::thread syncThread;
 
     std::atomic<bool> writeAccess;
-
-    std::vector<uint32_t> rwCmdBuf;
-    std::vector<uint32_t> rwRespBuf;
 
 
     //=== paramIDs for required parameters ===
@@ -247,7 +250,7 @@ class drvFGPDB : public asynPortDriver {
 
     const std::list<RequiredParam> requiredParamDefs = {
        //--- reg values the ctlr must support ---
-       // Use 0x0 for LCP reg values (addr is supplied by EPICS record)
+       // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
        //ptr-to-paramID    drvVal          param name     addr asyn  ctlr
        { nullptr,          nullptr,        "hardVersion    0x0 Int32 U32"     },
        { nullptr,          nullptr,        "firmVersion    0x0 Int32 U32"     },
@@ -281,10 +284,7 @@ class drvFGPDB : public asynPortDriver {
 
        { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital" },
 
-       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital" },
-
-       { nullptr,          nullptr,        "testReadWF     0x1 Int8Array"     },
-       { nullptr,          nullptr,        "testWriteWF    0x2 Int8Array"     }
+       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital" }
      };
 
 };

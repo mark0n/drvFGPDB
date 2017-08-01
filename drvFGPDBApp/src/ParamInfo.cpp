@@ -164,7 +164,7 @@ ostream& operator<<(ostream& os, const ParamInfo &param)
        << hex
        << " 0x" << param.offset
        << " 0x" << param.length
-       << " " << param.statusParamName;
+       << " " << param.statusParamName << dec;
   else
     os << " " << ParamInfo::asynTypeToStr(param.asynType)
        << " " << ParamInfo::ctlrFmtToStr(param.ctlrFmt);

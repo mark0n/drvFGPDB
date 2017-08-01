@@ -22,7 +22,7 @@ enum class CtlrDataFmt {
 enum class SetState {
   Undefined,  // no value written to the parameter yet
   Pending,    // new setting ready to be processed
-  Processing, // writeRegs() in the middle of processing
+  Processing, // in the middle of processing a write
   Sent        // ack'd by ctlr or driver-only value updated
 };
 
@@ -30,7 +30,7 @@ enum class SetState {
 enum class ReadState {
   Undefined,  // no value read from ctlr yet
   Pending,    // new reading ready to be posted
-  Current,    // value recently read from controller
+  Current,    // most recent value posted to asyn layer
 };
 
 
@@ -95,15 +95,13 @@ class ParamInfo {
       setState(SetState::Undefined),
       ctlrValRead(0),
       readState(ReadState::Undefined),
-<<<<<<< HEAD
-      drvValue(nullptr)
-=======
+      drvValue(nullptr),
       chipNum(0),
       blockSize(0),
       eraseReq(false),
       offset(0),
-      length(0)
->>>>>>> Crude blocking version of writeInt8Array()
+      length(0),
+      statusParamID(-1)
     {};
 
     ParamInfo(const ParamInfo &info) :
@@ -112,22 +110,20 @@ class ParamInfo {
       asynType(info.asynType),
       ctlrFmt(info.ctlrFmt),
       readOnly(info.readOnly),
-      arrayValSet(info.arrayValSet),
       ctlrValSet(info.ctlrValSet),
       setState(info.setState),
-      arrayValRead(info.arrayValRead),
       ctlrValRead(info.ctlrValRead),
       readState(info.readState),
-<<<<<<< HEAD
-      drvValue(info.drvValue)
-=======
+      drvValue(info.drvValue),
+      arrayValSet(info.arrayValSet),
+      arrayValRead(info.arrayValRead),
       chipNum(info.chipNum),
       blockSize(info.blockSize),
       eraseReq(info.eraseReq),
       offset(info.offset),
       length(info.length),
-      statusParamName(info.statusParamName)
->>>>>>> Crude blocking version of writeInt8Array()
+      statusParamName(info.statusParamName),
+      statusParamID(info.statusParamID)
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -153,6 +149,12 @@ class ParamInfo {
 
     friend std::ostream& operator<<(std::ostream& os, const ParamInfo &param);
 
+    bool isScalarParam()  {
+      return (asynType == asynParamInt32)
+          or (asynType == asynParamUInt32Digital)
+          or (asynType == asynParamFloat64);
+    }
+
 
 
     std::string    name;
@@ -166,27 +168,35 @@ class ParamInfo {
 
     bool           readOnly;    // clients cannot write to the value
 
-    std::vector<uint8_t> arrayValSet;
     epicsUInt32    ctlrValSet;  // value to write to ctlr (in ctlr fmt, host byte order)
     SetState       setState;    // state of ctlrValSet
 
-    std::vector<uint8_t> arrayValRead;
     epicsUInt32    ctlrValRead; // most recently read value (in ctlr fmt, host byte order)
     ReadState      readState;   // state of ctlrValRead
 
-<<<<<<< HEAD
-    uint32_t      *drvValue;    // run-time value for driver-only params
-=======
-    // properties for pmem (array) values
+    uint32_t      *drvValue;    // run-time value for driver-only scalar params
+
+    // properties for pmem (array) parameters
+    std::vector<uint8_t> arrayValSet;
+    std::vector<uint8_t> arrayValRead;
+
     uint           chipNum;
     ulong          blockSize;
     bool           eraseReq;
     ulong          offset;
     ulong          length;
+
     std::string    statusParamName;
+    int            statusParamID;
+
+    // state data for in-progress write of an array value
+    uint32_t       fromOffset;
+    uint32_t       blockNum;
+    uint32_t       dataOffset;
+    uint32_t       bytesLeft;
+    uint           wrCount;
 
     std::vector<uint8_t> rwBuf;
->>>>>>> Crude blocking version of writeInt8Array()
 
 #ifndef TEST_DRVFGPDB
   private:
