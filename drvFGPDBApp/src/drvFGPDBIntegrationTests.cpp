@@ -93,4 +93,35 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
 }
 
 //-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeInt8Array) {
+  addParams();
+
+  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+
+  epicsInt8 testData[1024];
+  pasynUser->reason = testArrayID;
+  stat = testDrv->writeInt8Array(pasynUser, testData, sizeof(testData));
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  testDrv->processPendingWrites();
+
+  pasynUser->reason = arrayWriteStatusID;
+  int32_t  percDone;
+
+  for (int i=0; i<20; ++i) {
+    testDrv->updateReadValues();
+    stat = testDrv->postNewReadValues();
+    ASSERT_THAT(stat, Eq(asynSuccess));
+
+    stat = testDrv->readInt32(pasynUser, &percDone);
+    ASSERT_THAT(stat, Eq(asynSuccess));
+    if (percDone == 100)  break;
+
+    testDrv->processPendingWrites();
+  }
+
+  ASSERT_THAT(percDone, Eq(100));
+}
+
+//-----------------------------------------------------------------------------
 

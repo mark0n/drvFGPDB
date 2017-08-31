@@ -308,7 +308,8 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, writeTo_ReadFrom_DriverOnlyParam) {
 
   auto ackdWrites = testDrv->processPendingWrites();
   ASSERT_THAT(ackdWrites, Eq(1));
-  stat = testDrv->postDriverParamChgs();
+  testDrv->updateReadValues();
+  stat = testDrv->postNewReadValues();
   ASSERT_THAT(stat, Eq(asynSuccess));
 
   uint32_t  curVal;
@@ -318,7 +319,8 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, writeTo_ReadFrom_DriverOnlyParam) {
 
   testDrv->writeUInt32Digital(pasynUser, TestMode_, 0xFFFF);
   testDrv->processPendingWrites();
-  testDrv->postDriverParamChgs();
+  testDrv->updateReadValues();
+  testDrv->postNewReadValues();
 }
 
 //-----------------------------------------------------------------------------

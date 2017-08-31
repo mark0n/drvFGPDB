@@ -137,12 +137,16 @@ class drvFGPDB : public asynPortDriver {
 
     asynStatus sendCmdGetResp(asynUser *pComPort,
                               std::vector<uint32_t> &cmdBuf,
-                              std::vector<uint32_t> &respBuf);
+                              std::vector<uint32_t> &respBuf,
+                              LCPStatus  &respStatus);
 
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
     asynStatus postNewReadVal(int paramID);
+
+    asynStatus updateReadValues();
+    asynStatus postNewReadValues();
 
     asynStatus postDriverParamChgs(void);
 
@@ -203,10 +207,12 @@ class drvFGPDB : public asynPortDriver {
 
     std::atomic<bool> writeAccess;
 
+    bool  unfinishedArrayRWs;
+    bool  updateRegs;
 
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
-    int idSessionID;
+    int idSessionID;      uint32_t sessionID;
 
     //driver-only values
     int idDevName;
@@ -266,7 +272,7 @@ class drvFGPDB : public asynPortDriver {
        { nullptr,          nullptr,        "writerIP       0x0 Int32 U32"     },
        { nullptr,          nullptr,        "writerPort     0x0 Int32 U32"     },
 
-       { &idSessionID,     nullptr,        "sessionID      0x0 Int32 U32"     },
+       { &idSessionID,     &sessionID,     "sessionID      0x0 Int32 U32"     },
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write

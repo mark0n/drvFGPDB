@@ -57,7 +57,10 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     exitDriver(false),
     syncThread(&drvFGPDB::syncComLCP, this),
     writeAccess(false),
+    unfinishedArrayRWs(false),
+    updateRegs(true),
     idSessionID(-1),
+    sessionID(0),
     idDevName(-1),
     idSyncPktID(-1),
     syncPktID(0),
@@ -120,20 +123,23 @@ void drvFGPDB::syncComLCP()
 {
   while (!initComplete and !exitDriver)  this_thread::sleep_for(5ms);
 
+  auto lastRegUpdateTime = chrono::system_clock::now();
+
   while (!exitDriver)  {
     auto start_time = chrono::system_clock::now();
+    unfinishedArrayRWs = false;
 
     if (!TestMode())  {
-      // this will normally be done in the async/streaming thread...
-      readRegs(0x10000, getProcGroup(ProcGroup_LCP_RO).paramIDs.size());
-      readRegs(0x20000, getProcGroup(ProcGroup_LCP_WA).paramIDs.size());
-
+      updateRegs = (start_time - lastRegUpdateTime >= 200ms);
+      if (updateRegs)  lastRegUpdateTime = chrono::system_clock::now();
+      updateReadValues();  postNewReadValues();
       processPendingWrites();
-
-      postDriverParamChgs();
     }
 
-    if (!exitDriver)  this_thread::sleep_until(start_time + 200ms);
+    if (!exitDriver)  {
+      auto sleepTime = (unfinishedArrayRWs ? 20ms : 200ms);
+      this_thread::sleep_until(start_time + sleepTime);
+    }
   }
 }
 
@@ -147,27 +153,16 @@ asynStatus drvFGPDB::getWriteAccess(void)
 
   if (!validParamID(idSessionID))  return asynError;
 
-  ParamInfo &sessionID = params.at(idSessionID);
+  ParamInfo &param = params.at(idSessionID);
 
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
     // valid sessionID values are > 0 and < 0xFFFF
-    sessionID.ctlrValSet = rand() %  0xFFFD + 1;
-    sessionID.setState = SetState::Pending;
+    param.ctlrValSet = sessionID = rand() %  0xFFFD + 1;
+    param.setState = SetState::Pending;
 
-    if (writeRegs(sessionID.regAddr, 1) != asynSuccess)  continue;
-
-    //temp: For now we just read the reg value back.  Eventually the
-    //      sessionID value in the hdr of every resp pkt will be used to insure
-    //      that we set the correct register value and the ctlr really is using
-    //      the value we sent (and that we have write access)
-    sessionID.readState = ReadState::Undefined;
-    if (readRegs(sessionID.regAddr, 1) != asynSuccess)  continue;
-
-    if ((sessionID.ctlrValRead == sessionID.ctlrValSet) and
-        (sessionID.setState == SetState::Sent) and
-        (sessionID.readState == ReadState::Current))  writeAccess = true;
+    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
 
     if (writeAccess)  {
       if (ShowRegWrites())
@@ -183,14 +178,11 @@ asynStatus drvFGPDB::getWriteAccess(void)
 }
 
 //-----------------------------------------------------------------------------
-//  Send any pending write values for the specified group of LCP registers.
-//  Returns the # of ack'd writes or < 0 if an error.
-//-----------------------------------------------------------------------------
 int drvFGPDB::processPendingWrites(void)
 {
   if (exitDriver)  return asynError;
 
-  //ToDo: Use a list of params with pending writes
+  //ToDo: Use a list of params with pending writes to improve efficiency
 
   int ackdCount = 0;
 
@@ -200,7 +192,8 @@ int drvFGPDB::processPendingWrites(void)
     // new scalar value to be sent to the controller
     if (LCPUtil::isLCPRegParam(param.regAddr))  {
       if (setState != SetState::Pending)  continue;
-      if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  continue; }
+      if (!updateRegs)  continue;
+      if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  return -1; }
       if (writeRegs(param.regAddr, 1) == asynSuccess)  ++ackdCount;
     }
 
@@ -212,7 +205,6 @@ int drvFGPDB::processPendingWrites(void)
       param.setState = SetState::Sent;
       ++ackdCount;
       unlock();
-      cout << "processed write for " << param.name << endl;  //tdebug
     }
 
     // start or continue processing of a new array value
@@ -464,13 +456,16 @@ asynStatus drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
                                     vector<uint32_t> &cmdBuf,
-                                    vector<uint32_t> &respBuf)
+                                    vector<uint32_t> &respBuf,
+                                    LCPStatus &respStatus)
 {
   asynStatus  stat;
 
-  ++syncPktID;  cmdBuf[0] = htonl(syncPktID);
+
+  ++syncPktID;  cmdBuf[0] = htonl(syncPktID);  respStatus = LCPStatus::ERROR;
 
   for (int attempt=0; attempt<3; ++attempt)  {
+
     stat = sendMsg(pComPort, cmdBuf);
     if (stat != asynSuccess)  { this_thread::sleep_for(200ms);  continue; }
     if (exitDriver)  return asynError;
@@ -479,12 +474,64 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     if (stat != asynSuccess)  { this_thread::sleep_for(200ms);  continue; }
     if (exitDriver)  return asynError;
 
+    // check values common to all commands
+    U32 pktIDSent = ntohl(cmdBuf[0]);  U32 pktIDRcvd = ntohl(respBuf[0]);
+    U32 cmdSent = ntohl(cmdBuf[1]);    U32 cmdRcvd = ntohl(respBuf[1]);
+
+    if ((pktIDSent != pktIDRcvd) or (cmdSent != cmdRcvd))  return asynError;
+
+    U16 statOffset = LCPUtil::statusOffset((int16_t)cmdRcvd);
+    U32 sessID_and_status = ntohl(respBuf[statOffset]);
+
+    U32 respSessionID = (sessID_and_status >> 16) & 0xFFFF;
+    U32 respStat = sessID_and_status & 0xFFFF;
+    respStatus = static_cast<LCPStatus>(respStat);
+
+    writeAccess = (sessionID and (respSessionID == sessionID));
+
+//    if (!writeAccess)  //tdebug
+//      cout << "0x" << hex << sessionID << " != 0x" << respSessionID << dec << endl;
+
     return asynSuccess;
   }
 
   return asynError;
 }
 
+
+//----------------------------------------------------------------------------
+//  Post any changes to the actual in-use values
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::updateReadValues()
+{
+  // LCP reg values will normally be read by the async/streaming thread...
+   if (!TestMode() and updateRegs)  {
+    readRegs(0x10000, getProcGroup(ProcGroup_LCP_RO).paramIDs.size());
+    readRegs(0x20000, getProcGroup(ProcGroup_LCP_WA).paramIDs.size());
+  }
+
+
+  vector<int> &paramIDs = getProcGroup(ProcGroup_Driver).paramIDs;
+
+  lock();
+
+  for (auto &paramID : paramIDs)  {
+    ParamInfo &param = params.at(paramID);
+    if (!param.drvValue)  continue;
+
+    U32 newValue = *param.drvValue;
+
+    if ((newValue == param.ctlrValRead)
+      and (param.readState == ReadState::Current))  continue;
+
+    param.ctlrValRead = newValue;
+    param.readState = ReadState::Pending;
+  }
+
+  unlock();
+
+  return asynSuccess;
+}
 
 //----------------------------------------------------------------------------
 //  Post a new read value for a parameter
@@ -521,36 +568,18 @@ asynStatus drvFGPDB::postNewReadVal(int paramID)
 }
 
 //----------------------------------------------------------------------------
-// Post any changes to driver-only parameters
-//----------------------------------------------------------------------------
-asynStatus drvFGPDB::postDriverParamChgs(void)
+asynStatus drvFGPDB::postNewReadValues(void)
 {
   bool  chgsToBePosted = false;
   asynStatus  stat, returnStat = asynSuccess;
 
-  vector<int> &paramIDs = getProcGroup(ProcGroup_Driver).paramIDs;
-
   lock();
 
-  for (auto &paramID : paramIDs)  {
+  for (int paramID=0; (uint)paramID<params.size(); ++paramID)  {
     ParamInfo &param = params.at(paramID);
 
-    U32 newValue;
-
-    if (param.drvValue)
-      newValue = *param.drvValue;
-    else if (param.setState == SetState::Sent)
-      newValue = param.ctlrValSet;
-    else
-      continue;
-
-    if ((newValue == param.ctlrValRead)
-      and (param.readState == ReadState::Current))  continue;
-
-cout << param.name << " ==> " << dec << newValue << endl;  //tdebug
-
-    param.ctlrValRead = newValue;
-    param.readState = ReadState::Pending;
+    if (!param.isScalarParam())  continue;
+    if (param.readState != ReadState::Pending)  continue;
 
     if ((stat = postNewReadVal(paramID)) == asynSuccess)  {
       param.readState = ReadState::Current;
@@ -576,6 +605,7 @@ cout << param.name << " ==> " << dec << newValue << endl;  //tdebug
 asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 {
   asynStatus stat;
+  LCPStatus  respStatus;
 
   if (exitDriver)  return asynError;
 
@@ -599,7 +629,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   cmdBuf[3] = htonl(numRegs);
   cmdBuf[4] = htonl(0);
 
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf);
+  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
   if (stat != asynSuccess)  return stat;
 
   //todo:  Check cmd-specific header values in returned packet
@@ -608,9 +638,6 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   uint offset = LCPUtil::addrOffset(firstReg);
 
   ProcGroup &group = getProcGroup(groupID);
-
-  bool chgsToBePosted = false;
-  asynStatus returnStat = asynSuccess;
 
   lock();
 
@@ -626,23 +653,11 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
     param.ctlrValRead = justReadVal;
     param.readState = ReadState::Pending;
-
-    if ((stat = postNewReadVal(paramID)) == asynSuccess)  {
-      param.readState = ReadState::Current;
-      chgsToBePosted = true;
-    }
-    else
-      if (returnStat == asynSuccess)  returnStat = stat;
-  }
-
-  if (chgsToBePosted)  {
-    stat = callParamCallbacks();
-    if (stat != asynSuccess)  if (returnStat == asynSuccess)  returnStat = stat;
   }
 
   unlock();
 
-  return returnStat;
+  return asynSuccess;
 }
 
 
@@ -653,8 +668,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 {
   asynStatus stat;
-  uint32_t  respSessionID = 0, respStatus = -999;
-  ParamInfo &sessionID = params.at(idSessionID);
+  LCPStatus  respStatus;
 
 
   if (exitDriver)  return asynError;
@@ -695,20 +709,12 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   }
   unlock();
 
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf);
+  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
   if (stat != asynSuccess)  return stat;
 
+  if (respStatus != LCPStatus::SUCCESS)  return asynError;
 
   if (exitDriver)  return asynError;
-
-  // Read and process response packet
-  uint32_t sessID_and_status = ntohl(respBuf[4]);
-  respSessionID = (sessID_and_status >> 16) & 0xFFFF;
-  respStatus = sessID_and_status & 0xFFFF;
-
-  writeAccess = (sessionID.ctlrValSet and respSessionID == sessionID.ctlrValSet);
-
-  if (respStatus)  return asynError;
 
   //todo:
   //  - Check cmd-specific header values in returned packet
@@ -822,6 +828,7 @@ void drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
 asynStatus drvFGPDB::eraseBlock(uint chipNum, U32 blockSize, U32 blockNum)
 {
   asynStatus  stat = asynError;
+  LCPStatus  respStatus;
 
   if (ShowBlkErase())
     cout << "=== eraseBlock(" << dec << chipNum << ", "
@@ -840,7 +847,7 @@ asynStatus drvFGPDB::eraseBlock(uint chipNum, U32 blockSize, U32 blockNum)
   cmdBuf[3] = htonl(blockSize);
   cmdBuf[4] = htonl(blockNum);
 
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf);
+  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
   if (stat != asynSuccess)  return stat;
 
   //todo:  Check cmd-specific header values in returned packet
@@ -860,6 +867,7 @@ asynStatus drvFGPDB::readBlock(uint chipNum, U32 blockSize, U32 blockNum,
                                vector<uint8_t> &buf)
 {
   asynStatus  stat;
+  LCPStatus  respStatus;
   uint  subBlocks;
   U32  useBlockSize, useBlockNum, etherMTU;
   uint8_t *blockData;
@@ -906,7 +914,7 @@ asynStatus drvFGPDB::readBlock(uint chipNum, U32 blockSize, U32 blockNum,
   while (subBlocks)  {
     cmdBuf[4] = htonl(useBlockNum);
 
-    stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf);
+    stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
     if (stat != asynSuccess)  return stat;
 
     //todo:  Check cmd-specific header values in returned packet
@@ -931,6 +939,7 @@ asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
                                 vector<uint8_t> &buf)
 {
   asynStatus  stat = asynError;
+  LCPStatus  respStatus;
   uint  subBlocks;
   U32  useBlockSize, useBlockNum, etherMTU;
   uint8_t  *blockData;
@@ -973,7 +982,7 @@ asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
 
     memcpy(cmdBuf.data() + CmdHdrWords, blockData, useBlockSize);
 
-    stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf);
+    stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
     if (stat != asynSuccess)  return stat;
 
     //todo:  Check cmd-specific header values in returned packet
@@ -989,21 +998,23 @@ asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 {
-  U32  ttl, numBytes;
+  U32  ttl, arraySize;
   float  perc;
 
 
   if (!param.bytesLeft)  {
     param.setState = SetState::Sent;  return asynSuccess; }
 
+  unfinishedArrayRWs = true;
+
+  lock();  param.setState = SetState::Processing;  unlock();
+
 //--- initialize values used in the loop ---
-  numBytes = param.arrayValSet.size();
+  arraySize = param.arrayValSet.size();
 
   param.rwBuf.assign(param.blockSize, 0);
 
-  if (!writeAccess)  {
-    getWriteAccess();  if (!writeAccess)  return asynError;  //temp
-  }
+  if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  return asynError; }
 
 
   // adjust # of bytes to write to the next block if necessary
@@ -1041,125 +1052,18 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   ++param.blockNum;  param.dataOffset = 0;  param.bytesLeft -= param.wrCount;
   param.fromOffset += param.wrCount;  param.wrCount = param.blockSize;
 
-  ttl = numBytes - param.bytesLeft;  perc = (float)ttl / numBytes * 100.0;
-
-  //tdebug
-  printf(" %3u%% 0x%08lX/0x%08lX  \r",
-         (U32)perc, (ulong)ttl, (ulong)numBytes);
-  fflush(stdout);
+  ttl = arraySize - param.bytesLeft;  perc = (float)ttl / arraySize * 100.0;
 
   if (param.statusParamID >= 0)  {
-    cout << "--- set " << params.at(param.statusParamID).name  //tdebug
-         << " to: " << dec << (int)perc << endl;  //tdebug
+    ParamInfo &statusParam = params.at(param.statusParamID);
     lock();
-    applyNewParamSetting(params.at(param.statusParamID), (int)perc);
+    statusParam.ctlrValRead = (uint32_t)perc;
+    statusParam.readState = ReadState::Pending;
     unlock();
   }
 
-  printf("\n");  //temp
-
   return asynSuccess;
 }
-
-//-----------------------------------------------------------------------------
-//  Copy the array of bytes written to a parameter to one of the persistent
-//  memory chips on the controller.
-//-----------------------------------------------------------------------------
-/*
-asynStatus drvFGPDB::pmemWrite(ParamInfo &param)
-{
-  asynStatus  status;
-  uint  wrCount, chipNum;
-  U32  blockSize, blockNum, bytesLeft, blockStart, dataOffset, ttl,
-       toOffset, fromOffset, numBytes;
-  float  perc;
-
-
-//--- initialize values used in the loop ---
-  chipNum = param.chipNum;
-  blockSize = param.blockSize;
-  toOffset = param.offset;
-  fromOffset = 0;
-  numBytes = param.arrayValSet.size();
-  blockNum = toOffset / blockSize;
-  blockStart = blockNum * blockSize;
-  dataOffset = toOffset - blockStart;
-  wrCount = blockSize - dataOffset;
-  bytesLeft = numBytes;
-
-  status = asynError;
-
-  printf("   0%% 0/0x%06X\r\n", numBytes);  //temp
-
-  param.rwBuf.assign(blockSize, 0);
-
-  getWriteAccess();  if (!writeAccess)  return asynError;  //temp
-
-
-  while (bytesLeft)  {
-
-    // adjust # of bytes to write to the next block if necessary
-    if (wrCount > bytesLeft)  wrCount = bytesLeft;
-
-    // If not replacing all the bytes in the block, then read the existing
-    // contents of the block to be modified.
-    if (wrCount != blockSize)
-      if (readBlock(chipNum, blockSize, blockNum, param.rwBuf))  {
-        printf("*** error reading block %u ***\r\n", blockNum);
-        perror("readBlock()");  //rwSockMutex->unlock();
-        break;
-      }
-
-    // If req, erase the next block to be written to
-    if (param.eraseReq)
-      if (eraseBlock(chipNum, blockSize, blockNum))  {
-        printf("*** error erasing block %u ***\r\n", blockNum);
-        perror("eraseBlock()");  //rwSockMutex->unlock();
-        break;
-      }
-
-    // Copy new data in to the appropriate bytes in the buffer
-    memcpy(param.rwBuf.data() + dataOffset,
-           param.arrayValSet.data() + fromOffset,
-           wrCount);
-
-    // write the next block of bytes
-    if (writeBlock(chipNum, blockSize, blockNum, param.rwBuf))  {
-      printf("*** error writing block %u ***\r\n", blockNum);
-      perror("writeBlock()");  //rwSockMutex->unlock();
-      break;
-    }
-
-    ++blockNum;  dataOffset = 0;  bytesLeft -= wrCount;  fromOffset += wrCount;
-    wrCount = blockSize;
-
-    ttl = numBytes - bytesLeft;  perc = (float)ttl / numBytes * 100.0;
-
-    //tdebug
-    printf(" %3u%% 0x%08lX/0x%08lX  \r",
-           (U32)perc, (ulong)ttl, (ulong)numBytes);
-    fflush(stdout);
-
-    if (param.statusParamID >= 0)  {
-//      cout << "--- set " << params.at(param.statusParamID).name  //tdebug
-//           << " to: " << dec << (int)perc << endl;  //tdebug
-      lock();
-      applyNewParamSetting(params.at(param.statusParamID), (int)perc);
-    //temp:  When processing a new array value is handled by syncComLCP(),
-    //       this will no longer be needed
-      processPendingWrites();  postDriverParamChgs();
-      unlock();
-    }
-
-    if (exitDriver)  break;
-  }
-  printf("\n");  //temp
-
-  if (!bytesLeft)  status = asynSuccess;
-
-  return status;
-}
-*/
 
 //----------------------------------------------------------------------------
 // Process a request to write to one of the Int32 parameters
@@ -1285,6 +1189,9 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 
   if (param.isScalarParam())  return asynError;
 
+  if ((param.setState == SetState::Pending) or
+      (param.setState == SetState::Processing))  return asynError;
+
   if (param.statusParamID < 0)
     if (param.statusParamName.size() > 0)
       if ((param.statusParamID = findParamByName(param.statusParamName)) < 0)
@@ -1293,9 +1200,6 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 
   if (param.statusParamID >= 0)  {
     applyNewParamSetting(params.at(param.statusParamID), 0);
-    //temp:  When processing a new array value is handled by syncComLCP(),
-    //       this will no longer be needed
-    //processPendingWrites();  postDriverParamChgs();
   }
 
   // ToDo:  Use shared buffers, so when someone is updating the firmware for N
@@ -1320,8 +1224,6 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 //      cout << " " << setw(2) << (uint)param.arrayValSet[u];
 //    cout << setfill(' ') << dec << endl << endl;
   }
-
-//  pmemWrite(param);  //temp: Allow blocking mode for initial testing
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
             "%s::%s() [%s]:  paramID=%d, name=%s, nElements=%lu\n",

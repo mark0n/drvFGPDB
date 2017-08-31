@@ -19,6 +19,7 @@ include_directories("${PROJECT_BINARY_DIR}")
 set(LIB_COMPONENTS
   drvFGPDB.cpp
   drvFGPDB_IOC.cpp
+  LCPProtocol.cpp
   ParamInfo.cpp
   asynOctetSyncIOWrapper.cpp
 )
