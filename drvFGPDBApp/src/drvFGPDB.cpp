@@ -50,8 +50,8 @@ static const double readTimeout  = 1.0;
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
                    const string &udpPortName, uint32_t startupDiagFlags_) :
-    asynPortDriver(drvPortName.c_str(), MaxAddr, 0, InterfaceMask,
-                   InterruptMask, AsynFlags, AutoConnect, Priority, StackSize),
+    asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
+                   AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
     packetID(0),
     initComplete(false),
