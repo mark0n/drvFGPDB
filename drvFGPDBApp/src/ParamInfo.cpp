@@ -28,12 +28,12 @@ const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Undefined,  "Undefined"  },
   { SetState::Pending,    "Pending"    },
   { SetState::Processing, "Processing" },
-  { SetState::Sent,       "Sent"       },
-  { SetState::Current,    "Current"    }
+  { SetState::Sent,       "Sent"       }
 };
 
 const std::map<ReadState, std::string> ParamInfo::readStates = {
   { ReadState::Undefined, "Undefined" },
+  { ReadState::Pending,   "Pending"   },
   { ReadState::Current,   "Current"   }
 };
 
