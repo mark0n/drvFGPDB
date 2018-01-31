@@ -2,6 +2,7 @@
 #define LCPPROTOCOL_H
 
 #include <cstdint>
+#include <map>
 
 enum class LCPCommand : std::int32_t {
   READ_REGS     = 1,
@@ -44,7 +45,7 @@ public:
 
   static uint addrOffset(uint addr)   { return addr & 0xFFFF; }
 
-  static bool validRegAddr(uint addr)  {
+  static bool isLCPRegParam(uint addr)  {
     uint groupID = addrGroupID(addr);
     return (groupID > 0) and (groupID < 4);
   }
@@ -55,6 +56,19 @@ public:
     return (groupID == ProcGroup_LCP_RO) or
            ((groupID == ProcGroup_Driver) and (offset == 1));
   }
+
+  static int16_t statusOffset(const int16_t cmdID)
+  {
+    auto it = StatusOffset.find(cmdID);
+    return it == StatusOffset.end() ? 0 : it->second;
+  }
+
+
+#ifndef TEST_DRVFGPDB
+  private:
+#endif
+
+  static const std::map<int16_t, int16_t> StatusOffset;
 };
 
 

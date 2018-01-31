@@ -13,7 +13,8 @@ const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Int32",         asynParamInt32         },
   { "UInt32Digital", asynParamUInt32Digital },
   { "Float64",       asynParamFloat64       },
-  { "Octet",         asynParamOctet         }
+  { "Octet",         asynParamOctet         },
+  { "Int8Array",     asynParamInt8Array     }
 };
 
 const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
@@ -46,47 +47,105 @@ static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
 // Construct a ParamInfo object from a string description of the form:
 //
 //  name addr asynType ctlrFmt
+//    OR
+//  name addr chipID blockSize eraseReq offset len statusName
 //-----------------------------------------------------------------------------
 ParamInfo::ParamInfo(const string& paramStr, const string& portName)
          : ParamInfo()
 {
-  if (!regex_match(paramStr, generateParamStrRegex()))  {
-    cout << endl
-         << "*** Param def error: Device: " << portName << " ***" << endl
-         << "    [" << paramStr << "]" << endl;
-    return;  // use values set by default constructor
+  stringstream paramStream(paramStr);
+
+  if (regex_match(paramStr, pmemParamDefRegex()))  {
+    string  eraseReqStr;
+    paramStream >> name
+                >> hex >> regAddr
+                >> dec >> chipNum
+                >> blockSize
+                >> eraseReqStr
+                >> hex >> offset >> length
+                >> statusParamName;
+    eraseReq = (eraseReqStr.at(0) == 'Y');
+    asynType = asynParamInt8Array;
+    readOnly = LCPUtil::readOnlyAddr(regAddr);
+    return;
   }
 
-  stringstream paramStream(paramStr);
-  string asynTypeName, ctlrFmtName;
+  if (regex_match(paramStr, scalarParamDefRegex()))  {
+    string asynTypeName, ctlrFmtName;
+    paramStream >> name
+                >> hex >> regAddr
+                >> asynTypeName
+                >> ctlrFmtName;
+    asynType = strToAsynType(asynTypeName);
+    ctlrFmt = strToCtlrFmt(ctlrFmtName);
+    readOnly = LCPUtil::readOnlyAddr(regAddr);
+    return;
+  }
 
-  paramStream >> name
-              >> hex >> regAddr
-              >> asynTypeName
-              >> ctlrFmtName;
-
-  asynType = strToAsynType(asynTypeName);
-  ctlrFmt = strToCtlrFmt(ctlrFmtName);
-  readOnly = LCPUtil::readOnlyAddr(regAddr);
+  cout << endl
+       << "*** Param def error: Device: " << portName << " ***" << endl
+       << "    [" << paramStr << "]" << endl;
+  return;  // use values set by default constructor
 }
 
 //-----------------------------------------------------------------------------
-// Generate a regex for basic validation of strings that define a parameter
+// Generate a regex for basic validation of strings that define a parameter for
+// a scalar value.
 //-----------------------------------------------------------------------------
-const regex& ParamInfo::generateParamStrRegex()
+const regex& ParamInfo::scalarParamDefRegex()
 {
   const string paramName    = "\\w+";
 
   const string whiteSpaces  = "\\s+";
+
   const string address      = "0x[0-9a-fA-F]+";
   const string asynType     = "(" + joinMapKeys(asynTypes, "|") + ")";
   const string ctlrFmt      = "(" + joinMapKeys(ctlrFmts,  "|") + ")";
 
   const string optionalPart = "(" + whiteSpaces + address
                                   + whiteSpaces + asynType
-                                  + "(" + whiteSpaces + ctlrFmt + ")?)?";
+                                  + "(" + whiteSpaces + ctlrFmt + ")?"
+                            + ")?";
 
   static const regex re(paramName + optionalPart);
+
+  return re;
+}
+
+//-----------------------------------------------------------------------------
+// Generate a regex for basic validation of strings that define a parameter for
+// a PMEM (persistent memory) value.
+//-----------------------------------------------------------------------------
+const regex& ParamInfo::pmemParamDefRegex()
+{
+  const string paramName    = "\\w+";
+
+  const string whiteSpaces  = "\\s+";
+
+  const string address      = "0x[0-9a-fA-F]+";
+
+  const string chipNum      = "[1-9]";
+  const string blockSize    = "[1-9][0-9]+";
+
+  const string eraseReq     = "[YN]";
+
+  const string offset       = "0x[0-9a-fA-F]+";
+  const string length       = "0x[0-9a-fA-F]+";
+
+  const string statusParamName = "\\w+";
+
+
+  const string pmemArrayRegExStr = paramName
+                                 + whiteSpaces + address
+                                 + whiteSpaces + chipNum
+                                 + whiteSpaces + blockSize
+                                 + whiteSpaces + eraseReq
+                                 + whiteSpaces + offset
+                                 + whiteSpaces + length
+                                 + whiteSpaces + statusParamName;
+
+  static const regex re(pmemArrayRegExStr);
+
   return re;
 }
 
@@ -95,9 +154,21 @@ const regex& ParamInfo::generateParamStrRegex()
 //-----------------------------------------------------------------------------
 ostream& operator<<(ostream& os, const ParamInfo &param)
 {
-  os << param.name << " 0x" << hex << param.regAddr << " "
-     << ParamInfo::asynTypeToStr(param.asynType) << " "
-     << ParamInfo::ctlrFmtToStr(param.ctlrFmt);
+  os << param.name << " 0x" << hex << param.regAddr;
+
+  if (param.blockSize)
+    os << dec
+       << " " << param.chipNum
+       << " " << param.blockSize
+       << " " << param.eraseReq
+       << hex
+       << " 0x" << param.offset
+       << " 0x" << param.length
+       << " " << param.statusParamName << dec;
+  else
+    os << " " << ParamInfo::asynTypeToStr(param.asynType)
+       << " " << ParamInfo::ctlrFmtToStr(param.ctlrFmt);
+
   return os;
 }
 
@@ -196,7 +267,7 @@ asynStatus ParamInfo::updateParamDef(const string &context,
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from the format used the controller to a float
+//  Convert a value from the format used by the controller to a float
 //----------------------------------------------------------------------------
 double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
 {
@@ -226,7 +297,7 @@ double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from a floating point to the format used the controller
+//  Convert a value from a floating point to the format used by the controller
 //----------------------------------------------------------------------------
 uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
 {
@@ -256,7 +327,7 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
 }
 
 //----------------------------------------------------------------------------
-//  Convert a value from a floating point to the format used the controller
+//  Convert a value from an int32 to the format used by the controller
 //----------------------------------------------------------------------------
 uint32_t ParamInfo::int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt)
 {

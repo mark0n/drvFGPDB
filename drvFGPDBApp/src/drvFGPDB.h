@@ -101,6 +101,12 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
 
 
+    virtual asynStatus readInt8Array(asynUser *pasynUser, epicsInt8 *value,
+                                     size_t nElements, size_t *nIn);
+
+    virtual asynStatus writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
+                                      size_t nElements);
+
     uint numParams(void) { return params.size(); }
 
 
@@ -129,10 +135,18 @@ class drvFGPDB : public asynPortDriver {
     asynStatus readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf,
                         size_t expectedRespSize);
 
+    asynStatus sendCmdGetResp(asynUser *pComPort,
+                              std::vector<uint32_t> &cmdBuf,
+                              std::vector<uint32_t> &respBuf,
+                              LCPStatus  &respStatus);
+
     asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
     asynStatus postNewReadVal(int paramID);
+
+    asynStatus updateReadValues();
+    asynStatus postNewReadValues();
 
     asynStatus postDriverParamChgs(void);
 
@@ -149,6 +163,18 @@ class drvFGPDB : public asynPortDriver {
     void applyNewParamSetting(ParamInfo &param, uint32_t setVal);
 
 
+    asynStatus readBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
+                          std::vector<uint8_t> &rwBuf);
+
+    asynStatus eraseBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum);
+
+    asynStatus writeBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
+                          std::vector<uint8_t> &rwBuf);
+
+    asynStatus writeNextBlock(ParamInfo &param);
+
+//    asynStatus pmemWrite(ParamInfo &param);
+
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
@@ -157,7 +183,7 @@ class drvFGPDB : public asynPortDriver {
     static const int InterruptMask = asynInt8ArrayMask | asynInt32Mask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask;
-    static const int AsynFlags = 0;
+    static const int AsynFlags = ASYN_CANBLOCK;
     static const int AutoConnect = 1;
     static const int Priority = 0;
     static const int StackSize = 0;
@@ -181,9 +207,12 @@ class drvFGPDB : public asynPortDriver {
 
     std::atomic<bool> writeAccess;
 
+    bool  unfinishedArrayRWs;
+    bool  updateRegs;
+
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
-    int idSessionID;
+    int idSessionID;      uint32_t sessionID;
 
     //driver-only values
     int idDevName;
@@ -227,7 +256,7 @@ class drvFGPDB : public asynPortDriver {
 
     const std::list<RequiredParam> requiredParamDefs = {
        //--- reg values the ctlr must support ---
-       // Use 0x0 for LCP reg values (addr is supplied by EPICS record)
+       // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
        //ptr-to-paramID    drvVal          param name     addr asyn  ctlr
        { nullptr,          nullptr,        "hardVersion    0x0 Int32 U32"     },
        { nullptr,          nullptr,        "firmVersion    0x0 Int32 U32"     },
@@ -243,7 +272,7 @@ class drvFGPDB : public asynPortDriver {
        { nullptr,          nullptr,        "writerIP       0x0 Int32 U32"     },
        { nullptr,          nullptr,        "writerPort     0x0 Int32 U32"     },
 
-       { &idSessionID,     nullptr,        "sessionID      0x0 Int32 U32"     },
+       { &idSessionID,     &sessionID,     "sessionID      0x0 Int32 U32"     },
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write
