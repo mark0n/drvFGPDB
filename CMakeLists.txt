@@ -11,7 +11,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
   set(VERSION_STRING "${VERSION_STRING}-git")
 endif(EXISTS "${PROJECT_SOURCE_DIR}/.git")
 
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake4epics/cmake")
+list(APPEND CMAKE_MODULE_PATH "/usr/lib/epics/cmake/Modules")
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
 find_package(EPICS COMPONENTS Com dbCore)
 find_package(EPICSTools)
