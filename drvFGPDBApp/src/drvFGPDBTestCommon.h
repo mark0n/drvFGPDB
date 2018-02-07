@@ -30,14 +30,18 @@ class AnFGPDBDriver: public ::testing::Test
 public:
   AnFGPDBDriver(shared_ptr<asynOctetSyncIOInterface> syncIOIn) :
     pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
+    stat(asynError),
     syncIO(syncIOIn),
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
+    id(-1),
     testParamID_RO(-1),
     maxParamID_RO(-1),
     testParamID_WA(-1),
+    lastRegID_WA(-1),
     arrayWriteStatusID(-1),
-    testArrayID(-1)
+    testArrayID(-1),
+    numDrvParams(0)
   {};
 
   //---------------------------------------------
