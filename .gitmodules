@@ -1,3 +1,0 @@
-[submodule "cmake4epics"]
-	path = cmake4epics
-	url = ssh://git@stash.frib.msu.edu:7999/build/cmake4epics.git
