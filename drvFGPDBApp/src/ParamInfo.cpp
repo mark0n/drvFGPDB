@@ -21,8 +21,7 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "S32",    CtlrDataFmt::S32    },
   { "U32",    CtlrDataFmt::U32    },
   { "F32",    CtlrDataFmt::F32    },
-  { "U16_16", CtlrDataFmt::U16_16 },
-  { "PHASE",  CtlrDataFmt::PHASE  }
+  { "U16_16", CtlrDataFmt::U16_16 }
 };
 
 const std::map<SetState, std::string> ParamInfo::setStates = {
@@ -40,8 +39,6 @@ const std::map<ReadState, std::string> ParamInfo::readStates = {
 
 
 static string NotDefined("<NotDefined>");
-
-static const double PhaseConvFactor32 = 83.8190317e-9; // ~ 360 / 2^32
 
 //-----------------------------------------------------------------------------
 // Construct a ParamInfo object from a string description of the form:
@@ -288,9 +285,6 @@ double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
 
     case CtlrDataFmt::U16_16:
       dval = (float)((double)ctlrVal / 65536.0);  break;
-
-    case CtlrDataFmt::PHASE:
-      dval = (double)ctlrVal * PhaseConvFactor32;  break;
   }
 
   return dval;
@@ -318,9 +312,6 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
 
     case CtlrDataFmt::U16_16:
       ctlrVal = (uint32_t) (dval * 65536.0);  break;
-
-    case CtlrDataFmt::PHASE:
-      ctlrVal = (uint32_t) (dval / PhaseConvFactor32);  break;
   }
 
   return ctlrVal;
@@ -348,9 +339,6 @@ uint32_t ParamInfo::int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt)
 
     case CtlrDataFmt::U16_16:
       ctlrVal = (uint32_t) ((double)ival * 65536.0);  break;
-
-    case CtlrDataFmt::PHASE:
-      ctlrVal = (uint32_t) ((double)ival / PhaseConvFactor32);  break;
   }
 
   return ctlrVal;

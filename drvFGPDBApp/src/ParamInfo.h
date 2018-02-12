@@ -15,7 +15,6 @@ enum class CtlrDataFmt {
   U32,       // unsigned 32-bit int
   F32,       // 32-bit float
   U16_16,    // = (uint) (value * 2.0^16)
-  PHASE      // = (int) (degrees * (2.0^32) / 360.0)
 };
 
 // Be sure to update ParamInfo::setStates map in ParamInfo.cpp

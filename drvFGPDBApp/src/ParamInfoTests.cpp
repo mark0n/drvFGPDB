@@ -52,8 +52,8 @@ TEST(construct, rejectAndReturnDefConfigForInvalidDef)  {
 
 //-----------------------------------------------------------------------------
 TEST(conversions, convertsCtlDataFmtToString)  {
-  auto strDesc = ParamInfo::ctlrFmtToStr(CtlrDataFmt::PHASE);
-  ASSERT_THAT(strDesc, Eq("PHASE"));
+  auto strDesc = ParamInfo::ctlrFmtToStr(CtlrDataFmt::U16_16);
+  ASSERT_THAT(strDesc, Eq("U16_16"));
 
   strDesc = ParamInfo::ctlrFmtToStr(CtlrDataFmt::NotDefined);
   ASSERT_THAT(strDesc, Eq("<NotDefined>"));
@@ -64,8 +64,8 @@ TEST(conversions, convertsStringToCtlDataFmt)  {
   auto ctlrFmt = ParamInfo::strToCtlrFmt("invalid");
   ASSERT_THAT(ctlrFmt, Eq(CtlrDataFmt::NotDefined));
 
-  ctlrFmt = ParamInfo::strToCtlrFmt("PHASE");
-  ASSERT_THAT(ctlrFmt, Eq(CtlrDataFmt::PHASE));
+  ctlrFmt = ParamInfo::strToCtlrFmt("U16_16");
+  ASSERT_THAT(ctlrFmt, Eq(CtlrDataFmt::U16_16));
 }
 
 //-----------------------------------------------------------------------------
@@ -130,10 +130,6 @@ TEST(conversions, convertsCtlrU16_16toDouble)  {
   double dval = ParamInfo::ctlrFmtToDouble((uint32_t)0x00028000, CtlrDataFmt::U16_16);
   ASSERT_THAT(dval, DoubleEq(2.5));
 }
-TEST(conversions, convertsCtlrPHASEtoDouble)  {
-  double dval = ParamInfo::ctlrFmtToDouble((uint32_t)0x18888888, CtlrDataFmt::PHASE);
-  ASSERT_THAT(dval, DoubleEq(34.5));
-}
 
 //-----------------------------------------------------------------------------
 TEST(conversions, returns0ForNotDefinedTargetFmt)  {
@@ -156,10 +152,3 @@ TEST(conversions, convertsDoubleToU16_16Fmt)  {
   uint32_t cval = ParamInfo::doubleToCtlrFmt(2.5, CtlrDataFmt::U16_16);
   ASSERT_THAT(cval, Eq(0x00028000));
 }
-TEST(conversions, convertsDoubleToPHASEFmt)  {
-  uint32_t cval = ParamInfo::doubleToCtlrFmt(34.5, CtlrDataFmt::PHASE);
-  ASSERT_THAT(cval, Eq(0x18888888));
-}
-
-//-----------------------------------------------------------------------------
-
