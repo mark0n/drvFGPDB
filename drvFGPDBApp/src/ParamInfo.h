@@ -104,28 +104,6 @@ class ParamInfo {
       statusParamID(-1)
     {};
 
-    ParamInfo(const ParamInfo &info) :
-      name(info.name),
-      regAddr(info.regAddr),
-      asynType(info.asynType),
-      ctlrFmt(info.ctlrFmt),
-      readOnly(info.readOnly),
-      ctlrValSet(info.ctlrValSet),
-      setState(info.setState),
-      ctlrValRead(info.ctlrValRead),
-      readState(info.readState),
-      drvValue(info.drvValue),
-      arrayValSet(info.arrayValSet),
-      arrayValRead(info.arrayValRead),
-      chipNum(info.chipNum),
-      blockSize(info.blockSize),
-      eraseReq(info.eraseReq),
-      offset(info.offset),
-      length(info.length),
-      statusParamName(info.statusParamName),
-      statusParamID(info.statusParamID)
-    {};
-
     ParamInfo(const std::string& paramStr, const std::string& portName);
 
 
