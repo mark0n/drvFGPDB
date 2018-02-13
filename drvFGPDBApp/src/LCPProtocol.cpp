@@ -1,3 +1,5 @@
+#include <chrono>
+#include <random>
 
 #include "LCPProtocol.h"
 
@@ -14,3 +16,9 @@ const std::map<int16_t, int16_t> LCPUtil::StatusOffset = {
   { CMD(WRITE_BLOCK),   5 }
 };
 
+int LCPUtil::generateSessionId() {
+  static unsigned seed = chrono::system_clock::now().time_since_epoch().count();
+  static default_random_engine randGen(seed);
+  uniform_int_distribution<int> distribution(1, 0xFFFE);
+  return distribution(randGen);
+}

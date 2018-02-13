@@ -63,6 +63,7 @@ public:
     return it == StatusOffset.end() ? 0 : it->second;
   }
 
+  static int generateSessionId();
 
 #ifndef TEST_DRVFGPDB
   private:

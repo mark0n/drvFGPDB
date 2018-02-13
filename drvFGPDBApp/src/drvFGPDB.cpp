@@ -20,7 +20,6 @@
 #include <string>
 #include <utility>
 #include <iomanip>
-#include <random>
 
 #include <arpa/inet.h>
 
@@ -159,11 +158,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
-    // valid sessionID values are > 0 and < 0xFFFF
-    static unsigned seed = chrono::system_clock::now().time_since_epoch().count();
-    static default_random_engine randGen(seed);
-    uniform_int_distribution<int> distribution(1, 0xFFFE);
-    param.ctlrValSet = sessionID = distribution(randGen);
+    param.ctlrValSet = sessionID = LCPUtil::generateSessionId();
     param.setState = SetState::Pending;
 
     if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
