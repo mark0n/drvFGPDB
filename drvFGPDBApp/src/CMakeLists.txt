@@ -58,6 +58,12 @@ set(PARAMINFOTEST_COMPONENTS
 add_executable(ParamInfoTests ${PARAMINFOTEST_COMPONENTS})
 target_link_libraries(ParamInfoTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
 
+set(LCPPROTOCOLTEST_COMPONENTS
+  LCPProtocolTests.cpp
+)
+add_executable(LCPProtocolTests ${LCPPROTOCOLTEST_COMPONENTS})
+target_link_libraries(LCPProtocolTests drvFGPDBShared gmock_main)
+
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
   set(tests "")
@@ -74,6 +80,7 @@ endfunction()
 
 add_unit_tests(drvFGPDBTests)
 add_unit_tests(ParamInfoTests)
+add_unit_tests(LCPProtocolTests)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests drvFGPDBCoverage '*Tests.cpp')
