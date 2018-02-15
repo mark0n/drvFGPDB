@@ -15,7 +15,6 @@ enum class CtlrDataFmt {
   U32,       // unsigned 32-bit int
   F32,       // 32-bit float
   U16_16,    // = (uint) (value * 2.0^16)
-  PHASE      // = (int) (degrees * (2.0^32) / 360.0)
 };
 
 // Be sure to update ParamInfo::setStates map in ParamInfo.cpp
@@ -32,52 +31,6 @@ enum class ReadState {
   Pending,    // new reading ready to be posted
   Current,    // most recent value posted to asyn layer
 };
-
-
-/* For probable future use
-//===== values for StaticRegInfo.syncMode =====
-//
-//  These values are used to specify what should be done for each writable
-//  value when the IOC or the Ctlr has been restarted.
-//
-//  SM_DN:
-//        Don't do anything special to the set value when resyncing the IOC and ctlr states.
-//
-//  SM_EQ:
-//        These are values that, once the IOC has successfully sent the value
-//        to the ctlr, should always be the same on the IOC and the ctlr. This
-//        means that, if one of them is restarted after they were in sync, the
-//        values can be restored from the one that did not restart.
-//
-//  SM_CM:
-//        These are values that must be "reset" whenever the ctlr is restarted.
-//        In this case, "reset" means changing the IOC's value to match the
-//        ctlrs.  This is needed for values that control the things like
-//        on/off, enabled/disabled, etc. where we do NOT want the previous
-//        state to be reasserted automatically without human intervention when
-//        a ctlr is restarted.
-//
-//  SM_IM:
-//        These are values for which the readback from the controller may not
-//        match the last setting.  For example, the IOC sends a new value for a
-//        setpoint and the readback value indicates the currently "applied"
-//        setpoint as it ramps toward the specified setpoint.  For these
-//        values, the IOC copy cannot be (reliably) restored from the ctlr, so
-//        a restarted IOC must restore the most recently saved value from the
-//        persistent data files.
-//
-//  Of course, there is no way to guarantee that last saved value is equal to
-//  the most recent user-supplied setpoint, but updating the saved copy
-//  frequently will minimize the possiblity for a mismatch.
-//----------------------------------------------
-enum class SyncMode {
-  NotDefined,
-  SM_DN,   // Do Nothing (just leave default startup values)
-  SM_EQ,   // IOC and ctlr values should be EQual
-  SM_CM,   // Ctlr Master:  If ctlr restarted, use ctlr value
-  SM_IM,   // IOC Master:  If IOC restarted, restore from file
-};
-*/
 
 //-----------------------------------------------------------------------------
 // Information the driver keeps about each parameter.  This list is generated
@@ -102,28 +55,6 @@ class ParamInfo {
       offset(0),
       length(0),
       statusParamID(-1)
-    {};
-
-    ParamInfo(const ParamInfo &info) :
-      name(info.name),
-      regAddr(info.regAddr),
-      asynType(info.asynType),
-      ctlrFmt(info.ctlrFmt),
-      readOnly(info.readOnly),
-      ctlrValSet(info.ctlrValSet),
-      setState(info.setState),
-      ctlrValRead(info.ctlrValRead),
-      readState(info.readState),
-      drvValue(info.drvValue),
-      arrayValSet(info.arrayValSet),
-      arrayValRead(info.arrayValRead),
-      chipNum(info.chipNum),
-      blockSize(info.blockSize),
-      eraseReq(info.eraseReq),
-      offset(info.offset),
-      length(info.length),
-      statusParamName(info.statusParamName),
-      statusParamID(info.statusParamID)
     {};
 
     ParamInfo(const std::string& paramStr, const std::string& portName);
@@ -163,8 +94,6 @@ class ParamInfo {
 
     asynParamType  asynType;    // format used by asyn interface
     CtlrDataFmt    ctlrFmt;     // format of run-time value in ctlr or driver
-
-  //SyncMode       syncMode;    // relation between set and read values
 
     bool           readOnly;    // clients cannot write to the value
 

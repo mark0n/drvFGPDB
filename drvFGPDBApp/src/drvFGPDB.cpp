@@ -222,11 +222,11 @@ int drvFGPDB::processPendingWrites(void)
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::addRequiredParams(void)
 {
-  int  paramID;
   asynStatus  stat = asynSuccess;
 
   for (auto const &paramDef : requiredParamDefs)  {
-    if ((paramID = processParamDef(paramDef.def)) < 0)  {
+    int paramID = processParamDef(paramDef.def);
+    if (paramID < 0)  {
       stat = asynError;  continue; }
     if (paramDef.id)  *paramDef.id = paramID;
     if (paramDef.drvVal)  {
