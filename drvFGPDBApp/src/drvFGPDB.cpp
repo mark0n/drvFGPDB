@@ -1393,10 +1393,6 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 
   setArrayOperStatus(param, 0);
 
-  // ToDo:  Use shared buffers, so when someone is updating the firmware for N
-  // controllers at once, we don't end up with N MORE unique huge buffers, each
-  // with the same information (we will ALREADY have that for the records
-  // themselves - no need to compound that problem in the driver...)
   param.arrayValSet.assign(&values[0], &values[nElements]);
 
   param.initBlockRW(param.arrayValSet.size());
