@@ -44,19 +44,19 @@ set(DRVFGPDBTEST_COMPONENTS
   drvFGPDBTests.cpp
 )
 add_executable(drvFGPDBTests ${DRVFGPDBTEST_COMPONENTS})
-target_link_libraries(drvFGPDBTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
+target_link_libraries(drvFGPDBTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
 
 set(DRVFGPDBINTEGRATIONTEST_COMPONENTS
   drvFGPDBIntegrationTests.cpp
 )
 add_executable(drvFGPDBIntegrationTests ${DRVFGPDBINTEGRATIONTEST_COMPONENTS})
-target_link_libraries(drvFGPDBIntegrationTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
+target_link_libraries(drvFGPDBIntegrationTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
 
 set(PARAMINFOTEST_COMPONENTS
   ParamInfoTests.cpp
 )
 add_executable(ParamInfoTests ${PARAMINFOTEST_COMPONENTS})
-target_link_libraries(ParamInfoTests drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES} gmock_main)
+target_link_libraries(ParamInfoTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
 
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
