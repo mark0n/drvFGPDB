@@ -115,12 +115,17 @@ class drvFGPDB : public asynPortDriver {
 
     uint numParams(void) { return params.size(); }
 
+    static void setIfNewError(asynStatus &curStat, asynStatus newStat)
+                  { if (curStat == asynSuccess)  curStat = newStat; }
 
 
 #ifndef TEST_DRVFGPDB
   private:
 #endif
     void syncComLCP(void);
+
+    void checkComStatus(void);
+    void resetParamStates(void);
 
     asynStatus getWriteAccess(void);
 
@@ -154,8 +159,6 @@ class drvFGPDB : public asynPortDriver {
     asynStatus updateReadValues();
     asynStatus postNewReadValues();
 
-    asynStatus postDriverParamChgs(void);
-
 
     // clients should use asynPortDriver::findParam() instead
     int findParamByName(const std::string &name);
@@ -177,19 +180,23 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
                           std::vector<uint8_t> &rwBuf);
 
+    asynStatus readNextBlock(ParamInfo &param);
     asynStatus writeNextBlock(ParamInfo &param);
 
-//    asynStatus pmemWrite(ParamInfo &param);
+    asynStatus setArrayOperStatus(ParamInfo &param, uint32_t percDone);
+
 
     static const int MaxAddr = 1;
     static const int InterfaceMask = asynInt8ArrayMask | asynInt32Mask |
+                                     asynInt32ArrayMask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask |
                                      asynDrvUserMask;
     static const int InterruptMask = asynInt8ArrayMask | asynInt32Mask |
+                                     asynInt32ArrayMask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask;
-    static const int AsynFlags = ASYN_CANBLOCK;
+    static const int AsynFlags = 0;  //ASYN_CANBLOCK;
     static const int AutoConnect = 1;
     static const int Priority = 0;
     static const int StackSize = 0;
@@ -203,6 +210,7 @@ class drvFGPDB : public asynPortDriver {
            return getProcGroup(groupID).paramIDs.size(); }
 
     std::vector<ParamInfo> params;
+    uint ParamID(ParamInfo &param)  { return (&param - params.data()); }
 
     asynUser *pAsynUserUDP;   // asynUser for UDP asyn port
 
@@ -216,8 +224,13 @@ class drvFGPDB : public asynPortDriver {
     bool  unfinishedArrayRWs;
     bool  updateRegs;
 
+    bool  connected;
+    std::chrono::system_clock::time_point  lastRespTime;
+
+
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
+    int idUpSecs;         uint32_t upSecs, prevUpSecs;
     int idSessionID;      uint32_t sessionID;
 
     //driver-only values
@@ -272,7 +285,7 @@ class drvFGPDB : public asynPortDriver {
        { nullptr,          nullptr,        "devType        0x0 Int32 U32"     },
        { nullptr,          nullptr,        "devID          0x0 Int32 U32"     },
 
-       { nullptr,          nullptr,        "upSecs         0x0 Int32 U32"     },
+       { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32 U32"     },
        { nullptr,          nullptr,        "upMs           0x0 Int32 U32"     },
 
        { nullptr,          nullptr,        "writerIP       0x0 Int32 U32"     },

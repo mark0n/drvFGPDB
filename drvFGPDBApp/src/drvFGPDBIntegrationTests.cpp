@@ -44,7 +44,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  ASSERT_THAT(testDrv->getWriteAccess(), Eq(asynSuccess));
 
   pasynUser->reason = testParamID_WA;
   stat = testDrv->writeInt32(pasynUser, 222);

@@ -28,12 +28,14 @@ const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Undefined,  "Undefined"  },
   { SetState::Pending,    "Pending"    },
   { SetState::Processing, "Processing" },
-  { SetState::Sent,       "Sent"       }
+  { SetState::Sent,       "Sent"       },
+  { SetState::Error,      "Error"      }
 };
 
 const std::map<ReadState, std::string> ParamInfo::readStates = {
   { ReadState::Undefined, "Undefined" },
   { ReadState::Pending,   "Pending"   },
+  { ReadState::Update,    "Update"    },
   { ReadState::Current,   "Current"   }
 };
 
@@ -64,6 +66,9 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     eraseReq = (eraseReqStr.at(0) == 'Y');
     asynType = asynParamInt8Array;
     readOnly = LCPUtil::readOnlyAddr(regAddr);
+    arrayValRead.assign(length, 0);
+    initBlockRW(arrayValRead.size());
+    readState = ReadState::Update;
     return;
   }
 
@@ -84,6 +89,20 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
        << "    [" << paramStr << "]" << endl;
   return;  // use values set by default constructor
 }
+
+
+//-----------------------------------------------------------------------------
+void ParamInfo::initBlockRW(uint32_t ttlNumBytes)
+{
+  if (!ttlNumBytes or !blockSize)  return;
+
+  rwOffset = 0;
+  blockNum = offset / blockSize;
+  dataOffset = offset - blockNum * blockSize;
+  bytesLeft = ttlNumBytes;
+  rwCount = blockSize - dataOffset;
+}
+
 
 //-----------------------------------------------------------------------------
 // Generate a regex for basic validation of strings that define a parameter for
