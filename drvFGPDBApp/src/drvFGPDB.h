@@ -82,30 +82,36 @@ class drvFGPDB : public asynPortDriver {
 
     // driver-specific versions of asynPortDriver virtual functions
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
-                                     const char **pptypeName, size_t *psize);
+                                     const char **pptypeName, size_t *psize)
+                                     override;
 
     void startCommunication();
 
-    virtual asynStatus getIntegerParam(int list, int index, int *value);
+    virtual asynStatus getIntegerParam(int list, int index, int *value)
+                                       override;
 
-    virtual asynStatus getDoubleParam(int list, int index, double * value);
+    virtual asynStatus getDoubleParam(int list, int index, double * value)
+                                      override;
 
     virtual asynStatus getUIntDigitalParam(int list, int index,
                                            epicsUInt32 *value, epicsUInt32 mask);
 
-    virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal);
+    virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 newVal)
+                                  override;
 
     virtual asynStatus writeUInt32Digital(asynUser *pasynUser,
-                                          epicsUInt32 newVal, epicsUInt32 mask);
+                                          epicsUInt32 newVal, epicsUInt32 mask)
+                                         override;
 
-    virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal);
+    virtual asynStatus writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
+                                    override;
 
 
     virtual asynStatus readInt8Array(asynUser *pasynUser, epicsInt8 *value,
-                                     size_t nElements, size_t *nIn);
+                                     size_t nElements, size_t *nIn) override;
 
     virtual asynStatus writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
-                                      size_t nElements);
+                                      size_t nElements) override;
 
     uint numParams(void) { return params.size(); }
 
