@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 #include <iomanip>
+#include <mutex>
 
 #include <arpa/inet.h>
 
@@ -175,7 +176,7 @@ void drvFGPDB::checkComStatus(void)
 //-----------------------------------------------------------------------------
 void drvFGPDB::resetParamStates(void)
 {
-  lock();
+  lock_guard<drvFGPDB> lock(*this);
 
   for (int paramID=0; (uint)paramID<params.size(); ++paramID)  {
     ParamInfo &param = params.at(paramID);
@@ -198,8 +199,6 @@ void drvFGPDB::resetParamStates(void)
   }
 
   callParamCallbacks();
-
-  unlock();
 }
 
 //-----------------------------------------------------------------------------
@@ -245,7 +244,11 @@ int drvFGPDB::processPendingWrites(void)
   int ackdCount = 0;
 
   for (auto &param : params)  {
-    lock();  SetState setState = param.setState;  unlock();
+    SetState setState;
+    {
+      lock_guard<drvFGPDB> lock(*this);
+      setState = param.setState;
+    }
 
     // new scalar value to be sent to the controller
     if (LCPUtil::isLCPRegParam(param.regAddr))  {
@@ -258,11 +261,10 @@ int drvFGPDB::processPendingWrites(void)
     // new setting for driver-only scalar value
     else  if (param.isScalarParam())  {
       if (setState != SetState::Pending)  continue;
-      lock();
+      lock_guard<drvFGPDB> lock(*this);
       if (param.drvValue)  *param.drvValue = param.ctlrValSet;
       param.setState = SetState::Sent;
       ++ackdCount;
-      unlock();
     }
 
     // start or continue processing an array value
@@ -273,13 +275,12 @@ int drvFGPDB::processPendingWrites(void)
       if (writeNextBlock(param) != asynSuccess)  {
         cout << endl << "*** " << portName << ":" << param.name << ": "
           "unable to write new array value ***" << endl << endl;
-        lock();
+        lock_guard<drvFGPDB> lock(*this);
         param.setState = SetState::Error;
         setParamStatus(ParamID(param), asynError);
         // always re-read after a write (especially after a failed one!)
         param.initBlockRW(param.arrayValRead.size());
         param.readState = ReadState::Update;
-        unlock();
       }
     }
   }
@@ -327,7 +328,8 @@ std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
   ParamInfo paramInfo;
   asynStatus status = asynError;
   if (validParamID(paramID)) {
-    lock();  paramInfo = params.at(paramID);  unlock();
+    lock_guard<drvFGPDB> lock(*this);
+    paramInfo = params.at(paramID);
     status = asynSuccess;
   }
   return make_pair(status, paramInfo);
@@ -588,7 +590,7 @@ asynStatus drvFGPDB::updateReadValues()
   }
 
 
-  lock();
+  lock_guard<drvFGPDB> lock(*this);
 
   for (auto &param : params)  {
     // Is there a driver var for this param, and did it chg?
@@ -615,8 +617,6 @@ asynStatus drvFGPDB::updateReadValues()
       }
     }
   }
-
-  unlock();
 
   return asynSuccess;
 }
@@ -667,7 +667,7 @@ asynStatus drvFGPDB::postNewReadValues(void)
   bool  chgsToBePosted = false;
   asynStatus  stat, returnStat = asynSuccess;
 
-  lock();
+  lock_guard<drvFGPDB> lock(*this);
 
   for (int paramID=0; (uint)paramID<params.size(); ++paramID)  {
     ParamInfo &param = params.at(paramID);
@@ -687,8 +687,6 @@ asynStatus drvFGPDB::postNewReadValues(void)
     stat = callParamCallbacks();
     setIfNewError(returnStat, stat);
   }
-
-  unlock();
 
   return returnStat;
 }
@@ -733,7 +731,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   ProcGroup &group = getProcGroup(groupID);
 
-  lock();
+  lock_guard<drvFGPDB> lock(*this);
 
   for (uint u=0; u<numRegs; ++u,++offset)  {
     U32 justReadVal = ntohl(respBuf.at(RespHdrWords+u));
@@ -750,8 +748,6 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
     if (param.drvValue)  *param.drvValue = justReadVal;
   }
-
-  unlock();
 
   return asynSuccess;
 }
@@ -795,15 +791,16 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   ProcGroup &group = getProcGroup(groupID);
 
   uint16_t idx = CmdHdrWords;
-  lock();
-  for (uint u=0; u<numRegs; ++u,++offset,++idx)  {
-    int paramID = group.paramIDs.at(offset);
-    if (!validParamID(paramID))  { unlock();  return asynError; }
-    ParamInfo &param = params.at(paramID);
-    cmdBuf[idx] = htonl(param.ctlrValSet);
-    param.setState = SetState::Processing;
+  {
+    lock_guard<drvFGPDB> lock(*this);
+    for (uint u=0; u<numRegs; ++u,++offset,++idx)  {
+      int paramID = group.paramIDs.at(offset);
+      if (!validParamID(paramID))  { return asynError; }
+      ParamInfo &param = params.at(paramID);
+      cmdBuf[idx] = htonl(param.ctlrValSet);
+      param.setState = SetState::Processing;
+    }
   }
-  unlock();
 
   stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
   if (stat != asynSuccess)  return stat;
@@ -825,7 +822,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   offset = LCPUtil::addrOffset(firstReg);
 
-  lock();
+  lock_guard<drvFGPDB> lock(*this);
   for (uint u=0; u<numRegs; ++u,++offset)  {
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
@@ -834,7 +831,6 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     if (param.setState == SetState::Processing)
       param.setState = SetState::Sent;
   }
-  unlock();
 
   return asynSuccess;
 }
@@ -1105,7 +1101,8 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
       (param.setState == SetState::Processing))  return asynSuccess;
 
   if (!param.bytesLeft)  {
-    lock();  param.readState = ReadState::Pending;  unlock();
+    lock_guard<drvFGPDB> lock(*this);
+    param.readState = ReadState::Pending;
     return asynSuccess;
   }
 
@@ -1123,7 +1120,7 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
     perror("readBlock()");  return asynError;
   }
 
-  lock();
+  lock_guard<drvFGPDB> lock(*this);
 
   // Copy just read data to the appropriate bytes in the buffer
   memcpy(param.arrayValRead.data() + param.rwOffset,
@@ -1136,8 +1133,6 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
   ttl = arraySize - param.bytesLeft;  perc = (float)ttl / arraySize * 100.0;
 
   setArrayOperStatus(param, (uint32_t)perc);
-
-  unlock();
 
   unfinishedArrayRWs = true;
 
@@ -1154,15 +1149,17 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 
 
   if (!param.bytesLeft)  {
-    lock();
+    lock_guard<drvFGPDB> lock(*this);
     param.setState = SetState::Sent;
     param.initBlockRW(param.arrayValRead.size());  // read back what we just wrote
     param.readState = ReadState::Update;
-    unlock();
     return asynSuccess;
   }
 
-  lock();  param.setState = SetState::Processing;  unlock();
+  {
+    lock_guard<drvFGPDB> lock(*this);
+    param.setState = SetState::Processing;
+  }
 
 //--- initialize values used in the loop ---
   arraySize = param.arrayValSet.size();
@@ -1212,10 +1209,9 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   // update the status param
   if (param.statusParamID >= 0)  {
     ParamInfo &statusParam = params.at(param.statusParamID);
-    lock();
+    lock_guard<drvFGPDB> lock(*this);
     statusParam.ctlrValRead = (uint32_t)perc;
     statusParam.readState = ReadState::Pending;
-    unlock();
   }
 
   unfinishedArrayRWs = true;
