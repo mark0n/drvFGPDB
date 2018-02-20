@@ -215,8 +215,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
-    // valid sessionID values are > 0 and < 0xFFFF
-    param.ctlrValSet = sessionID = rand() %  0xFFFD + 1;
+    param.ctlrValSet = sessionID = LCPUtil::generateSessionId();
     param.setState = SetState::Pending;
 
     if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
