@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <map>
+#include <random>
 
 enum class LCPCommand : std::int32_t {
   READ_REGS     = 1,
@@ -71,6 +72,19 @@ public:
 
   static const std::map<int16_t, int16_t> StatusOffset;
 };
+
+namespace LCP {
+  class sessionId {
+    std::default_random_engine randGen;
+  public:
+    uint16_t sId; // use from outside of this class is deprecated
+    sessionId(const unsigned seedVal);
+    sessionId();
+    void seed(const unsigned val);
+    uint16_t generate();
+    uint16_t get() const;
+  };
+}
 
 
 #endif // LCPPROTOCOL_H

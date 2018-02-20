@@ -66,7 +66,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     upSecs(0),
     prevUpSecs(0),
     idSessionID(-1),
-    sessionID(0),
     idDevName(-1),
     idSyncPktID(-1),
     syncPktID(0),
@@ -215,7 +214,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
-    param.ctlrValSet = sessionID = LCPUtil::generateSessionId();
+    param.ctlrValSet = sessionID.get();
     param.setState = SetState::Pending;
 
     if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
@@ -565,7 +564,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     U32 respStat = sessID_and_status & 0xFFFF;
     respStatus = static_cast<LCPStatus>(respStat);
 
-    writeAccess = (sessionID and (respSessionID == sessionID));
+    writeAccess = (respSessionID == sessionID.get());
 
 //    if (!writeAccess)  //tdebug
 //      cout << "0x" << hex << sessionID << " != 0x" << respSessionID << dec << endl;
