@@ -234,8 +234,6 @@ class drvFGPDB : public asynPortDriver {
     int idSessionID;      LCP::sessionId sessionID;
 
     //driver-only values
-    int idDevName;
-
     int idSyncPktID ;     uint32_t syncPktID;
     int idSyncPktsSent;   uint32_t syncPktsSent;
     int idSyncPktsRcvd;   uint32_t syncPktsRcvd;
@@ -244,13 +242,9 @@ class drvFGPDB : public asynPortDriver {
     int idAsyncPktsSent;  uint32_t asyncPktsSent;
     int idAsyncPktsRcvd;  uint32_t asyncPktsRcvd;
 
-    int idCtlrAddr;       uint32_t ctlrAddr;
-
     int idStateFlags;     uint32_t stateFlags;
 
-    int idDiagFlags;      uint32_t diagFlags;
-
-
+    uint32_t diagFlags;
 
     bool ShowPackets()      { return diagFlags & ShowPackets_;    }
     bool ShowContents()     { return diagFlags & ShowContents_;   }
@@ -277,14 +271,6 @@ class drvFGPDB : public asynPortDriver {
        //--- reg values the ctlr must support ---
        // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
        //ptr-to-paramID    drvVal          param name     addr asyn  ctlr
-       { nullptr,          nullptr,        "hardVersion    0x0 Int32 U32"     },
-       { nullptr,          nullptr,        "firmVersion    0x0 Int32 U32"     },
-
-       { nullptr,          nullptr,        "flashId        0x0 Int32 U32"     },
-
-       { nullptr,          nullptr,        "devType        0x0 Int32 U32"     },
-       { nullptr,          nullptr,        "devID          0x0 Int32 U32"     },
-
        { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32 U32"     },
        { nullptr,          nullptr,        "upMs           0x0 Int32 U32"     },
 
@@ -295,8 +281,6 @@ class drvFGPDB : public asynPortDriver {
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write
-       { &idDevName,       nullptr,        "devName        0x1 Octet"         },
-
        { &idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32"         },
        { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32"         },
        { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32"         },
@@ -305,11 +289,7 @@ class drvFGPDB : public asynPortDriver {
        { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32"         },
        { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32"         },
 
-       { &idCtlrAddr,      &ctlrAddr,      "ctlrAddr       0x1 Int32"         },
-
        { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital" },
-
-       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital" }
      };
 
 };
