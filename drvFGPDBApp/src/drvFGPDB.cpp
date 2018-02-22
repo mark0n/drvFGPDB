@@ -82,7 +82,14 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     stateFlags(0),
     diagFlags(startupDiagFlags)
 {
-  addRequiredParams();
+  if (addRequiredParams() != asynSuccess)  {
+    cout << endl << "*** " << drvPortName << ": Req Params Config error ***"
+         << endl;
+    //Exit thread body safely
+    exitDriver = true;
+    syncThread.join();
+    throw invalid_argument("Invalid Req Params config");
+  }
 
   params.at(idUpSecs).readOnly = true;
   params.at(idSessionID).readOnly = true;
@@ -1247,8 +1254,8 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 //----------------------------------------------------------------------------
 // Process a request to write to one of the UInt32Digital parameters
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::
-  writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal, epicsUInt32 mask)
+asynStatus drvFGPDB::writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal,
+                                        epicsUInt32 mask)
 {
   if (!isValidWritableParam(__func__, pasynUser))  return asynError;
 
