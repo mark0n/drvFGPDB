@@ -231,7 +231,7 @@ class drvFGPDB : public asynPortDriver {
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
     int idUpSecs;         uint32_t upSecs, prevUpSecs;
-    int idSessionID;      uint32_t sessionID;
+    int idSessionID;      LCP::sessionId sessionID;
 
     //driver-only values
     int idDevName;
@@ -291,7 +291,7 @@ class drvFGPDB : public asynPortDriver {
        { nullptr,          nullptr,        "writerIP       0x0 Int32 U32"     },
        { nullptr,          nullptr,        "writerPort     0x0 Int32 U32"     },
 
-       { &idSessionID,     &sessionID,     "sessionID      0x0 Int32 U32"     },
+       { &idSessionID,     &sessionID.sId, "sessionID      0x0 Int32 U32"     }, //FIXME: replace drvVal by get/set functions
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write
