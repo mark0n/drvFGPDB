@@ -118,6 +118,8 @@ class drvFGPDB : public asynPortDriver {
     static void setIfNewError(asynStatus &curStat, asynStatus newStat)
                   { if (curStat == asynSuccess)  curStat = newStat; }
 
+    void setDiagFlags(uint32_t val) { diagFlags = val; };
+
 
 #ifndef TEST_DRVFGPDB
   private:
