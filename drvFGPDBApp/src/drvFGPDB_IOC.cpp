@@ -76,6 +76,19 @@ void drvFGPDB_setDiagFlags(char *drvPortName, int diagFlags_)
   }
 }
 
+void drvFGPDB_Report()
+{
+  if (!drvFGPDBs) {
+    throw runtime_error("List of drvFGPDB objects doesn't exist! You need to "
+                        "create at least one driver object before calling this "
+                        "function.");
+  }
+
+  for(auto const& x : *drvFGPDBs) {
+    cout << x.first << endl;
+  }
+}
+
 static void drvFGPDB_cleanUp(void *)
 {
   drvFGPDBs.reset();
@@ -137,6 +150,21 @@ static void setDiagFlags_CallFunc(const iocshArgBuf *args)
   }
 }
 
+// IOC-shell command "drvFGPDBReport"
+static const iocshFuncDef report_FuncDef {
+  "drvFGPDBReport",
+  0,
+  nullptr
+};
+
+static void report_CallFunc(__attribute__((unused)) const iocshArgBuf *args)
+{
+  try {
+    drvFGPDB_Report();
+  } catch(exception& e) {
+    cout << report_FuncDef.name << ": ERROR: " << e.what() << endl;
+  }
+}
 
 //-----------------------------------------------------------------------------
 //  The function that registers the IOC shell functions
@@ -151,6 +179,7 @@ void drvFGPDB_Register(void)
     initHookRegister(drvFGPDB_initHookFunc);
     iocshRegister(&config_FuncDef, config_CallFunc);
     iocshRegister(&setDiagFlags_FuncDef, setDiagFlags_CallFunc);
+    iocshRegister(&report_FuncDef, report_CallFunc);
     firstTime = false;
   }
 }
