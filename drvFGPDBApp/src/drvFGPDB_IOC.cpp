@@ -65,23 +65,23 @@ static void drvFGPDB_cleanUp(void *)
 // EPICS iocsh shell commands
 //-----------------------------------------------------------------------------
 
-//=== Argment definitions: Description and type for each one ===
-static const iocshArg config_Arg0 = { "drvPortName", iocshArgString };
-static const iocshArg config_Arg1 = { "udpPortName", iocshArgString };
-static const iocshArg config_Arg2 = { "startupDiag", iocshArgInt    };
+// IOC-shell command "drvFGPDB_Config"
+static const iocshArg config_Arg0 { "drvPortName", iocshArgString };
+static const iocshArg config_Arg1 { "udpPortName", iocshArgString };
+static const iocshArg config_Arg2 { "startupDiag", iocshArgInt    };
 
-//=== A list of the argument definitions ===
-static const iocshArg * const config_Args[] = {
+static const iocshArg * const config_Args[] {
   &config_Arg0,
   &config_Arg1,
   &config_Arg2
 };
 
-//=== Func def struct:  Pointer to func, # args, arg list ===
-static const iocshFuncDef config_FuncDef =
-  { "drvFGPDB_Config", 3, config_Args };
+static const iocshFuncDef config_FuncDef {
+  "drvFGPDB_Config",
+  sizeof(config_Args) / sizeof(iocshArg *),
+  config_Args
+};
 
-//=== Func to call the func using elements from the generic argument list ===
 static void config_CallFunc(const iocshArgBuf *args)
 {
   drvFGPDB_Config(args[0].sval, args[1].sval, args[2].ival);
