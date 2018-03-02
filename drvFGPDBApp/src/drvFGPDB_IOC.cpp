@@ -55,7 +55,7 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
   return 0;
 }
 
-static void cleanUp(void *)
+static void drvFGPDB_cleanUp(void *)
 {
   drvFGPDBs.reset();
   syncIOWrapper.reset();
@@ -97,7 +97,7 @@ void drvFGPDB_Register(void)
 
   if (firstTime)
   {
-    epicsAtExit(cleanUp, nullptr);
+    epicsAtExit(drvFGPDB_cleanUp, nullptr);
     initHookRegister(drvFGPDB_initHookFunc);
     iocshRegister(&config_FuncDef, config_CallFunc);
     firstTime = false;
