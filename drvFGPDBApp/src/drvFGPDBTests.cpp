@@ -293,35 +293,3 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, setsPendingWriteStateForAParam) {
   ASSERT_THAT(param.ctlrValSet, Eq(arbitraryIntUnsigned));
   ASSERT_THAT(param.setState, Eq(SetState::Pending));
 }
-
-//-----------------------------------------------------------------------------
-TEST_F(AnFGPDBDriverUsingIOSyncMock, writeTo_ReadFrom_DriverOnlyParam) {
-  addParams();
-
-  id = testDrv->findParamByName("diagFlags");
-  ASSERT_THAT(id , Ge(0));
-
-  pasynUser->reason = id;
-  uint32_t  newVal = TestMode_ | ShowInit_ | ShowRegWrites_ | ShowRegReads_;
-  stat = testDrv->writeUInt32Digital(pasynUser, newVal, 0xFFFF);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  auto ackdWrites = testDrv->processPendingWrites();
-  ASSERT_THAT(ackdWrites, Eq(1));
-  testDrv->updateReadValues();
-  stat = testDrv->postNewReadValues();
-  ASSERT_THAT(stat, Eq(asynSuccess));
-
-  uint32_t  curVal;
-  stat = testDrv->readUInt32Digital(pasynUser, &curVal, 0xFFFF);
-  ASSERT_THAT(stat, Eq(asynSuccess));
-  ASSERT_THAT(curVal, Eq(newVal));
-
-  testDrv->writeUInt32Digital(pasynUser, TestMode_, 0xFFFF);
-  testDrv->processPendingWrites();
-  testDrv->updateReadValues();
-  testDrv->postNewReadValues();
-}
-
-//-----------------------------------------------------------------------------
-
