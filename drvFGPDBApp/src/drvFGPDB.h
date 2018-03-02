@@ -196,10 +196,10 @@ class drvFGPDB : public asynPortDriver {
                                      asynInt32ArrayMask |
                                      asynUInt32DigitalMask | asynFloat64Mask |
                                      asynFloat64ArrayMask | asynOctetMask;
-    static const int AsynFlags = 0;  //ASYN_CANBLOCK;
+    static const int AsynFlags = 0;   // This driver does not block and it is not multi-device
     static const int AutoConnect = 1;
-    static const int Priority = 0;
-    static const int StackSize = 0;
+    static const int Priority = 0;    // 0 -> epicsThreadPriorityMedium (default value) Only used if ASYN_CANBLOCK
+    static const int StackSize = 0;   // 0 -> epicsThreadStackMedium (default value) Only used if ASYN_CANBLOCK
 
 
     std::shared_ptr<asynOctetSyncIOInterface> syncIO;
