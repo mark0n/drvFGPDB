@@ -48,11 +48,15 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
   if (!drvFGPDBs) {
     drvFGPDBs = make_unique<map<string, drvFGPDB>>();
   }
-
-  string portName = string(drvPortName);
-  drvFGPDBs->emplace(piecewise_construct, forward_as_tuple(portName),
-                     forward_as_tuple(portName, syncIOWrapper,
-                                      string(udpPortName), startupDiagFlags_));
+  try{
+    string portName = string(drvPortName);
+    drvFGPDBs->emplace(piecewise_construct, forward_as_tuple(portName),
+                       forward_as_tuple(portName, syncIOWrapper,
+                                        string(udpPortName), startupDiagFlags_));
+  }catch( const exception &e){
+	  cerr << '\n' << "[ERROR] Port: " << drvPortName << " ; " << typeid(e).name()  << " ; " << e.what()<< '\n' << '\n';
+	  exit(-1);
+  }
 
   return 0;
 }
