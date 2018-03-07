@@ -108,10 +108,9 @@ FUNCTION(SETUP_TARGET_FOR_COVERAGE _targetname _testrunner _outputname _ignoreFi
 		COMMAND ${_testrunner} ${ARGV3}
 		
 		# Capturing lcov counters and generating report
-		COMMAND ${LCOV_PATH} --directory . --capture --output-file ${_outputname}.info
-		COMMAND ${LCOV_PATH} --remove ${_outputname}.info 'tests/*' '/usr/*' ${_ignoreFiles} --output-file ${_outputname}.info.cleaned
-		COMMAND ${GENHTML_PATH} -o ${_outputname} ${_outputname}.info.cleaned
-		COMMAND ${CMAKE_COMMAND} -E remove ${_outputname}.info ${_outputname}.info.cleaned
+		COMMAND ${LCOV_PATH} --rc lcov_branch_coverage=1 --directory . --capture --output-file ${_outputname}.info
+		COMMAND ${LCOV_PATH} --rc lcov_branch_coverage=1 --remove ${_outputname}.info 'tests/*' '/usr/*' ${_ignoreFiles} --output-file ${_outputname}.info.cleaned
+		COMMAND ${GENHTML_PATH} --rc lcov_branch_coverage=1 -o ${_outputname} ${_outputname}.info.cleaned
 		
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		COMMENT "Resetting code coverage counters to zero.\nProcessing code coverage counters and generating report."

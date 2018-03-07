@@ -46,7 +46,7 @@ To extract useful code coverage information the tool needs to be build without o
 mkdir build
 cd build/
 cmake -DCMAKE_BUILD_TYPE=Debug ..
-make drvFGPDBTests_coverage drvFGPDBIntegrationTests_coverage ParamInfoTests_coverage
+make drvCoverageMerge
 ```
 Coverage data can be found in `build/*Coverage/index.html`.
 
