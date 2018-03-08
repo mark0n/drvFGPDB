@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Wunused -Wshadow")
 # set(CMAKE_CXX_COMPILER "clang++")
 
 #find_package(Boost COMPONENTS unit_test_framework REQUIRED)
@@ -18,6 +18,10 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 set(LIB_COMPONENTS
   drvFGPDB.cpp
+  drvFGPDB_IOC.cpp
+  LCPProtocol.cpp
+  ParamInfo.cpp
+  asynOctetSyncIOWrapper.cpp
 )
 add_library(drvFGPDBShared SHARED ${LIB_COMPONENTS})
 set_target_properties(drvFGPDBShared PROPERTIES
@@ -26,22 +30,39 @@ set_target_properties(drvFGPDBShared PROPERTIES
   VERSION ${drvFGPDB_VERSION_MAJOR}.${drvFGPDB_VERSION_MINOR}.${drvFGPDB_VERSION_PATCH}
   SOVERSION ${drvFGPDB_VERSION_MAJOR}.${drvFGPDB_VERSION_MINOR}
 )
-target_link_libraries(drvFGPDBShared ${EPICS_LIBRARIES})
+target_link_libraries(drvFGPDBShared ${EPICS_LIBRARIES} ${asyn_LIBRARIES})
 add_library(drvFGPDBStatic STATIC ${LIB_COMPONENTS})
 set_target_properties(drvFGPDBStatic
   PROPERTIES OUTPUT_NAME drvFGPDB
   CLEAN_DIRECT_OUTPUT 1
 )
-target_link_libraries(drvFGPDBStatic ${EPICS_LIBRARIES})
+target_link_libraries(drvFGPDBStatic ${EPICS_LIBRARIES} ${asyn_LIBRARIES})
 epics_install(LIBS drvFGPDBShared drvFGPDBStatic DBDS drvFGPDB.dbd)
 
 include_directories(${GTEST_INCLUDE_DIRS})
-set(TEST_COMPONENTS
+set(DRVFGPDBTEST_COMPONENTS
   drvFGPDBTests.cpp
-  drvFGPDB.cpp
 )
-add_executable(drvFGPDBTests ${TEST_COMPONENTS})
-target_link_libraries(drvFGPDBTests ${EPICS_LIBRARIES} gmock_main)
+add_executable(drvFGPDBTests ${DRVFGPDBTEST_COMPONENTS})
+target_link_libraries(drvFGPDBTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
+
+set(DRVFGPDBINTEGRATIONTEST_COMPONENTS
+  drvFGPDBIntegrationTests.cpp
+)
+add_executable(drvFGPDBIntegrationTests ${DRVFGPDBINTEGRATIONTEST_COMPONENTS})
+target_link_libraries(drvFGPDBIntegrationTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
+
+set(PARAMINFOTEST_COMPONENTS
+  ParamInfoTests.cpp
+)
+add_executable(ParamInfoTests ${PARAMINFOTEST_COMPONENTS})
+target_link_libraries(ParamInfoTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
+
+set(LCPPROTOCOLTEST_COMPONENTS
+  LCPProtocolTests.cpp
+)
+add_executable(LCPProtocolTests ${LCPPROTOCOLTEST_COMPONENTS})
+target_link_libraries(LCPProtocolTests drvFGPDBShared gmock_main)
 
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
@@ -58,3 +79,12 @@ function(add_unit_tests target)
 endfunction()
 
 add_unit_tests(drvFGPDBTests)
+add_unit_tests(ParamInfoTests)
+add_unit_tests(LCPProtocolTests)
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests drvFGPDBCoverage '*Tests.cpp')
+  setup_target_for_coverage(drvFGPDBIntegrationTests_coverage drvFGPDBIntegrationTests drvFGPDBIntegrationCoverage '*Tests.cpp')
+  setup_target_for_coverage(ParamInfoTests_coverage ParamInfoTests ParamInfoCoverage '*Tests.cpp')
+  setup_target_for_coverage(LCPProtocolTests_coverage LCPProtocolTests LCPProtocolCoverage '*Tests.cpp')
+endif(CMAKE_BUILD_TYPE MATCHES Debug)
