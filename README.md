@@ -50,6 +50,15 @@ make drvCoverageMerge
 ```
 Coverage data can be found in `build/*Coverage/index.html`.
 
+### Documentation
+Auto generated, using Doxygen, under `build/docs`
+Output formats: HTML and Latex.
+  - HTML: open `build/docs/html/index.html`
+  - Latex:
+      1) Navigate to `build/docs/latex`
+      2) make pdf
+      3) open refman.pdf
+
 Building a Debian Package
 -------------------------
 A Debian package can be build using git build package:
