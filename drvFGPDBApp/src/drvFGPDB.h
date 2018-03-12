@@ -113,7 +113,7 @@ class drvFGPDB : public asynPortDriver {
     virtual asynStatus writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
                                       size_t nElements) override;
 
-    uint numParams(void) { return params.size(); }
+    uint numParams(void) const { return params.size(); }
 
     static void setIfNewError(asynStatus &curStat, asynStatus newStat)
                   { if (curStat == asynSuccess)  curStat = newStat; }
@@ -133,7 +133,7 @@ class drvFGPDB : public asynPortDriver {
 
     int processPendingWrites(void);
 
-    bool validParamID(int paramID)  {
+    bool validParamID(int paramID) const {
       return ((uint)paramID < params.size()); }
 
     bool inDefinedRegRange(uint firstReg, uint numRegs);
@@ -163,7 +163,7 @@ class drvFGPDB : public asynPortDriver {
 
 
     // clients should use asynPortDriver::findParam() instead
-    int findParamByName(const std::string &name);
+    int findParamByName(const std::string &name) const;
 
     std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
 
@@ -248,24 +248,24 @@ class drvFGPDB : public asynPortDriver {
 
     uint32_t diagFlags;
 
-    bool ShowPackets()      { return diagFlags & ShowPackets_;    }
-    bool ShowContents()     { return diagFlags & ShowContents_;   }
-    bool ShowRegWrites()    { return diagFlags & ShowRegWrites_;  }
-    bool ShowRegReads()     { return diagFlags & ShowRegReads_;   }
+    bool ShowPackets() const     { return diagFlags & ShowPackets_;    }
+    bool ShowContents() const    { return diagFlags & ShowContents_;   }
+    bool ShowRegWrites() const   { return diagFlags & ShowRegWrites_;  }
+    bool ShowRegReads() const    { return diagFlags & ShowRegReads_;   }
 
-    bool ShowWaveReads()    { return diagFlags & ShowWaveReads_;  }
-    bool ShowBlkWrites()    { return diagFlags & ShowBlkWrites_;  }
-    bool ShowBlkReads()     { return diagFlags & ShowBlkReads_;   }
-    bool ShowBlkErase()     { return diagFlags & ShowBlkErase_;   }
+    bool ShowWaveReads() const   { return diagFlags & ShowWaveReads_;  }
+    bool ShowBlkWrites() const   { return diagFlags & ShowBlkWrites_;  }
+    bool ShowBlkReads() const    { return diagFlags & ShowBlkReads_;   }
+    bool ShowBlkErase() const    { return diagFlags & ShowBlkErase_;   }
 
-    bool ShowErrors()       { return diagFlags & ShowErrors_;     }
-    bool ShowParamState()   { return diagFlags & ShowParamState_; }
-    bool ForSyncThread()    { return diagFlags & ForSyncThread_;  }
-    bool ForAsyncThread()   { return diagFlags & ForAsyncThread_; }
+    bool ShowErrors() const      { return diagFlags & ShowErrors_;     }
+    bool ShowParamState() const  { return diagFlags & ShowParamState_; }
+    bool ForSyncThread() const   { return diagFlags & ForSyncThread_;  }
+    bool ForAsyncThread() const  { return diagFlags & ForAsyncThread_; }
 
-    bool ShowInit()         { return diagFlags & ShowInit_;       }
-    bool TestMode()         { return diagFlags & TestMode_;       }
-    bool DebugTrace()       { return diagFlags & DebugTrace_;     }
+    bool ShowInit() const        { return diagFlags & ShowInit_;       }
+    bool TestMode() const        { return diagFlags & TestMode_;       }
+    bool DebugTrace() const      { return diagFlags & DebugTrace_;     }
 //  bool DisableStreams()   { return (diagFlags & _DisableStreams_)
 //                                                 or readOnlyMode; }
 

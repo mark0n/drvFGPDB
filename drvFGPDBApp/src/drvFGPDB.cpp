@@ -314,7 +314,7 @@ asynStatus drvFGPDB::addRequiredParams(void)
 //  Unlike asynPortDriver::findParam(), this func works during IOC startup.
 //  Returns the paramID (index in to list) or < 0 if param not in the list.
 //-----------------------------------------------------------------------------
-int drvFGPDB::findParamByName(const string &name)
+int drvFGPDB::findParamByName(const string &name) const
 {
   auto it = find_if(params.begin(), params.end(), [&] (const ParamInfo& p)
                     { return p.name == name; } );

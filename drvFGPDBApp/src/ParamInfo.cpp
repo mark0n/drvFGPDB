@@ -219,13 +219,13 @@ const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
 }
 
 //-----------------------------------------------------------------------------
-const string & ParamInfo::setStateToStr(void)
+const string & ParamInfo::setStateToStr(void) const
 {
   return setStates.at(setState);
 }
 
 //-----------------------------------------------------------------------------
-const string & ParamInfo::readStateToStr(void)
+const string & ParamInfo::readStateToStr(void) const
 {
   return readStates.at(readState);
 }

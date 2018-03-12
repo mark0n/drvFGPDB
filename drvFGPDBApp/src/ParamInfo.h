@@ -81,8 +81,8 @@ class ParamInfo {
     static const std::string & asynTypeToStr(const asynParamType asynType);
     static const std::string & ctlrFmtToStr(const CtlrDataFmt ctlrFmt);
 
-    const std::string & setStateToStr(void);
-    const std::string & readStateToStr(void);
+    const std::string & setStateToStr(void) const;
+    const std::string & readStateToStr(void) const;
 
     static double ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt);
 
@@ -91,13 +91,13 @@ class ParamInfo {
 
     friend std::ostream& operator<<(std::ostream& os, const ParamInfo &param);
 
-    bool isScalarParam()  {
+    bool isScalarParam() const {
       return (asynType == asynParamInt32)
           or (asynType == asynParamUInt32Digital)
           or (asynType == asynParamFloat64);
     }
 
-    bool isArrayParam()  {
+    bool isArrayParam() const {
       return (blockSize and length and
                ((asynType == asynParamInt8Array) or
                 (asynType == asynParamInt16Array) or
