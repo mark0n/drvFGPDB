@@ -611,10 +611,6 @@ class drvFGPDB : public asynPortDriver {
     std::chrono::system_clock::time_point  lastRespTime //!< time of the last response received from the ctlr
                                            lastWriteTime;  //!< time of last write to the ctlr
 
-    // LCP reg addr of value we resend-periodically to maintain writeAccess.
-    // Defaults to sessionID's addr until some Write-Anytime reg is written to
-    int  keepWriteAccessParam;
-
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
     int idUpSecs;         uint32_t upSecs;          //!< ctlr's number of seconds awake

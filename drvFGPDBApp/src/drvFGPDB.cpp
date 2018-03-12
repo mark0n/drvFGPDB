@@ -64,7 +64,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     connected(false),
     lastRespTime(0s),
     lastWriteTime(0s),
-    keepWriteAccessParam(-1),
     idUpSecs(-1),
     upSecs(0),
     idSessionID(-1),
@@ -95,8 +94,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   params.at(idUpSecs).readOnly = true;
   params.at(idSessionID).readOnly = true;
-
-  keepWriteAccessParam = idSessionID;  // chgd to a WO param ASAP
 
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
@@ -267,14 +264,18 @@ asynStatus drvFGPDB::keepWriteAccess(void)
 
   if (exitDriver or !connected)  return asynError;
 
-  ParamInfo &param = params.at(keepWriteAccessParam);
+  if (ShowRegWrites()) {
+    cout << portName << ": keeping write access" << endl;
+  }
 
-  if (! LCPUtil::isLCPRegParam(param.regAddr)
-      or LCPUtil::readOnlyAddr(param.regAddr))  return asynError;
-
-  param.setState = SetState::Pending;
-
-  return writeRegs(param.regAddr, 1);
+  lastWriteTime = chrono::system_clock::now();
+  vector<uint32_t> writeCmd {
+    htonl(++syncPktID),
+    htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS)),
+    0,
+    0
+  };
+  return sendMsg(pAsynUserUDP, writeCmd);
 }
 
 //-----------------------------------------------------------------------------
@@ -907,9 +908,6 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     // in case setState was chgd by another thread
     if (param.setState == SetState::Processing)  {
       param.setState = SetState::Sent;
-      if (keepWriteAccessParam == idSessionID)
-        if (LCPUtil::addrGroupID(param.regAddr) == ProcGroup_LCP_WA)
-          keepWriteAccessParam = paramID;
     }
   }
 
