@@ -362,7 +362,7 @@ asynStatus drvFGPDB::addRequiredParams(void)
 //-----------------------------------------------------------------------------
 // Verify that no key info is missing for the required params
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::verifyReqParams(void)
+asynStatus drvFGPDB::verifyReqParams(void) const
 {
   uint  errCount = 0;
 

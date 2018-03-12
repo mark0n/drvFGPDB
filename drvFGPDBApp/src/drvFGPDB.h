@@ -318,7 +318,7 @@ class drvFGPDB : public asynPortDriver {
      * @return asynStatus
      */
     asynStatus addRequiredParams(void);
-    asynStatus verifyReqParams(void);
+    asynStatus verifyReqParams(void) const;
 
     /**
      * @brief Method that calls syncIO interface to perform the action
