@@ -156,7 +156,7 @@ static void setDiagFlags_CallFunc(const iocshArgBuf *args)
 
 // IOC-shell command "drvFGPDBReport"
 static const iocshFuncDef report_FuncDef {
-  "drvFGPDBReport",
+  "drvFGPDB_Report",
   0,
   nullptr
 };
