@@ -268,14 +268,23 @@ asynStatus drvFGPDB::keepWriteAccess(void)
     cout << portName << ": keeping write access" << endl;
   }
 
-  lastWriteTime = chrono::system_clock::now();
-  vector<uint32_t> writeCmd {
-    htonl(++syncPktID),
+  asynStatus stat;
+  vector<uint32_t> cmdBuf {
+    htonl(syncPktID),
     htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS)),
     0,
     0
   };
-  return sendMsg(pAsynUserUDP, writeCmd);
+  const int respHdrWords = 5;
+  vector<uint32_t> respBuf(respHdrWords, 0);
+  LCPStatus respStatus;
+  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
+
+  if (stat != asynSuccess) return stat;
+  if (respStatus != LCPStatus::SUCCESS) return asynError;
+
+  lastWriteTime = chrono::system_clock::now();
+  return asynSuccess;
 }
 
 //-----------------------------------------------------------------------------
