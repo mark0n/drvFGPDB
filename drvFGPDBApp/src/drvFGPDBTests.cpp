@@ -1,3 +1,8 @@
+/**
+ * @file  drvFGPDBTests.cpp
+ * @brief Unit tests
+ */
+
 #include <memory>
 
 #include "gmock/gmock.h"
@@ -8,7 +13,6 @@
 #include "asynOctetSyncIOInterface.h"
 #include "drvFGPDBTestCommon.h"
 
-//-----------------------------------------------------------------------------
 class asynOctetSyncIOWrapperMock: public asynOctetSyncIOInterface {
 public:
   MOCK_METHOD4(connect, asynStatus(const char *port, int addr,
@@ -57,7 +61,6 @@ public:
                                             const char *drvInfo));
 };
 
-//-----------------------------------------------------------------------------
 class AnFGPDBDriverUsingIOSyncMock : public AnFGPDBDriver
 {
 public:
@@ -78,40 +81,57 @@ public:
   };
 };
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief UDP/IP connection is configured successfully
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canBeConstructedWithoutAnyErrors) {
   ASSERT_THAT(udpPortStat, Eq(0));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Thread object identifies an active thread of execution
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, launchesSyncComThread) {
   ASSERT_THAT(testDrv->syncThread.joinable(), Eq(true));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Driver instance has params registered
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, newDriverInstanceContainsDriverParams) {
   ASSERT_THAT(numDrvParams, Gt(0));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not add empty parameters definition
+ * @note  Formats allowed are:
+ *        - name addr asynType ctlrFmt.
+ *        - name addr chipID blockSize eraseReq offset length statusName.
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, rejectsEmptyParamDef) {
   id = addParam("  ");
   ASSERT_THAT(id, Eq(-1));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not add multiple param definitions
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, rejectsMultipleParamDefinitions) {
   id = addParam("testParam1 0x10001 Float64 F32 0x10001 Float64 F32");
   ASSERT_THAT(id, Eq(-1));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Add incomplete param definitions
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canCreateIncompleteParam) {
   id = addParam("testParam1 0x0 Float64");
   ASSERT_THAT(id, Eq(numDrvParams));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Add another param definition
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddAnotherParam) {
   id = addParam("testParam1 0x10000 Int32");
   ASSERT_THAT(id, Eq(numDrvParams));
@@ -120,7 +140,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddAnotherParam) {
   ASSERT_THAT(id, Eq(numDrvParams+1));
 }
 
-//-----------------------------------------------------------------------------
+/*
+ * @brief Add properties to existing param
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   id = addParam("testParam1 0x10001 Int32");
   ASSERT_THAT(id, Eq(numDrvParams));
@@ -136,7 +158,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   ASSERT_THAT(param.ctlrFmt,  Eq(CtlrDataFmt::U32));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not modify existing param definitions calling drvUserCreate
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnParamDefConflict) {
   id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
@@ -146,7 +170,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnParamDefConflict) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not add different params with same address
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsIfMultParamsWithSameRegAddr) {
   id = addParam("lcpRegWA_1 0x20001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
@@ -155,7 +181,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsIfMultParamsWithSameRegAddr) {
   ASSERT_THAT(id, Eq(-1));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Create new asyn params
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
   addParams();
 
@@ -167,7 +195,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
   ASSERT_THAT(id, Eq(testParamID_WA));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Find a registered param by its name
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canFindParamByName) {
   addParams();
 
@@ -179,7 +209,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canFindParamByName) {
   ASSERT_THAT(param.name,  Eq("sessionID"));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Param's, asynID and driverID, are equal
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, asynAndDriverIDsMatch) {
   addParams();
   int asynID = -1;
@@ -192,7 +224,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, asynAndDriverIDsMatch) {
   ASSERT_THAT(id, Eq(asynID));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief All registered param's addresses are correctly mapped
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, createsRegAddrToParamMaps) {
   addParams();
 
@@ -201,7 +235,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsRegAddrToParamMaps) {
   ASSERT_THAT(testDrv->procGroupSize(ProcGroup_LCP_WO), Eq(0x0100u));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Check if given params range is a valid LCP params range
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   addParams();
 
@@ -216,7 +252,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   ASSERT_THAT(validRange, Eq(true));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not write in a non registered address
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteForUnmappedRegValue) {
   addParams();
 
@@ -224,7 +262,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteForUnmappedRegValue) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not read outside of a registered params range
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnReadOutsideDefinedRegRange) {
   addParams();
 
@@ -232,7 +272,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnReadOutsideDefinedRegRange) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not write multiple params if they are not all registered
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteWithUnsetRegs) {
   addParams();
 
@@ -240,7 +282,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteWithUnsetRegs) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not write outside of a registered params range
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   addParams();
 
@@ -251,7 +295,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not write a Read-Only param
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnAttemptToSendReadOnlyRegs) {
   addParams();
 
@@ -262,7 +308,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnAttemptToSendReadOnlyRegs) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Do not write through asyn layer a Read-Only param
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteToReadOnlyParam) {
   addParams();
 
@@ -279,7 +327,9 @@ TEST_F(AnFGPDBDriver, writesDataToAsyn) {
 }
 */
 
-//-----------------------------------------------------------------------------
+/*
+ * @brief param's setState is set to pending due to an asyn write call
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, setsPendingWriteStateForAParam) {
   addParams();
   epicsInt32 arbitraryInt = 42;
