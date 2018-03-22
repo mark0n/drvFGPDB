@@ -1,4 +1,7 @@
-//----- drvFGPDB_IOC.cpp ----- 04/06/17 --- (01/24/17)----
+/**
+ * @file  drvFGPDB_IOC.cpp
+ * @brief Defines all EPICS IOC Shell functions needed by the FGPDB driver
+ */
 
 #include <memory>
 
@@ -12,15 +15,17 @@
 
 using namespace std;
 
-static shared_ptr<asynOctetSyncIOWrapper> syncIOWrapper;
-static unique_ptr<map<string, drvFGPDB>> drvFGPDBs;
+static shared_ptr<asynOctetSyncIOWrapper> syncIOWrapper;  //!< shared_ptr to the asynOctetSyncIOWrapper
+static unique_ptr<map<string, drvFGPDB>> drvFGPDBs;       //!< unique_ptr to the map with all FGPDB driver instances created
 
 extern "C" {
 
-//-----------------------------------------------------------------------------
-// Callback function for EPICS IOC initialization steps.  Used to trigger
-// normal processing by the driver.
-//-----------------------------------------------------------------------------
+/**
+ * @brief Callback function for EPICS IOC initialization steps.  Used to trigger
+ *        normal processing by the driver.
+ *
+ * @param[in] state IOC current state
+ */
 void drvFGPDB_initHookFunc(initHookState state)
 {
   if (state == initHookAfterInitDatabase) {
@@ -32,14 +37,17 @@ void drvFGPDB_initHookFunc(initHookState state)
   }
 }
 
-//-----------------------------------------------------------------------------
-// EPICS iocsh callable func to call constructor for the drvFGPDB class.
-//
-//  \param[in] drvPortName The name of the asyn port driver to be created and
-//             that this module extends.
-//  \param[in] udpPortName The name of the asyn port for the UDP connection to
-//             the device.
-//-----------------------------------------------------------------------------
+/**
+ * @brief     EPICS IOC Shell func to call the constructor for the drvFGPDB class.
+ *
+ * @param[in] drvPortName        The name of the asyn port driver to be created and
+ *                               that this module extends.
+ * @param[in] udpPortName        The name of the asyn port for the UDP connection to
+ *                               the device.
+ * @param[in] startupDiagFlags_  Debugging flag
+ *
+ * @return 0 @warning If any std::exception is catched, program will be terminated
+ */
 int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
 {
   if (!syncIOWrapper) {
@@ -60,7 +68,13 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
 
   return 0;
 }
-
+/**
+ * @brief      EPICS IOC Shell func to change at runtime the debugging flags
+ *             for a given Port
+ *
+ * @param[in]  drvPortName  The name of the asyn port driver
+ * @param[in]  diagFlags_   Debugging flag to be enable
+ */
 void drvFGPDB_setDiagFlags(char *drvPortName, int diagFlags_)
 {
   string portName = string(drvPortName);
@@ -80,6 +94,10 @@ void drvFGPDB_setDiagFlags(char *drvPortName, int diagFlags_)
   }
 }
 
+/**
+ * @brief EPICS IOC Shell func to retrieve the portNames of the different
+ *        driver instances created.
+ */
 void drvFGPDB_Report()
 {
   if (!drvFGPDBs) {
@@ -93,6 +111,10 @@ void drvFGPDB_Report()
   }
 }
 
+/**
+ * @brief Function registered at epicsAtExit to safely destroy the driver instances
+ *        managed by drvFGPDBs and all needed resources.
+ */
 static void drvFGPDB_cleanUp(void *)
 {
   drvFGPDBs.reset();
@@ -154,7 +176,7 @@ static void setDiagFlags_CallFunc(const iocshArgBuf *args)
   }
 }
 
-// IOC-shell command "drvFGPDBReport"
+// IOC-shell command "drvFGPDB_Report"
 static const iocshFuncDef report_FuncDef {
   "drvFGPDB_Report",
   0,
@@ -170,9 +192,9 @@ static void report_CallFunc(__attribute__((unused)) const iocshArgBuf *args)
   }
 }
 
-//-----------------------------------------------------------------------------
-//  The function that registers the IOC shell functions
-//-----------------------------------------------------------------------------
+/**
+ * @brief The function that registers the EPIS IOC Shell functions
+ */
 void drvFGPDB_Register(void)
 {
   static bool firstTime = true;

@@ -1,20 +1,33 @@
 #ifndef ASYNOCTETSYNCIOINTERFACE_H
 #define ASYNOCTETSYNCIOINTERFACE_H
 
-// C++ interface for accessing the functions in asynOctetSyncIO
+/**
+ * @file  asynOctetSyncIOInterface.h
+ * @brief Defines the C++ interface for accessing the functions in asynOctetSyncIO.
+ */
 
+/**
+ * @brief struct with all read-related parameters used by asynOctetSyncIOInterface
+ * @note  needed because max function arguments supported by google mock is 9
+ */
 struct readData {
   char *read_buffer;
   size_t read_buffer_len;
   size_t *nbytesIn;
 };
 
+/**
+ * @brief struct with all write-related parameters used by asynOctetSyncIOInterface
+ * @note  needed because max function arguments supported by google mock is 9
+ */
 struct writeData {
   const char *write_buffer;
   size_t write_buffer_len;
   size_t *nbytesOut;
 };
-
+/**
+ * @brief C++ interface for accessing the functions in asynOctetSyncIO
+ */
 class asynOctetSyncIOInterface {
 public:
   virtual asynStatus connect(const char *port, int addr, asynUser **ppasynUser,
