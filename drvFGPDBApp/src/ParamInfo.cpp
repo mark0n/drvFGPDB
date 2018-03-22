@@ -189,6 +189,15 @@ ostream& operator<<(ostream& os, const ParamInfo &param)
 }
 
 //-----------------------------------------------------------------------------
+void ParamInfo::newReadVal(uint32_t newVal)
+{
+  ctlrValRead = newVal;
+  readState = ReadState::Pending;
+
+  if (drvValue)  *drvValue = newVal;
+}
+
+//-----------------------------------------------------------------------------
 asynParamType ParamInfo::strToAsynType(const string &typeName)
 {
   auto it = asynTypes.find(typeName);

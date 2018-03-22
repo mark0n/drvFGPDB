@@ -223,6 +223,7 @@ class ParamInfo {
                 (asynType == asynParamFloat64Array)) );
     }
 
+    void newReadVal(uint32_t newVal);
 
 
     std::string    name;        //!< Name of the parameter
