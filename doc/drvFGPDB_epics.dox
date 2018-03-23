@@ -1,0 +1,102 @@
+/**
+
+@page drvFGPDB_epics drvFGPDB and EPICS
+
+TBC
+
+@section configure_ioc Configure IOC
+
+This section will show how to configure a basic IOC (st.cmd) to comunicate with a controller using the UDP comunication protocol.
+
+Edit the st.cmd file with at least next lines:
+@verbatim
+#!../../bin/linux-x86_64/test
+
+< envPaths
+epicsEnvSet("IOCNAME", "${IOC}")
+
+cd "${TOP}"
+
+## Register all support components
+dbLoadDatabase "dbd/test.dbd"
+test_registerRecordDeviceDriver pdbbase
+
+##Call asynDriver command to configure UDP comunication
+drvAsynIPPortConfigure("udpTestPortName", "127.0.0.1:2005 udp", 0, 0, 0)
+
+##Call drvFPDB driver command to create a driver instance
+drvFGPDB_Config("TEST_RF:RFC_N0001","udpTestPortName",0x0000)
+
+# Loads testUnit related records
+dbLoadTemplate("${TOP}/db/testUnit.substitution")
+
+cd "${TOP}/iocBoot/${IOC}"
+iocInit
+
+@endverbatim
+
+When the EPICS shell appears the user can check if the driver instance was created by using the command @ref commands_drvFGPDB_Report.
+@verbatim
+epics> drvFGPDB_Report
+TEST_RF:RFC_N0001
+@endverbatim
+
+Modify the diagnostic flags of any driver instance by using the command @ref commands_drvFGPDB_setDiagFlags.
+@verbatim
+epics> drvFGPDB_setDiagFlags TEST_RF:RFC_N0001 DebugTrace_
+@endverbatim
+
+@warning 
+Adding new driver instances at <b>runtime</b>, by calling @ref commands_drvFGPDB_Config, <b>is not possible</b>.
+They must be added before calling <b>iocInit</b>
+
+@section commands Commands
+
+This section describes the additional IOCSH commands provided by the drvFGPDB driver
+
+@subsection commands_drvFGPDB_Config drvFGPDB_Config
+
+This command creates one driver instance, creates and initializes all structures needed to stablish the UDP comunication with the controller.
+
+<b>Usage</b>: drvFGPDB_Config <i>drvPortName</i> <i>udpPortName</i> <i>DiagnosticFlag</i>
+
+<b>Parameters</b>:
+- <i>drvPortName</i>: Name of the asyn port driver to be created and that this module extends.
+- <i>udpPortName</i>: Name of the asyn port for the UDP connection to the device.
+- <i>DiagnosticFlag</i>: Diagnostic flag used for debugging 
+
+@warning Before calling @ref commands_drvFGPDB_Config command through the EPICS shell it is mandatory to call first @ref commands_drvAsynIPPortConfigure
+
+@subsection commands_drvFGPDB_setDiagFlags drvFGPDB_setDiagFlags
+
+This command allows the user to modify the diagnostics flag at runtime.
+
+<b>Usage</b>: drvFGPDB_setDiagFlags <i>drvPortName</i> <i>DiagnosticFlag</i>
+
+<b>Parameters</b>:
+- <i>drvPortName</i>: Name of the asyn port driver to be created and that this module extends.
+- <i>DiagnosticFlag</i>: Diagnostic flag used for debugging: ShowPackets_, 
+                         ShowContents_, ShowRegWrites_, ShowRegReads_, ShowWaveReads_, ShowBlkWrites_, ShowBlkReads_, ShowBlkErase_,
+                         ShowErrors_, ShowParamState_, ForSyncThread_, ForAsyncThread_, ShowInit_, TestMode_, DebugTrace_, DisableStreams_
+
+@subsection commands_drvFGPDB_Report drvFGPDB_Report
+
+This command reports a list of all driver instances available.
+
+<b>Usage</b>: drvFGPDB_Report
+
+@subsection commands_drvAsynIPPortConfigure drvAsynIPPortConfigure
+
+This command belongs to the asynDriver layer. It configures the TCP/IP or UDP/IP connection.
+
+<b>Usage</b>: drvAsynIPPortConfigure <i>portName</i> <i>hostInfo</i> <i>priority</i> <i>noAutoConnect</i> <i>noProcessEos</i>
+
+<b>Parameters</b>:
+- <i>portName</i>: The portName that is registered with asynManager.
+- <i>hostInfo</i>: The Internet host name, port number, optional local port number, and optional IP protocol of the device. The format is:
+                   {host}:{port}[:localPort] [protocol] (127.0.0.1:2005 udp)
+- <i>priority</i>: Priority at which the asyn I/O thread will run. If this is zero or missing, then epicsThreadPriorityMedium is used. 
+- <i>noAutoConnect</i>: Zero or missing indicates that portThread should automatically connect. Non-zero if explicit connect command must be issued.
+- <i>noProcessEos</i>: If 0 then asynInterposeEosConfig is called specifying both processEosIn and processEosOut. 
+
+*/

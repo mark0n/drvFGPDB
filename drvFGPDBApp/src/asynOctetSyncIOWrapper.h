@@ -1,10 +1,16 @@
 #ifndef ASYNOCTETSYNCIOWRAPPER_H
 #define ASYNOCTETSYNCIOWRAPPER_H
 
+/**
+ * @file  asynOctetSyncIOWrapper.h
+ * @brief Wraps the C-style code from Asyn to facilitate mocking
+ */
+
 #include "asynOctetSyncIOInterface.h"
 
-// Wrap the C-style code from Asyn to facilitate mocking
-
+/**
+ * @brief Wraps the C-style code from Asyn to facilitate mocking
+ */
 class asynOctetSyncIOWrapper : public asynOctetSyncIOInterface {
 public:
   asynStatus connect(const char *port, int addr, asynUser **ppasynUser,

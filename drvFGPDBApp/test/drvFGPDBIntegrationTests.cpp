@@ -1,6 +1,9 @@
-// The tests in this file require the LCP simulator application to be running
-// on the same machine.
-
+/**
+ * @file  drvFGPDBIntegrationTests.cpp
+ * @brief Integration tests
+ * @note  The tests in this file require the LCP simulator application to be running
+          on the same machine.
+ */
 #include <memory>
 
 #include "gmock/gmock.h"
@@ -29,7 +32,9 @@ public:
   };
 };
 
-//=============================================================================
+/**
+ * @brief Read registers in a registered range
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
   addParams();
 
@@ -40,7 +45,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Write a group of registers previously set by asyn interface
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   addParams();
 
@@ -61,7 +68,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief  Write a group of registers
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   addParams();
 
@@ -74,7 +83,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Proccess pending writes of params previously set
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   addParams();
 
@@ -92,7 +103,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   ASSERT_THAT(param.setState, Eq(SetState::Sent));
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Process an array write param and check its final status
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeInt8Array) {
   addParams();
 
