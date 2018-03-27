@@ -101,12 +101,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
-<<<<<<< HEAD:drvFGPDBApp/test/drvFGPDBIntegrationTests.cpp
-/**
- * @brief Proccess pending writes of params previously set
+/*
+ * @brief param's setState is set to pending due to an asyn write call
  */
-=======
-//-----------------------------------------------------------------------------
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, setsPendingWriteStateForAParam) {
   addParams();
 
@@ -124,8 +121,9 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, setsPendingWriteStateForAParam) {
   ASSERT_THAT(param.setState, Eq(SetState::Pending));
 }
 
-//-----------------------------------------------------------------------------
->>>>>>> Resend settings only if controller restarted:drvFGPDBApp/src/drvFGPDBIntegrationTests.cpp
+/**
+ * @brief Proccess pending writes of params previously set
+ */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   addParams();
 
@@ -142,6 +140,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.setState, Eq(SetState::Sent));
 }
+
 
 /**
  * @brief Process an array write param and check its final status

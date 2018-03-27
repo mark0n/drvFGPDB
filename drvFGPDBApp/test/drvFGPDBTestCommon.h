@@ -89,9 +89,16 @@ public:
     // No params for addrs 0x10000 - 0x10001
     id = addParam("lcpRegRO_1 0x10002 Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams));  testParamID_RO = id;
-    // No params for addrs 0x10003 - 0x10004
-    id = addParam("lcpRegRO_5 0x10005 Float64 F32");
+    // No params for addr 0x10003
+    id = addParam("lcpRegRO_4 0x10004 Float64 F32");
     ASSERT_THAT(id, Eq(numDrvParams+1));  maxParamID_RO = id;
+
+    // Set addr for required RO regs already added by driver
+    addParam("upSecs 0x10005 Int32 U32");
+    addParam("upMs 0x10006 Int32 U32");
+    addParam("writerIP 0x10007 Int32 U32");
+    addParam("writerPort 0x10008 Int32 U32");
+    RO_groupSize = 0x0009u;
 
     id = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams+2));
@@ -102,10 +109,12 @@ public:
     ASSERT_THAT(id, Eq(numDrvParams+4));
     id = addParam("lcpRegWA_4 0x20004 Float64 F32");
     ASSERT_THAT(id, Eq(numDrvParams+5));  lastRegID_WA = id;
+    WA_groupSize = 0x0005u;
 
     id = addParam("sessionID  0x3000E Int32 U32");
     id = addParam("lcpRegWO_2 0x300FF Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams+6));
+    WO_groupSize = 0x0100u;
 
     id = addParam("pmemWriteStatus 0x1 Int32");
     ASSERT_THAT(id, Eq(numDrvParams+7));  arrayWriteStatusID = id;
@@ -128,6 +137,9 @@ public:
   int arrayWriteStatusID;        //!< ID of the status param assigned to pmemWriteTest param
   int testArrayID;               //!< ID of the pmemWriteTest param
   int numDrvParams;              //!< number of registered params
+  uint RO_groupSize;             //!< # of params in Read-Only group
+  uint WA_groupSize;             //!< # of params in Write-Anytime group
+  uint WO_groupSize;             //!< # of params in Write-Once group
   ParamInfo  param;              //!< copy of a param
 };
 

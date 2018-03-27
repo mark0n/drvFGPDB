@@ -256,12 +256,21 @@ class drvFGPDB : public asynPortDriver {
      */
     void resetReadStates(void);
     /**
-     * @brief Method to change set state of restored param values
-     *        - @b setStates changed from @b Restored to @Sent
+     * @brief Method to reset set state of all restored/written settings
+     *        - @b setStates for settings changed to @b Pending
      */
     void resetSetStates(void);
+    /**
+     * @brief Method to change set state of restored param values
+     *        - @b setStates changed from @b Restored to @b Sent
+     */
     void clearSetStates(void);
 
+    /**
+     * @brief Method to determine if ctlr restarted since last connected
+     *
+     * @param[in] latest upSecs value
+     */
     void checkForRestart(uint32_t newUpSecs);
 
 
@@ -627,7 +636,7 @@ class drvFGPDB : public asynPortDriver {
     bool  firstRestartCheck;         //!< 1st time testing for ctlr restart
 
     bool  connected;
-    std::chrono::system_clock::time_point  lastRespTime //!< time of the last response received from the ctlr
+    std::chrono::system_clock::time_point  lastRespTime,   //!< time of the last response received from the ctlr
                                            lastWriteTime;  //!< time of last write to the ctlr
 
     //=== paramIDs for required parameters ===
