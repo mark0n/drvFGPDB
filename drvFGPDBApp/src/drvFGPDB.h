@@ -260,6 +260,10 @@ class drvFGPDB : public asynPortDriver {
      *        - @b setStates changed from @b Restored to @Sent
      */
     void resetSetStates(void);
+    void clearSetStates(void);
+
+    void checkForRestart(uint32_t newUpSecs);
+
 
 
     /**
@@ -620,6 +624,7 @@ class drvFGPDB : public asynPortDriver {
 
     bool  unfinishedArrayRWs;        //!< read/write array in proccess
     bool  updateRegs;                //!< registers must be updated
+    bool  firstRestartCheck;         //!< 1st time testing for ctlr restart
 
     bool  connected;
     std::chrono::system_clock::time_point  lastRespTime //!< time of the last response received from the ctlr
@@ -681,28 +686,28 @@ class drvFGPDB : public asynPortDriver {
     const std::list<RequiredParam> requiredParamDefs = {
        //--- reg values the ctlr must support ---
        // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
-       //ptr-to-paramID    drvVal          param name     addr asyn  ctlr
-       { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32 U32"     },
-       { nullptr,          nullptr,        "upMs           0x0 Int32 U32"     },
+       //ptr-to-paramID    drvVal          param name     addr asyn-fmt      ctlr-fmt
+       { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32" },
+       { nullptr,          nullptr,        "upMs           0x0 Int32         U32" },
 
-       { nullptr,          nullptr,        "writerIP       0x0 Int32 U32"     },
-       { nullptr,          nullptr,        "writerPort     0x0 Int32 U32"     },
+       { nullptr,          nullptr,        "writerIP       0x0 Int32         U32" },
+       { nullptr,          nullptr,        "writerPort     0x0 Int32         U32" },
 
-       { &idSessionID,     &sessionID.sId, "sessionID      0x0 Int32 U32"     }, //FIXME: replace drvVal by get/set functions
+       { &idSessionID,     &sessionID.sId, "sessionID      0x0 Int32         U32" }, //FIXME: replace drvVal by get/set functions
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write
-       { &idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32"         },
-       { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32"         },
-       { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32"         },
+       { &idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         U32" },
+       { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         U32" },
+       { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         U32" },
 
-       { &idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32"         },
-       { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32"         },
-       { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32"         },
+       { &idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         U32" },
+       { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         U32" },
+       { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32" },
 
-       { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital" },
+       { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32" },
 
-       { &idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32"         },
+       { &idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32" },
      };
 
 };

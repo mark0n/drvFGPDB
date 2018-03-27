@@ -28,7 +28,7 @@ extern "C" {
  */
 void drvFGPDB_initHookFunc(initHookState state)
 {
-  if (state == initHookAfterInitDatabase) {
+  if (state == initHookAfterInitialProcess) {
     if (drvFGPDBs) {
       for (auto& d : *drvFGPDBs) {
         d.second.startCommunication();
@@ -62,8 +62,8 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
                        forward_as_tuple(portName, syncIOWrapper,
                                         string(udpPortName), startupDiagFlags_));
   }catch( const exception &e){
-	  cerr << '\n' << "[ERROR] Port: " << drvPortName << " ; " << typeid(e).name()  << " ; " << e.what()<< '\n' << '\n';
-	  exit(-1);
+          cerr << '\n' << "[ERROR] Port: " << drvPortName << " ; " << typeid(e).name()  << " ; " << e.what()<< '\n' << '\n';
+          exit(-1);
   }
 
   return 0;

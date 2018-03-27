@@ -44,6 +44,8 @@ public:
     ASSERT_THAT(testDrv->connected, Eq(true));
 
     ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+
+    testDrv->startCommunication();
   }
 
 };
@@ -99,9 +101,31 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
+<<<<<<< HEAD:drvFGPDBApp/test/drvFGPDBIntegrationTests.cpp
 /**
  * @brief Proccess pending writes of params previously set
  */
+=======
+//-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriverUsingIOSyncWrapper, setsPendingWriteStateForAParam) {
+  addParams();
+
+  initConnection();
+
+  epicsInt32 arbitraryInt = 42;
+  auto arbitraryIntUnsigned = static_cast<epicsUInt32>(arbitraryInt);
+
+  pasynUser->reason = testParamID_WA;
+  stat = testDrv->writeInt32(pasynUser, arbitraryInt);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
+  ASSERT_THAT(param.ctlrValSet, Eq(arbitraryIntUnsigned));
+  ASSERT_THAT(param.setState, Eq(SetState::Pending));
+}
+
+//-----------------------------------------------------------------------------
+>>>>>>> Resend settings only if controller restarted:drvFGPDBApp/src/drvFGPDBIntegrationTests.cpp
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   addParams();
 

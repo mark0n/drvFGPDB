@@ -29,11 +29,20 @@ enum class CtlrDataFmt {
  * @note  Be sure to update ParamInfo::setStates map in ParamInfo.cpp
  */
 enum class SetState {
+<<<<<<< HEAD
   Undefined,  //!< no value written to the parameter yet
   Pending,    //!< new setting ready to be processed
   Processing, //!< in the middle of processing a write
   Sent,       //!< ack'd by ctlr or driver-only value updated
   Error       //!< failed while writing new value
+=======
+  Undefined,  // no value written to the parameter yet
+  Restored,   // setting restored during IOC init
+  Pending,    // new setting ready to be processed
+  Processing, // in the middle of processing a write
+  Sent,       // ack'd by ctlr or driver-only value updated
+  Error       // failed while writing new value
+>>>>>>> Resend settings only if controller restarted
 };
 
 /**
