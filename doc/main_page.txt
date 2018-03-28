@@ -53,9 +53,9 @@
 //     containing register values on a periodic basis and/or when values have
 //     changed.
 //
-//     The current value of one or more registers can be read at any time,
-//     although each read command is currently limited to one or more registers
-//     within a group.
+//     The current value of one or more registers can be read or written to at
+//     any time, although each command is currently limited to a range of
+//     register numbers within a group.
 //
 //     Write-Anytime registers are generally used for values that represent
 //     level-triggered logic:  If a value written to one of these registers is
@@ -64,19 +64,22 @@
 //
 //     Write-Once registers are generally used for values that represent
 //     edge-triggered logic:  Even if the value written to one of these
-//     registers is the same as the last value written, it may result in a
-//     change (possibly just temporary) in the state of the controller (e.g.
-//     increment a count, recalibrate, update a waveform value, etc.).
+//     registers is the same as the last value written, it generally triggers
+//     some processing and/or results in a change (possibly just temporary) in
+//     the state of the controller (e.g. increment a count, recalibrate, update
+//     a waveform value, etc.).
 //
-//     @note  At present, the driver assumes that the Write-Anytime registers
-//     represents the set of values that should be saved and restored whenever
-//     the controller or the IOC is restarted.  This means that, for certain
-//     key values, even though they fit the general description for
-//     write-anytime values, they often need to be part of the write-once group
-//     instead.  The most common example is the on/off state. While having all
-//     the most recent settings for a controller automatically restored after
-//     it is reset can be very helpful, allowing the control system to
-//     automatically turn it back on is generally NOT what we want to happen.
+//     @note
+//       At present, the driver assumes that the Write-Anytime registers
+//       represents the set of values that should be saved and restored
+//       whenever the controller or the IOC is restarted.  This means that, for
+//       certain key values, even though they fit the general description for
+//       write-anytime values, they often need to be part of the write-once
+//       group instead.  The most common example is the on/off state.  While
+//       having all the most recent settings for a controller automatically
+//       restored after it is reset can be very helpful, allowing the control
+//       system to automatically turn it back on is generally NOT what we want
+//       to happen.
 //
 //     Of course, such decisions are entirely determined by the controller.
 //     Using the on/off command as an example:  If the on/off command is part
@@ -86,12 +89,12 @@
 //     that the controller turned off because it was restarted will be a
 //     message in the IOC shell (and perhaps a log file), or the fact that the
 //     amount of time since the controller was restarted changed to a smaller
-//     value (assuming, of course, that it is included in a user interface and
-//     someone actually noticed the change).
+//     value (assuming, of course, that this value is included in a user
+//     interface and someone actually noticed the change).
 //
 //     What makes more sense is to include interlock logic in the controller
-//     that includes setting a bit in a readable register that indicates when
-//     this has occurred, and require that a value be written to a write-once
+//     that includes setting a bit in a readable register to indicate when this
+//     has occurred, and require that a value be written to a write-once
 //     register to clear the interlock.  That would make it easy to include in
 //     a user interface, and it would require someone to acknowledge the cause
 //     before they could turn it back on.
@@ -106,8 +109,8 @@
 //     between clients that need to interact with a device (in this case EPICS
 //     records) and a driver that understands how to communicate with the
 //     device.  The interface between the asyn layer and such drivers consists
-//     a set of parameters, each one representing either a scalar or array of
-//     scalar values, and support for read and write operations on those
+//     of a set of parameters, each one representing either a scalar or array
+//     of scalar values, and support for read and write operations on those
 //     scalars.
 //
 //     The driver is responsible for creating the set of parameters during
@@ -134,7 +137,7 @@
 //
 //==========================
 //
-//@subsection IOC_Init IOC Init
+//@subsection driver_Init Driver Initialization
 //
 //==========================
 //
@@ -151,15 +154,22 @@
 //     updated, if a previous call provided only a partial definition).
 //
 //     The EPICS initHook callback feature is used to determine when all the
-//     parameters have been defined and (i.e. any additional calls to
-//     drvUserCreate() will be for existing parameters) and it is safe to being
-//     normal processing for the paramters.
+//     parameters have been defined (i.e. any additional calls to
+//     drvUserCreate() will be for existing, fully define parameters) and it is
+//     safe to begin normal processing for the paramters.
 //
 //     @note
-//        - The drvUserCreate() fucntion is called multiple times for each
+//        - The drvUserCreate() function is called multiple times for each
 //          record during IOC init.  The reason for this is not clear, but is
 //          presumably due to calls to the asyn layer during different steps in
 //          the record initialization process.
+//
+//        - The driver assumes that the latest settings for most of the
+//          write-anytime registers (and the driver-only ctlrUpSince value) is
+//          automatically saved and restored across IOC restarts (using
+//          autosave or some equivalent).  This allows the IOC to restore the
+//          settings to the controller if needed, and minimizes the effect of
+//          an IOC reboot.
 //
 //        - The first of the two phases in which autosave can be told to
 //          restore values happens during the same PHASE that the first set of
@@ -177,11 +187,11 @@
 //          was for, or to get the DTYP or MTYP value for the record containing
 //          the param definition.
 //
-//        - All the calls to drvUserCreate() are not from any thread created by
+//        - None of the calls to drvUserCreate() are from threads created by
 //          the driver.  But since these calls occur BEFORE the driver actually
 //          starts normal processing, there is currently no need to guard
 //          against concurrency issues.
-//          
+//
 //
 //==========================================
 //
@@ -198,16 +208,17 @@
 //
 //     Currently, the synchronous thread provides a simple scheduler that
 //     periodically executes one or more run-to-completion tasks.  The interval
-//     between each loop can vary depending on the outstanding tasks, allowing
-//     certain higher-priority tasks to run sooner or more often as needed
-//     without adversely affecting normal lower-priority tasks.  In particular,
-//     write operations wake up this thread early to insure new writes are
-//     processed ASAP, and unfinished reads or writes for array values are
-//     processed more often than scalar reads and writes.
+//     between each pass and what gets executed each pass can vary depending on
+//     the outstanding tasks, allowing certain higher-priority tasks to run
+//     sooner or more often as needed without adversely affecting normal
+//     lower-priority tasks. In particular, write operations wake up this
+//     thread early to insure new writes are processed ASAP, and unfinished
+//     reads or writes for array values are processed more often than scalar
+//     reads and writes.
 //
 //
 //<h3> Write processing: </h3>
-//  
+//
 //     The driver uses the non-blocking mode option for the asyn layer.  This
 //     has several advantages over using the blocking mode option:
 //        - It avoids the overhead of having the asyn layer create a queue for
@@ -218,9 +229,9 @@
 //          image to a very large waveform record) do not block all other read
 //          and write operations until they complete (or fail).
 //
-//     To avoid blocking, the write functions do not do any I/O.  Intead, they
+//     To avoid blocking, the write functions do not do any I/O.  Instead, they
 //     save the value passed to them in the corresponding ParamInfo object,
-//     change the write state to pending, wake up the driver's synchronous
+//     change the write state to Pending, wake up the driver's synchronous
 //     thread, and then return.
 //
 //     When the synchronous thread wakes up, it processes any outstanding
@@ -236,7 +247,7 @@
 //          (or failure) of the write operation.
 //        - The configuration for array values can include a scalar status
 //          parameter that is updated during the read and write operations to
-//          indicate the status of operation (in percent done).
+//          indicate the status of the operation (in percent done).
 //
 //<h3> Read processing: </h3>
 //
@@ -244,26 +255,71 @@
 //     of all the Read-Only and Write-Anytime registers.  In the future, this
 //     functionality will be handled by the asynchronous thread that will
 //     handle streaming connections (with the synchronous thread doing it only
-//     if there are no active streaming connections providing this data).
+//     if there are no active streaming connections updating the same values).
 //
 //     Each value in a read response is compared to the last processed value,
-//     and if it is different, the new value is posted (written to the asyn
-//     layer and callbacks processed for all new values) and the state of the
-//     corresponding ParamInfo object is updated.
+//     and if it is different, the state of the corresponding ParamInfo object
+//     is updated and the new value is posted (written to the asyn layer and
+//     callbacks processed for all new values).
 //
 //<h3> Driver-only values: </h3>
 //
 //     Parameters can also be defined for driver values that do not represent
-//     LCP registers.  In most cases, this is done to provide easy ad flexible
+//     LCP registers.  In most cases, this is done to provide easy and flexible
 //     access to read-only values updated by the driver for diagnostic
 //     purposes.  Allowing such values to be accessed via EPICS records means
 //     we can leverage the power of all the tools that can be used with EPICS
 //     PVs to monitor these values, their behavior over time, and any
 //     relationships between them.
 //
+//=========================================
+//
+//@subsection ctlr_restart Controller Restarts
+//
+//=========================================
+//
+//     One of the register values that each controller is required to support
+//     is the upSecs counter, which is reset to 0 whenever the controller is
+//     restarted and is incremented by one each second the controller is
+//     running.  The driver uses this value to determine if/when the controller
+//     was restarted, and to keep track of the date/time it was last known to
+//     have restarted.
+//
+//     When the driver detects that the controller has restarted, it resends
+//     all the settings for the write-anytime registers it has gotten since the
+//     IOC restarted (including ones restored during IOC initialization).  This
+//     insures that the controller is using the last known settings from before
+//     it was restarted, avoiding the need to manually reapply all the settings
+//     and some possibly nasty surprises because someone turned it back on
+//     without noticing that the readbacks indicate it is using default
+//     settings.
+//
+//     Although changes in the upSecs value alone is sufficient to detect
+//     controller restarts that occur while the driver is running, doing so
+//     across IOC restarts requires more:  The last known upSecs value is
+//     useless unless we know the date/time it is relative to.  For this
+//     reason, the driver tracks the date/time the controller was last known to
+//     have restarted in a read/write parameter named ctlrUpSince (set to:
+//     curTime - upSecs).
+//
+//     Along with most of the write-anytime register values, the driver expects
+//     this value to be automatically saved and restored across IOC restarts so
+//     it can use it to determine if the controller was restarted since that
+//     time. Note that it has to be a writable parameter so it can be restored
+//     during IOC startup, but it should NOT allow writing except by the IOC
+//     shell.
+//
+//     @note
+//        The ctlrUpSince value and its usage currently does not take in to
+//        account whether or not there are Pending writes.  Although it is a
+//        low probability, restarting the IOC (but not the controller) when
+//        there are Pending writes means the ctlrUpSince value will not change,
+//        so any settings that were Pending before the IOC restart will not be
+//        sent until the next time the controller restarts.
+//
 //==================================
 //
-//@subsection write_access Write Access
+//@subsection write_access Write Access and Sessions
 //
 //==================================
 //
@@ -285,63 +341,27 @@
 //     the driver keeps track of the last time it did a successful write
 //     operation and insures that it does so at least once every 2 seconds.
 //
-//=========================================
+//     Although its existence of the sessionID makes the logic for managing
+//     write access simpler, the primary reason it was introduced was to
+//     provide a way to detect that the state of the controller changed BEFORE
+//     processing affected packets.
 //
-//@subsection ctlr_restart Controller Restarts
+//     Unlike the upSecs register, the sessionID value is included in every
+//     packet the controller sends and the only time it changes should be when
+//     the driver changes it.  Any other change indicates that the controller
+//     restarted or that another client somehow got the write access.
 //
-//=========================================
+//     What this means is that, for each packet the driver receives, it can
+//     determine BEFORE processing the packet whether or not the state of the
+//     controller changed.  While potentially useful for synchronous (polling
+//     style) communication, it is most useful for the asynchronous (streaming)
+//     connections where it is possible to receive an old packet from a
+//     previous "session" that may contain outdated information (i.e. from
+//     before the sessionID was changed or the controller restarted).  In such
+//     cases, the sessionID in the packet will will be different than the value
+//     most recently written by the driver, so the driver can choose to discard
+//     the packet rather than risk processing outdated values.
 //
-//     There are two values that the driver uses to detect when a controller
-//     has been restarted:  The sessionID and the upSecs counter.
-//
-//     The sessionID is reset to 0 whenever the controller restarts, and is set
-//     to a random non-0 value by the last client that had write access.  The
-//     sessionID is included in every packet the controller sends, so once it
-//     has been set to a non-0 value, the first packet received by a client
-//     with a different value indicates that the controller has been reset.
-//
-//     One of the required read-only register values (upSecs) is also set to 0
-//     whenever the controller restarts, and is incremented each second after
-//     that.  The driver gets updates to this value on a regular basis, so if
-//     the value decreased since the last update, the driver knows that the
-//     controller restarted sometime after it last read the value.
-//
-//     The sessionID was designed to allow the client to know immediately if it
-//     should process a packet it just received.  If the only indication of a
-//     controller restart was the upSecs value getting smaller, the client
-//     would not discover the problem until it next read the upSecs register.
-//
-//     But the sessionID approach is not perfect either.  It is always possible
-//     that another client could get write access right after the controller
-//     restarted and write the same sessionID value it was using just before
-//     the restart.  This may seem very unlikely, but if a another client is
-//     reading values from the controller, then the sessionID is likely one of
-//     the values it is keeping track of, and if it were to attempt to get
-//     write access just after the controller restarted, then it would not only
-//     succeed, but it might very well use the existing sessionID value to do
-//     so.
-//
-//     If that occurred, the client that had write access before the restart
-//     would not see any change in the sessionID so it would not know that the
-//     controller had just restarted and it would continue processing packets.
-//     And if it relied ONLY on a change in the sessionID, it would go right on
-//     processing responses from the controller and the only indication there
-//     was a problem would be that any attempts to write new values to the
-//     controller would fail.
-//
-//     @note 
-       Assuming we ignore an deliberate attempt to circumvent the
-//     expected behavior, this scenario could be handled by requiring the
-//     controller to track which client last had write access and reject any
-//     attempt by another client to get write access using the same
-//     sessionID.
-//
-//     Even if all we do with the knowledge that the controller restarted is to
-//     log the incident, that is a very important piece of information to have
-//     when diagnosing trouble reports.  Using both of these methods not only
-//     means we virtually eliminate the chance that a restart could go
-//     unnoticed for any length of time, but it means we have comformation as
-//     to WHEN the controller was restarted (upSecs ago!)
 //
 //=====================================================
 //
@@ -358,21 +378,23 @@
 //     To detect when there is a persistent problem with the communications
 //     link, the driver keeps track of the last time it got a valid response
 //     from the controller and periodically checks how long ago that was.  If
-//     it has ben too long, then the driver considers the controller to be
-//     offline (not connected).
+//     it has been too long, then the driver considers the controller to be
+//     offline (not connected).  When this occurs, the driver changes the
+//     status of all the parameters to indicate the problem.
 //
-//     The driver reacts to this by updating the state of all the paramInfo
-//     objects and the associated asyn params to indicate that there is a
-//     communication problem.  Normal communication with the controller is
-//     considered to be restored once the read state of all the Read-Only and
-//     Write-Anytime registers indicate the values are current again.
+//     During IOC initialization the drive must accept writes because that is
+//     when settings are restored.  But after that, it rejects write operations
+//     whenever the controller is offline.  The reasoning for this is that we
+//     have no idea why the controller is offline or how long it will remain
+//     offline and we don't want to apply what could be very old settings by
+//     the time it comes back online.  The other option (used by the older
+//     driver) would be to accept new settings but then discard them if they
+//     get too old (although the older driver would then change the settings to
+//     match the readings, whereas we might want to store the last value that
+//     was successfully sent and revert to that).
 //
-//     At present, the set state of all parameters that have been written to
-//     since the IOC restarted are also changed to pending so the values will
-//     be resent once normal communication is restored.  Recent discussion of
-//     the pros/cons to this behavior means it may be changed so this will only
-//     be done if the upSecs value indicates the controller was actually
-//     restarted.
+//     Once normal communication is restored, if the driver discovers that the
+//     controller restarted, it will resend all the settings (see the
+//     "Controller Restarts" section).
 //
-//
-*/
+**/
