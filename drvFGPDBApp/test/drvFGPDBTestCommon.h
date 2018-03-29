@@ -60,7 +60,10 @@ public:
     lastRegID_WA(-1),
     arrayWriteStatusID(-1),
     testArrayID(-1),
-    numDrvParams(0)
+    numDrvParams(0),
+    RO_groupSize(0),
+    WA_groupSize(0),
+    WO_groupSize(0)
   {};
 
   /**

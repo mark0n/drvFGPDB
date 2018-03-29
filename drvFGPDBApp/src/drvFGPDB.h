@@ -269,7 +269,7 @@ class drvFGPDB : public asynPortDriver {
     /**
      * @brief Method to determine if ctlr restarted since last connected
      *
-     * @param[in] latest upSecs value
+     * @param[in] newUpSecs latest upSecs value
      */
     void checkForRestart(uint32_t newUpSecs);
 

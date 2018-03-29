@@ -61,6 +61,7 @@ public:
                                             const char *drvInfo));
 };
 
+//-----------------------------------------------------------------------------
 class AnFGPDBDriverUsingIOSyncMock : public AnFGPDBDriver
 {
 public:
@@ -81,6 +82,7 @@ public:
   };
 };
 
+//-----------------------------------------------------------------------------
 /**
  * @brief UDP/IP connection is configured successfully
  */
@@ -88,6 +90,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canBeConstructedWithoutAnyErrors) {
   ASSERT_THAT(udpPortStat, Eq(0));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Thread object identifies an active thread of execution
  */
@@ -95,6 +98,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, launchesSyncComThread) {
   ASSERT_THAT(testDrv->syncThread.joinable(), Eq(true));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Driver instance has params registered
  */
@@ -102,6 +106,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, newDriverInstanceContainsDriverParams) {
   ASSERT_THAT(numDrvParams, Gt(0));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not add empty parameters definition
  * @note  Formats allowed are:
@@ -113,6 +118,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, rejectsEmptyParamDef) {
   ASSERT_THAT(id, Eq(-1));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not add multiple param definitions
  */
@@ -121,6 +127,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, rejectsMultipleParamDefinitions) {
   ASSERT_THAT(id, Eq(-1));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Add incomplete param definitions
  */
@@ -129,6 +136,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canCreateIncompleteParam) {
   ASSERT_THAT(id, Eq(numDrvParams));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Add another param definition
  */
@@ -140,6 +148,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddAnotherParam) {
   ASSERT_THAT(id, Eq(numDrvParams+1));
 }
 
+//-----------------------------------------------------------------------------
 /*
  * @brief Add properties to existing param
  */
@@ -158,6 +167,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   ASSERT_THAT(param.ctlrFmt,  Eq(CtlrDataFmt::U32));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not modify existing param definitions calling drvUserCreate
  */
@@ -170,6 +180,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnParamDefConflict) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not add different params with same address
  */
@@ -181,6 +192,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsIfMultParamsWithSameRegAddr) {
   ASSERT_THAT(id, Eq(-1));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Create new asyn params
  */
@@ -195,6 +207,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
   ASSERT_THAT(id, Eq(testParamID_WA));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Find a registered param by its name
  */
@@ -209,6 +222,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canFindParamByName) {
   ASSERT_THAT(param.name,  Eq("sessionID"));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Param's, asynID and driverID, are equal
  */
@@ -224,6 +238,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, asynAndDriverIDsMatch) {
   ASSERT_THAT(id, Eq(asynID));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief All registered param's addresses are correctly mapped
  */
@@ -235,6 +250,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsRegAddrToParamMaps) {
   ASSERT_THAT(testDrv->procGroupSize(ProcGroup_LCP_WO), Eq(WO_groupSize));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Check if given params range is a valid LCP params range
  */
@@ -252,6 +268,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   ASSERT_THAT(validRange, Eq(true));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not write in a non registered address
  */
@@ -262,6 +279,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteForUnmappedRegValue) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not read outside of a registered params range
  */
@@ -272,6 +290,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnReadOutsideDefinedRegRange) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not write multiple params if they are not all registered
  */
@@ -282,6 +301,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteWithUnsetRegs) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not write outside of a registered params range
  */
@@ -295,6 +315,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not write a Read-Only param
  */
@@ -308,6 +329,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnAttemptToSendReadOnlyRegs) {
   ASSERT_THAT(stat, Eq(asynError));
 }
 
+//-----------------------------------------------------------------------------
 /**
  * @brief Do not write through asyn layer a Read-Only param
  */
@@ -327,4 +349,5 @@ TEST_F(AnFGPDBDriver, writesDataToAsyn) {
 }
 */
 
+//-----------------------------------------------------------------------------
 
