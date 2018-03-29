@@ -367,7 +367,7 @@ class drvFGPDB : public asynPortDriver {
      * @param[in]  pComPort         UDP port to communicate with
      * @param[out] respBuf          vector that stores the response to the action performed in the ctlr
 
-     * @return asynStatus
+     * @return # bytes read or -1 if an error
      */
     int  readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf);
 

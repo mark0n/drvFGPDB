@@ -707,7 +707,6 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
         validResp = true;  break; }
     }
 
-//  if (flushedPkts and ShowPackets())   //tdebug: uncomment after debugged
     if (flushedPkts)
       cout << endl << "*** flushed " << flushedPkts << " old packets ***"
            << endl;
