@@ -26,6 +26,7 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 
 const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Undefined,  "Undefined"  },
+  { SetState::Restored,   "Restored"   },
   { SetState::Pending,    "Pending"    },
   { SetState::Processing, "Processing" },
   { SetState::Sent,       "Sent"       },

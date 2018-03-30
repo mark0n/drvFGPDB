@@ -255,8 +255,9 @@ void drvFGPDB::clearSetStates(void)
 }
 
 //-----------------------------------------------------------------------------
-//  If the ctlr was restarted since we were last talking to it, then resend all
-//  the settings received since the IOC restarted.
+//  If the ctlr was restarted since we were last talking to it, then log a
+//  message and (optionally) resend all the settings received since the IOC
+//  restarted.
 //-----------------------------------------------------------------------------
 void drvFGPDB::checkForRestart(uint32_t newUpSecs)
 {
@@ -270,6 +271,7 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
 
   time_t upSince = (time_t) newUpSince;
 
+  // If ctlr restarted, resend all the settings
   if ((int32_t)(newUpSince - prevUpSince) > 3)  {
     if (!TestMode())
       cout << endl << "*** " << portName
@@ -278,6 +280,7 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
     resetSetStates();
   }
   else {
+    // ctlr did not restart, so clear set state for all Restored settings
     if (firstRestartCheck)  {
       if (!TestMode())
         cout << endl << "=== " << portName
