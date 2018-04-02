@@ -67,6 +67,15 @@ class RequiredParam {
     std::string  def;     //!< string that defines the parameter
 };
 
+/**
+ * @brief Method to use for handling controller and IOC restarts
+ */
+enum class ResendMode {
+  Never,             //!< Old settings NEVER resent after IOC or ctlr restart
+  AfterCtlrRestart,  //!< All settings resent whenever the ctlr restarts
+  AfterIOCRestart    //!< All settings resent whenever IOC restarts
+};
+
 
 /**
  * The main class of the driver.
@@ -84,10 +93,12 @@ class drvFGPDB : public asynPortDriver {
      * @param[in] syncIOWrapper     interface to perform "synchronous" I/O operations
      * @param[in] udpPortName       name of the UPD port to communicate with
      * @param[in] startupDiagFlags  diagnostics flag
+     * @param[in] resendMode        mode to handle ctlr and IOC restarts
      */
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-             const std::string &udpPortName, uint32_t startupDiagFlags);
+             const std::string &udpPortName, uint32_t startupDiagFlags,
+             uint32_t resendMode);
 
     /**
      * @brief Destructor of the driver instance
@@ -655,7 +666,9 @@ class drvFGPDB : public asynPortDriver {
 
     int idStateFlags;     uint32_t stateFlags;      //!< TODO: Not being used
 
-    int idCtlrUpSince;    uint32_t ctlrUpSince;
+    int idCtlrUpSince;    uint32_t ctlrUpSince;     //!< last time ctlr restarted
+
+    ResendMode  resendMode;  //!< mode for determining if/when to resend settings to the ctlr
 
     uint32_t diagFlags;
 

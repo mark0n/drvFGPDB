@@ -51,7 +51,8 @@ static const double readTimeout  = 1.0;
 //-----------------------------------------------------------------------------
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-                   const string &udpPortName, uint32_t startupDiagFlags) :
+                   const string &udpPortName, uint32_t startupDiagFlags,
+                   uint32_t resendMode_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
                    AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
@@ -84,6 +85,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     stateFlags(0),
     idCtlrUpSince(-1),
     ctlrUpSince(0),
+    resendMode(static_cast<ResendMode>(resendMode_)),
     diagFlags(startupDiagFlags)
 {
   if (addRequiredParams() != asynSuccess)  {
@@ -277,7 +279,7 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
       cout << endl << "*** " << portName
            << " Controller restarted at: " << ctime(&upSince) << "***"
            << endl << endl;
-    resetSetStates();
+    if (resendMode == ResendMode::AfterCtlrRestart)  resetSetStates();
   }
   else {
     // ctlr did not restart, so clear set state for all Restored settings
@@ -1066,7 +1068,13 @@ bool drvFGPDB::isValidWritableParam(const char *funcName, asynUser *pasynUser)
 void drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
 {
   param.ctlrValSet = setVal;
-  param.setState = initComplete ? SetState::Pending : SetState::Restored;
+
+  if (initComplete or (resendMode == ResendMode::AfterIOCRestart))
+    param.setState = SetState::Pending;
+  else   if (resendMode == ResendMode::Never)
+    param.setState = SetState::Sent;
+  else
+    param.setState = SetState::Restored;
 
   //ToDo: Add param to a list of params with pending writes
 }

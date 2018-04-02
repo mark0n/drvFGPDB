@@ -23,7 +23,9 @@ public:
   AnFGPDBDriverUsingIOSyncWrapper() :
     AnFGPDBDriver(make_shared<asynOctetSyncIOWrapper>())
   {
-    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName, startupDiagFlags);
+    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName,
+                                    startupDiagFlags,
+                                    static_cast<uint32_t>(ResendMode::AfterCtlrRestart));
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName

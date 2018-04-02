@@ -72,7 +72,9 @@ public:
                 connect(_, _, _, _)).WillOnce(Return(asynSuccess));
     EXPECT_CALL(*static_pointer_cast<asynOctetSyncIOWrapperMock>(syncIO),
                 disconnect(_)).WillOnce(Return(asynSuccess));
-    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName, startupDiagFlags);
+    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName,
+                                    startupDiagFlags,
+                                    static_cast<uint32_t>(ResendMode::AfterCtlrRestart));
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName

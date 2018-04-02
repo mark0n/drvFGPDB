@@ -45,10 +45,12 @@ void drvFGPDB_initHookFunc(initHookState state)
  * @param[in] udpPortName        The name of the asyn port for the UDP connection to
  *                               the device.
  * @param[in] startupDiagFlags_  Debugging flag
+ * @param[in] resendMode         Mode used handle controller and IOC restarts
  *
  * @return 0 @warning If any std::exception is catched, program will be terminated
  */
-int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
+int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_,
+                    int resendMode)
 {
   if (!syncIOWrapper) {
     syncIOWrapper = make_shared<asynOctetSyncIOWrapper>();
@@ -60,7 +62,8 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_)
     string portName = string(drvPortName);
     drvFGPDBs->emplace(piecewise_construct, forward_as_tuple(portName),
                        forward_as_tuple(portName, syncIOWrapper,
-                                        string(udpPortName), startupDiagFlags_));
+                                        string(udpPortName), startupDiagFlags_,
+                                        resendMode));
   }catch( const exception &e){
           cerr << '\n' << "[ERROR] Port: " << drvPortName << " ; " << typeid(e).name()  << " ; " << e.what()<< '\n' << '\n';
           exit(-1);
@@ -129,11 +132,13 @@ static void drvFGPDB_cleanUp(void *)
 static const iocshArg config_Arg0 { "drvPortName", iocshArgString };
 static const iocshArg config_Arg1 { "udpPortName", iocshArgString };
 static const iocshArg config_Arg2 { "startupDiag", iocshArgInt    };
+static const iocshArg config_Arg3 { "resendMode",  iocshArgInt    };
 
 static const iocshArg * const config_Args[] {
   &config_Arg0,
   &config_Arg1,
-  &config_Arg2
+  &config_Arg2,
+  &config_Arg3
 };
 
 static const iocshFuncDef config_FuncDef {
@@ -144,7 +149,7 @@ static const iocshFuncDef config_FuncDef {
 
 static void config_CallFunc(const iocshArgBuf *args)
 {
-  drvFGPDB_Config(args[0].sval, args[1].sval, args[2].ival);
+  drvFGPDB_Config(args[0].sval, args[1].sval, args[2].ival, args[3].ival);
 }
 
 // IOC-shell command "drvFGPDB_SetDiagFlags"
