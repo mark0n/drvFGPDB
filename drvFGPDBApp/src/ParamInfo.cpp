@@ -26,6 +26,7 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
 
 const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Undefined,  "Undefined"  },
+  { SetState::Restored,   "Restored"   },
   { SetState::Pending,    "Pending"    },
   { SetState::Processing, "Processing" },
   { SetState::Sent,       "Sent"       },
@@ -186,6 +187,15 @@ ostream& operator<<(ostream& os, const ParamInfo &param)
        << " " << ParamInfo::ctlrFmtToStr(param.ctlrFmt);
 
   return os;
+}
+
+//-----------------------------------------------------------------------------
+void ParamInfo::newReadVal(uint32_t newVal)
+{
+  ctlrValRead = newVal;
+  readState = ReadState::Pending;
+
+  if (drvValue)  *drvValue = newVal;
 }
 
 //-----------------------------------------------------------------------------

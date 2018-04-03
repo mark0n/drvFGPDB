@@ -10,6 +10,7 @@
 
 #define TEST_DRVFGPDB
 #include "drvFGPDB.h"
+#include "LCPProtocol.h"
 #include "drvAsynIPPort.h"
 #include "asynOctetSyncIOWrapper.h"
 #include "drvFGPDBTestCommon.h"
@@ -22,7 +23,9 @@ public:
   AnFGPDBDriverUsingIOSyncWrapper() :
     AnFGPDBDriver(make_shared<asynOctetSyncIOWrapper>())
   {
-    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName, startupDiagFlags);
+    testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName,
+                                    startupDiagFlags,
+                                    static_cast<uint32_t>(ResendMode::AfterCtlrRestart));
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
@@ -30,6 +33,23 @@ public:
 
     numDrvParams = testDrv->numParams();
   };
+
+  //----------------------------------------
+  void initConnection()
+  {
+    testDrv->readRegs(0x10000, testDrv->procGroupSize(ProcGroup_LCP_RO));
+    testDrv->readRegs(0x20000, testDrv->procGroupSize(ProcGroup_LCP_WA));
+
+    testDrv->postNewReadValues();
+    testDrv->checkComStatus();
+
+    ASSERT_THAT(testDrv->connected, Eq(true));
+
+    ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+
+    testDrv->startCommunication();
+  }
+
 };
 
 /**
@@ -51,7 +71,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(asynSuccess));
+  initConnection();
 
   pasynUser->reason = testParamID_WA;
   stat = testDrv->writeInt32(pasynUser, 222);
@@ -74,7 +94,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  initConnection();
 
   tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
   ASSERT_THAT(stat, Eq(asynSuccess));
@@ -83,13 +103,33 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesRegValues) {
   ASSERT_THAT(stat, Eq(asynSuccess));
 }
 
+/*
+ * @brief param's setState is set to pending due to an asyn write call
+ */
+TEST_F(AnFGPDBDriverUsingIOSyncWrapper, setsPendingWriteStateForAParam) {
+  addParams();
+
+  initConnection();
+
+  epicsInt32 arbitraryInt = 42;
+  auto arbitraryIntUnsigned = static_cast<epicsUInt32>(arbitraryInt);
+
+  pasynUser->reason = testParamID_WA;
+  stat = testDrv->writeInt32(pasynUser, arbitraryInt);
+  ASSERT_THAT(stat, Eq(asynSuccess));
+
+  tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
+  ASSERT_THAT(param.ctlrValSet, Eq(arbitraryIntUnsigned));
+  ASSERT_THAT(param.setState, Eq(SetState::Pending));
+}
+
 /**
  * @brief Proccess pending writes of params previously set
  */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  initConnection();
 
   pasynUser->reason = testParamID_WA;
   stat = testDrv->writeInt32(pasynUser, 222);
@@ -103,13 +143,14 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   ASSERT_THAT(param.setState, Eq(SetState::Sent));
 }
 
+
 /**
  * @brief Process an array write param and check its final status
  */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writeInt8Array) {
   addParams();
 
-  ASSERT_THAT(testDrv->getWriteAccess(), Eq(0));
+  initConnection();
 
   epicsInt8 testData[1024];
   pasynUser->reason = testArrayID;
