@@ -30,6 +30,7 @@ enum class CtlrDataFmt {
  */
 enum class SetState {
   Undefined,  //!< no value written to the parameter yet
+  Restored,   //!< setting restored during IOC init
   Pending,    //!< new setting ready to be processed
   Processing, //!< in the middle of processing a write
   Sent,       //!< ack'd by ctlr or driver-only value updated
@@ -223,6 +224,7 @@ class ParamInfo {
                 (asynType == asynParamFloat64Array)) );
     }
 
+    void newReadVal(uint32_t newVal);
 
 
     std::string    name;        //!< Name of the parameter

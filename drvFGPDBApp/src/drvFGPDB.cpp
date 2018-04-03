@@ -48,9 +48,11 @@ typedef  unsigned char  uchar;
 static const double writeTimeout = 1.0;
 static const double readTimeout  = 1.0;
 
+//-----------------------------------------------------------------------------
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-                   const string &udpPortName, uint32_t startupDiagFlags) :
+                   const string &udpPortName, uint32_t startupDiagFlags,
+                   uint32_t resendMode_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
                    AsynFlags, AutoConnect, Priority, StackSize),
     syncIO(syncIOWrapper),
@@ -60,11 +62,12 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     writeAccess(false),
     unfinishedArrayRWs(false),
     updateRegs(true),
+    firstRestartCheck(true),
     connected(false),
     lastRespTime(0s),
+    lastWriteTime(0s),
     idUpSecs(-1),
     upSecs(0),
-    prevUpSecs(0),
     idSessionID(-1),
     idSyncPktID(-1),
     syncPktID(0),
@@ -80,6 +83,9 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     asyncPktsRcvd(0),
     idStateFlags(-1),
     stateFlags(0),
+    idCtlrUpSince(-1),
+    ctlrUpSince(0),
+    resendMode(static_cast<ResendMode>(resendMode_)),
     diagFlags(startupDiagFlags)
 {
   if (addRequiredParams() != asynSuccess)  {
@@ -93,7 +99,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   params.at(idUpSecs).readOnly = true;
   params.at(idSessionID).readOnly = true;
-
 
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
@@ -119,9 +124,17 @@ drvFGPDB::~drvFGPDB()
   syncIO->disconnect(pAsynUserUDP);
 }
 
+//-----------------------------------------------------------------------------
 void drvFGPDB::startCommunication()
 {
-  initComplete = true;
+  if (verifyReqParams() != asynSuccess)
+    cout << endl << "*** " << portName
+         << " missing or invalid defs for req params ***" << endl << endl;
+  else  {
+    cout << endl << "=== " << portName << ": initialization complete ==="
+         << endl << endl;
+    initComplete = true;
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -139,13 +152,13 @@ void drvFGPDB::syncComLCP()
     unfinishedArrayRWs = false;
 
     if (!TestMode())  {
+      if (!writeAccess)  getWriteAccess();  else  keepWriteAccess();
       updateRegs = (start_time - lastRegUpdateTime >= 200ms);
       if (updateRegs)  lastRegUpdateTime = chrono::system_clock::now();
       updateReadValues();  postNewReadValues();
       processPendingWrites();
+      checkComStatus();
     }
-
-    checkComStatus();
 
     if (!exitDriver)  {
       auto sleepTime = (unfinishedArrayRWs ? 20ms : 200ms);
@@ -157,26 +170,38 @@ void drvFGPDB::syncComLCP()
 //-----------------------------------------------------------------------------
 void drvFGPDB::checkComStatus(void)
 {
-  bool  ctlrRestarted = false, ctlrDisconnected = false;
+  lock_guard<drvFGPDB> asynLock(*this);
 
   if (connected)  {
     if (chrono::system_clock::now() - lastRespTime >= 5s)  {
-      cout << endl << "*** " << portName << " ctlr offline ***" << endl << endl;
-      ctlrDisconnected = true;  connected = false;
+      if (!TestMode())
+        cout << endl << "*** " << portName << " ctlr offline ***" << endl << endl;
+      resetReadStates();  connected = false;
     }
-    else  if (upSecs < prevUpSecs)  {
-      cout << endl << "*** " << portName << " ctlr rebooted ***" << endl << endl;
-      ctlrRestarted = true;
+  }
+  // scan list of RO and WA regs to see if all of them are current
+  else  {
+    bool  unreadValues = false;
+    for (auto &param : params)  {
+      auto groupID = LCPUtil::addrGroupID(param.regAddr);
+      if ((groupID == ProcGroup_LCP_RO) or (groupID == ProcGroup_LCP_WA))
+        if (param.readState != ReadState::Current)  {
+          unreadValues = true;  break; }
     }
-    prevUpSecs = upSecs;
+    if (!unreadValues)  {
+      if (!TestMode())
+        cout << endl << "=== " << portName << " ctlr online ===" << endl << endl;
+      connected = true;
+    }
   }
 
-
-  if (ctlrRestarted or ctlrDisconnected)  resetParamStates();
 }
 
 //-----------------------------------------------------------------------------
-void drvFGPDB::resetParamStates(void)
+//  Reset readState of all parameters so we can determine when they have all
+//  been reread, and post the status chg to update the state of EPICS records
+//-----------------------------------------------------------------------------
+void drvFGPDB::resetReadStates(void)
 {
   lock_guard<drvFGPDB> asynLock(*this);
 
@@ -191,11 +216,9 @@ void drvFGPDB::resetParamStates(void)
       param.readState = ReadState::Update;
     }
 
-    param.setState = SetState::Undefined;
-
     setParamStatus(paramID, asynDisconnected);
 
-    // required to get status change to process for array param
+    // required to get status change to process for an array param
     if (param.asynType == asynParamInt8Array)
        doCallbacksInt8Array((epicsInt8 *)"", 0, paramID, 0);
   }
@@ -204,13 +227,82 @@ void drvFGPDB::resetParamStates(void)
 }
 
 //-----------------------------------------------------------------------------
+//  Cause all previously sent WA register values to be resent
+//-----------------------------------------------------------------------------
+void drvFGPDB::resetSetStates(void)
+{
+  lock_guard<drvFGPDB> asynLock(*this);
+
+  for (auto &param : params)  {
+    if ( (LCPUtil::addrGroupID(param.regAddr) == ProcGroup_LCP_WA) and
+        ((param.setState == SetState::Processing) or
+         (param.setState == SetState::Restored) or
+         (param.setState == SetState::Sent)) )
+      param.setState = SetState::Pending;
+  }
+}
+
+//-----------------------------------------------------------------------------
+//  Mark all Restored settings as Sent
+//-----------------------------------------------------------------------------
+void drvFGPDB::clearSetStates(void)
+{
+  lock_guard<drvFGPDB> asynLock(*this);
+
+  for (auto &param : params)  {
+    if ( (LCPUtil::addrGroupID(param.regAddr) == ProcGroup_LCP_WA) and
+        (param.setState == SetState::Restored) )
+      param.setState = SetState::Sent;
+  }
+}
+
+//-----------------------------------------------------------------------------
+//  If the ctlr was restarted since we were last talking to it, then log a
+//  message and (optionally) resend all the settings received since the IOC
+//  restarted.
+//-----------------------------------------------------------------------------
+void drvFGPDB::checkForRestart(uint32_t newUpSecs)
+{
+  uint32_t readTime = (uint32_t) chrono::system_clock::to_time_t(lastRespTime);
+
+  ParamInfo &upSinceParam = params.at(idCtlrUpSince);
+
+  uint32_t newUpSince = readTime - newUpSecs;
+  uint32_t prevUpSince =
+     firstRestartCheck ? upSinceParam.ctlrValSet : upSinceParam.ctlrValRead;
+
+  time_t upSince = (time_t) newUpSince;
+
+  // If ctlr restarted, resend all the settings
+  if ((int32_t)(newUpSince - prevUpSince) > 3)  {
+    if (!TestMode())
+      cout << endl << "*** " << portName
+           << " Controller restarted at: " << ctime(&upSince) << "***"
+           << endl << endl;
+    if (resendMode == ResendMode::AfterCtlrRestart)  resetSetStates();
+  }
+  else {
+    // ctlr did not restart, so clear set state for all Restored settings
+    if (firstRestartCheck)  {
+      if (!TestMode())
+        cout << endl << "=== " << portName
+             << " Controller up since: " << ctime(&upSince) << "==="
+             << endl << endl;
+      clearSetStates();
+    }
+  }
+
+  firstRestartCheck = false;
+
+  upSinceParam.newReadVal(newUpSince);
+}
+
+//-----------------------------------------------------------------------------
 //  Attempt to gain write access to the ctlr (by setting the sessionID reg)
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::getWriteAccess(void)
 {
-  if (exitDriver)  return asynError;
-
-  if (!validParamID(idSessionID))  return asynError;
+  if (exitDriver or !connected)  return asynError;
 
   ParamInfo &param = params.at(idSessionID);
 
@@ -236,6 +328,39 @@ asynStatus drvFGPDB::getWriteAccess(void)
 }
 
 //-----------------------------------------------------------------------------
+//  Maintain write access by insuring that it hasn't been too long since we
+//  last sent and got a response to a write command.
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::keepWriteAccess(void)
+{
+  if (chrono::system_clock::now() - lastWriteTime < 2s)  return asynSuccess;
+
+  if (exitDriver or !connected)  return asynError;
+
+  if (ShowRegWrites()) {
+    cout << portName << ": keeping write access" << endl;
+  }
+
+  asynStatus stat;
+  vector<uint32_t> cmdBuf {
+    htonl(syncPktID),
+    htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS)),
+    0,
+    0
+  };
+  const int respHdrWords = 5;
+  vector<uint32_t> respBuf(respHdrWords, 0);
+  LCPStatus respStatus;
+  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
+
+  if (stat != asynSuccess) return stat;
+  if (respStatus != LCPStatus::SUCCESS) return asynError;
+
+  lastWriteTime = chrono::system_clock::now();
+  return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
 int drvFGPDB::processPendingWrites(void)
 {
   if (exitDriver)  return -1;
@@ -254,8 +379,7 @@ int drvFGPDB::processPendingWrites(void)
     // new scalar value to be sent to the controller
     if (LCPUtil::isLCPRegParam(param.regAddr))  {
       if (setState != SetState::Pending)  continue;
-      if (!updateRegs)  continue;
-      if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  return -1; }
+      if (!updateRegs or !connected or !writeAccess)  continue;
       if (writeRegs(param.regAddr, 1) == asynSuccess)  ++ackdCount;
     }
 
@@ -272,7 +396,7 @@ int drvFGPDB::processPendingWrites(void)
     else  if (param.isArrayParam())  {
       if ((setState != SetState::Pending) and
           (setState != SetState::Processing))  continue;
-      if (!connected)  continue;
+      if (!connected or !writeAccess)  continue;
       if (writeNextBlock(param) != asynSuccess)  {
         cout << endl << "*** " << portName << ":" << param.name << ": "
           "unable to write new array value ***" << endl << endl;
@@ -291,6 +415,11 @@ int drvFGPDB::processPendingWrites(void)
 
 
 //-----------------------------------------------------------------------------
+//  Add params for values the driver expects and/or supports for all devices.
+//  NOTE that the values that correspond to LCP registers do not yet have
+//  regAddr value assigned to them.  This avoids the need to have fixed LCP
+//  addresses assigned to such values.
+//-----------------------------------------------------------------------------
 asynStatus drvFGPDB::addRequiredParams(void)
 {
   asynStatus  stat = asynSuccess;
@@ -306,7 +435,30 @@ asynStatus drvFGPDB::addRequiredParams(void)
     }
   }
 
+  // insure existance and config of critical values
+  if (!validParamID(idUpSecs) or
+      !validParamID(idSessionID) or
+      !validParamID(idCtlrUpSince))  return asynError;
+
   return stat;
+}
+
+//-----------------------------------------------------------------------------
+// Verify that no key info is missing for the required params
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::verifyReqParams(void) const
+{
+  uint  errCount = 0;
+
+  for (auto &param : params)  {
+    if (param.regAddr < 1)  {
+      cout << endl << "*** " << portName << ": Incomplete param def ***" << endl
+           << "[" << param << "]" << endl << endl;
+      ++errCount;  continue;
+    }
+  }
+
+  return (errCount ? asynError : asynSuccess);
 }
 
 //-----------------------------------------------------------------------------
@@ -346,8 +498,8 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
 
   if (newParam.asynType == asynParamNotDefined)  {
     cout << endl
-         << "  *** " << portName << " [" << newParam << "]" << endl
-         << "      No asyn type specified" << endl;
+         << "  *** " << portName << ": No asyn type specified ***" << endl
+         << "       [" << newParam << "] ***" << endl;
     return -1;
   }
   stat = createParam(newParam.name.c_str(), newParam.asynType, &paramID);
@@ -503,8 +655,7 @@ asynStatus drvFGPDB::sendMsg(asynUser *pComPort, vector<uint32_t> &cmdBuf)
 }
 
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf,
-                              size_t expectedRespSize)
+int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
 {
   asynStatus stat;
   int  eomReason;
@@ -516,11 +667,10 @@ asynStatus drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf,
     .nbytesIn = &rcvd
   };
   stat = syncIO->read(pComPort, inData, readTimeout, &eomReason);
-  if (stat != asynSuccess)  return stat;
+  if (stat != asynSuccess)  return -1;
   ++syncPktsRcvd;
-  if (rcvd != expectedRespSize)  return asynError;
 
-  return asynSuccess;
+  return rcvd;
 }
 
 //-----------------------------------------------------------------------------
@@ -532,7 +682,8 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
                                     LCPStatus &respStatus)
 {
   asynStatus  stat;
-
+  int  flushedPkts;
+  U32  cmdRcvd = 0;
 
   ++syncPktID;  cmdBuf[0] = htonl(syncPktID);  respStatus = LCPStatus::ERROR;
 
@@ -540,25 +691,33 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
   for (int attempt=0; attempt<MaxMsgAttempts; ++attempt)  {
 
     stat = sendMsg(pComPort, cmdBuf);
-    if (stat != asynSuccess)  { this_thread::sleep_for(200ms);  continue; }
     if (exitDriver)  return asynError;
-
-    stat = readResp(pComPort, respBuf, respBuf.size()*sizeof(respBuf[0]));
     if (stat != asynSuccess)  { this_thread::sleep_for(200ms);  continue; }
-    if (exitDriver)  return asynError;
 
-    lastRespTime = chrono::system_clock::now();
+    bool validResp = false;
+    for (flushedPkts=0; flushedPkts<100; ++flushedPkts)  {
+      int respLen = readResp(pComPort, respBuf);
+      if (exitDriver)  return asynError;
+      if (respLen <= 0)  break;
 
-    if (!connected)  {
-      cout << endl << "=== " << portName << " ctlr online ===" << endl << endl;
-      connected = true;
+      if ((uint)respLen != respBuf.size()*sizeof(respBuf[0]))  continue;
+
+      lastRespTime = chrono::system_clock::now();
+
+      // check values common to all commands
+      U32 pktIDSent = ntohl(cmdBuf[0]);  U32 pktIDRcvd = ntohl(respBuf[0]);
+      U32 cmdSent = ntohl(cmdBuf[1]);          cmdRcvd = ntohl(respBuf[1]);
+
+      if ((pktIDSent == pktIDRcvd) and (cmdSent == cmdRcvd))  {
+        validResp = true;  break; }
     }
 
-    // check values common to all commands
-    U32 pktIDSent = ntohl(cmdBuf[0]);  U32 pktIDRcvd = ntohl(respBuf[0]);
-    U32 cmdSent = ntohl(cmdBuf[1]);    U32 cmdRcvd = ntohl(respBuf[1]);
+    if (flushedPkts)
+      cout << endl << "*** flushed " << flushedPkts << " old packets ***"
+           << endl;
 
-    if ((pktIDSent != pktIDRcvd) or (cmdSent != cmdRcvd))  return asynError;
+    // try sending the cmd again if we did't gotten a valid resp
+    if (!validResp)  { this_thread::sleep_for(200ms);  continue; }
 
     U16 statOffset = LCPUtil::statusOffset((int16_t)cmdRcvd);
     U32 sessID_and_status = ntohl(respBuf[statOffset]);
@@ -567,10 +726,12 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     U32 respStat = sessID_and_status & 0xFFFF;
     respStatus = static_cast<LCPStatus>(respStat);
 
+    bool prevWriteAccess = writeAccess;
+
     writeAccess = (respSessionID == sessionID.get());
 
-//    if (!writeAccess)  //tdebug
-//      cout << "0x" << hex << sessionID << " != 0x" << respSessionID << dec << endl;
+    if (prevWriteAccess and !writeAccess)
+      cout << endl << "*** " << portName << " lost writeAccess ***" << endl << endl;
 
     return asynSuccess;
   }
@@ -648,7 +809,7 @@ asynStatus drvFGPDB::postNewReadVal(int paramID)
       break;
 
     case asynParamInt8Array:
-      setParamStatus(paramID, asynSuccess);  // req for callback to work
+      setParamStatus(paramID, asynSuccess);  // req for doCallbacksXxxArray to work
       stat = doCallbacksInt8Array((epicsInt8 *)param.arrayValRead.data(),
                                    param.arrayValRead.size(), paramID, 0);
       break;
@@ -744,10 +905,9 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
     if ((justReadVal == param.ctlrValRead)
       and (param.readState == ReadState::Current))  continue;
 
-    param.ctlrValRead = justReadVal;
-    param.readState = ReadState::Pending;
+    if (paramID == idUpSecs)  checkForRestart(justReadVal);
 
-    if (param.drvValue)  *param.drvValue = justReadVal;
+    param.newReadVal(justReadVal);
   }
 
   return asynSuccess;
@@ -808,6 +968,8 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   if (respStatus != LCPStatus::SUCCESS)  return asynError;
 
+  lastWriteTime = chrono::system_clock::now();
+
   if (exitDriver)  return asynError;
 
   //todo:
@@ -829,12 +991,14 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
     if (!validParamID(paramID))  continue;
     ParamInfo &param = params.at(paramID);
     // in case setState was chgd by another thread
-    if (param.setState == SetState::Processing)
+    if (param.setState == SetState::Processing)  {
       param.setState = SetState::Sent;
+    }
   }
 
   return asynSuccess;
 }
+
 
 //=============================================================================
 asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
@@ -904,7 +1068,13 @@ bool drvFGPDB::isValidWritableParam(const char *funcName, asynUser *pasynUser)
 void drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
 {
   param.ctlrValSet = setVal;
-  param.setState = SetState::Pending;
+
+  if (initComplete or (resendMode == ResendMode::AfterIOCRestart))
+    param.setState = SetState::Pending;
+  else   if (resendMode == ResendMode::Never)
+    param.setState = SetState::Sent;
+  else
+    param.setState = SetState::Restored;
 
   //ToDo: Add param to a list of params with pending writes
 }
@@ -1157,18 +1327,18 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
     return asynSuccess;
   }
 
+  if (!writeAccess)  return asynError;
+
   {
     lock_guard<drvFGPDB> asynLock(*this);
     param.setState = SetState::Processing;
   }
 
+
 //--- initialize values used in the loop ---
   arraySize = param.arrayValSet.size();
 
   param.rwBuf.assign(param.blockSize, 0);
-
-  if (!writeAccess)  { getWriteAccess();  if (!writeAccess)  return asynError; }
-
 
   // adjust # of bytes to write to the next block if necessary
   if (param.rwCount > param.bytesLeft)  param.rwCount = param.bytesLeft;
@@ -1227,7 +1397,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 {
   if (!isValidWritableParam(__func__, pasynUser))  return asynError;
 
-  if (initComplete and !connected)  return asynDisconnected;
+  if (!acceptWrites())  return asynError;
 
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
@@ -1238,7 +1408,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())
-    cout << typeid(this).name() << "::" << __func__ << "()  [" << portName << "]: "
+    cout << portName << ":" << __func__ << "(): "
          << newVal << " (0x" << hex << setVal << ")"
          << " to " << param.name << dec << endl;
 
@@ -1259,7 +1429,7 @@ asynStatus drvFGPDB::writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal,
 {
   if (!isValidWritableParam(__func__, pasynUser))  return asynError;
 
-  if (initComplete and !connected)  return asynDisconnected;
+  if (!acceptWrites())  return asynError;
 
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
@@ -1275,7 +1445,7 @@ asynStatus drvFGPDB::writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal,
   applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())
-    cout << typeid(this).name() << "::" << __func__ << "()  [" << portName << "]: "
+    cout << portName << ":" << __func__ << "(): "
          << " 0x" << hex << setVal
          << " (prev:0x" << prevVal
          << ", new:0x" << newVal
@@ -1297,7 +1467,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 {
   if (!isValidWritableParam(__func__, pasynUser))  return asynError;
 
-  if (initComplete and !connected)  return asynDisconnected;
+  if (!acceptWrites())  return asynError;
 
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
@@ -1308,7 +1478,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())
-    cout << typeid(this).name() << "::" << __func__ << "()  [" << portName << "]: "
+    cout << portName << ":" << __func__ << "(): "
          << newVal << " (0x" << hex << setVal << ")"
          << " to " << param.name << dec << endl;
 
@@ -1329,9 +1499,8 @@ asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param, uint32_t percDone)
   if (param.statusParamID < 0)
     if (param.statusParamName.size() > 0)
       if ((param.statusParamID = findParamByName(param.statusParamName)) < 0)  {
-        cout << typeid(this).name() << "::" << __func__
-             << "()  [" << portName << "]: " << endl
-             << "   invalid status parameter name: " << param << endl;
+        cout << portName << "::" << __func__ << "(): " << endl
+             << "   *** invalid status parameter name: " << param << " ***" << endl;
         return asynError;
       }
 
@@ -1356,7 +1525,7 @@ asynStatus drvFGPDB::readInt8Array(asynUser *pasynUser, epicsInt8 *value,
   ParamInfo &param = params.at(paramID);
 
   if (ShowBlkReads())
-    cout << typeid(this).name() << "::" << __func__ << "()  [" << portName << "]: "
+    cout << portName << "::" << __func__ << "(): "
          << endl << "   read " << dec << nElements << " elements from: "
          << endl << "   " << param << endl;
 
@@ -1377,11 +1546,16 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 {
   if (!isValidWritableParam(__func__, pasynUser))  return asynError;
 
-  if (initComplete and !connected)  return asynDisconnected;
+  if (!acceptWrites())  return asynError;
 
   asynStatus  stat = asynSuccess;
   int  paramID = pasynUser->reason;
   ParamInfo &param = params.at(paramID);
+
+  if (ShowBlkWrites())
+    cout << portName << "::" << __func__ << "(): "
+         << endl << "   write " << dec << nElements << " elements to: "
+         << endl << "   " << param << endl;
 
   if (!param.isArrayParam())  return asynError;
 

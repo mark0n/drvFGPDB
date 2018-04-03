@@ -67,6 +67,15 @@ class RequiredParam {
     std::string  def;     //!< string that defines the parameter
 };
 
+/**
+ * @brief Method to use for handling controller and IOC restarts
+ */
+enum class ResendMode {
+  Never,             //!< Old settings NEVER resent after IOC or ctlr restart
+  AfterCtlrRestart,  //!< All settings resent whenever the ctlr restarts
+  AfterIOCRestart    //!< All settings resent whenever IOC restarts
+};
+
 
 /**
  * The main class of the driver.
@@ -84,10 +93,12 @@ class drvFGPDB : public asynPortDriver {
      * @param[in] syncIOWrapper     interface to perform "synchronous" I/O operations
      * @param[in] udpPortName       name of the UPD port to communicate with
      * @param[in] startupDiagFlags  diagnostics flag
+     * @param[in] resendMode        mode to handle ctlr and IOC restarts
      */
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-             const std::string &udpPortName, uint32_t startupDiagFlags);
+             const std::string &udpPortName, uint32_t startupDiagFlags,
+             uint32_t resendMode);
 
     /**
      * @brief Destructor of the driver instance
@@ -250,11 +261,30 @@ class drvFGPDB : public asynPortDriver {
     void checkComStatus(void);
 
     /**
-     * @brief Method to reset all param state values.
-     *        - @b SetStates and @b ReadStates set to @b Undefined
-     *        - @b paramStatus sets to @b asynDisconnected .
+     * @brief Method to reset read state of all param values
+     *        - @b ReadStates set to @b Undefined
+     *        - @b paramStatus set to @b asynDisconnected
      */
-    void resetParamStates(void);
+    void resetReadStates(void);
+    /**
+     * @brief Method to reset set state of all restored/written settings
+     *        - @b setStates for settings changed to @b Pending
+     */
+    void resetSetStates(void);
+    /**
+     * @brief Method to change set state of restored param values
+     *        - @b setStates changed from @b Restored to @b Sent
+     */
+    void clearSetStates(void);
+
+    /**
+     * @brief Method to determine if ctlr restarted since last connected
+     *
+     * @param[in] newUpSecs latest upSecs value
+     */
+    void checkForRestart(uint32_t newUpSecs);
+
+
 
     /**
      * @brief Attempt to gain write access to the ctlr (by setting the sessionID reg)
@@ -262,6 +292,7 @@ class drvFGPDB : public asynPortDriver {
      * @return asynStatus
      */
     asynStatus getWriteAccess(void);
+    asynStatus keepWriteAccess(void);
 
     /**
      * @brief  Method called by the syncComLCP thread to write in the ctrl
@@ -292,6 +323,16 @@ class drvFGPDB : public asynPortDriver {
      */
     bool inDefinedRegRange(uint firstReg, uint numRegs);
 
+
+    /**
+     * @brief Method to determine when to accept/reject new settings
+     *
+     * @return true if write operation should be accepted
+     *         parameter
+     */
+    bool acceptWrites(void) {
+      return ((connected and writeAccess) or !initComplete); }
+
     /**
      * @brief Method to register a new param in the driver
      *
@@ -317,6 +358,7 @@ class drvFGPDB : public asynPortDriver {
      * @return asynStatus
      */
     asynStatus addRequiredParams(void);
+    asynStatus verifyReqParams(void) const;
 
     /**
      * @brief Method that calls syncIO interface to perform the action
@@ -335,12 +377,10 @@ class drvFGPDB : public asynPortDriver {
      *
      * @param[in]  pComPort         UDP port to communicate with
      * @param[out] respBuf          vector that stores the response to the action performed in the ctlr
-     * @param[in]  expectedRespSize expected size of the response (in bytes)
-     *
-     * @return asynStatus
+
+     * @return # bytes read or -1 if an error
      */
-    asynStatus readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf,
-                        size_t expectedRespSize);
+    int  readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf);
 
     /**
      * @brief Method that takes care of all the actions performed to the ctlr.
@@ -604,15 +644,15 @@ class drvFGPDB : public asynPortDriver {
 
     bool  unfinishedArrayRWs;        //!< read/write array in proccess
     bool  updateRegs;                //!< registers must be updated
+    bool  firstRestartCheck;         //!< 1st time testing for ctlr restart
 
     bool  connected;
-    std::chrono::system_clock::time_point  lastRespTime; //!< time of the last response received from the ctlr
-
+    std::chrono::system_clock::time_point  lastRespTime,   //!< time of the last response received from the ctlr
+                                           lastWriteTime;  //!< time of last write to the ctlr
 
     //=== paramIDs for required parameters ===
     // reg values the ctlr must support
     int idUpSecs;         uint32_t upSecs;          //!< ctlr's number of seconds awake
-                          uint32_t prevUpSecs;      //!< ctlr's previous number of seconds awake when checkingCom
     int idSessionID;      LCP::sessionId sessionID; //!< ctlr's sessionID
 
     //driver-only values
@@ -625,6 +665,10 @@ class drvFGPDB : public asynPortDriver {
     int idAsyncPktsRcvd;  uint32_t asyncPktsRcvd;   //!< TODO: Not being used
 
     int idStateFlags;     uint32_t stateFlags;      //!< TODO: Not being used
+
+    int idCtlrUpSince;    uint32_t ctlrUpSince;     //!< last time ctlr restarted
+
+    ResendMode  resendMode;  //!< mode for determining if/when to resend settings to the ctlr
 
     uint32_t diagFlags;
 
@@ -659,23 +703,33 @@ class drvFGPDB : public asynPortDriver {
      * @note  Driver-Only values:\n
      *        Use addr=0x1 for Read-Only, addr=0x2 for Read/Write.\n
      *        - syncPktID, syncPktsSent, syncPktsRcvd, asyncPktID, asyncPktsSent
-     *          and asyncPktsRcvd
+     *          and asyncPktsRcvd, ctlrUpSince
      */
     const std::list<RequiredParam> requiredParamDefs = {
-       //ptr-to-paramID    drvVal          param name      addr asyn  ctlr
-       { &idUpSecs,        &upSecs,        "upSecs         0x0  Int32 U32"     },
-       { nullptr,          nullptr,        "upMs           0x0  Int32 U32"     },
-       { nullptr,          nullptr,        "writerIP       0x0  Int32 U32"     },
-       { nullptr,          nullptr,        "writerPort     0x0  Int32 U32"     },
-       { &idSessionID,     &sessionID.sId, "sessionID      0x0  Int32 U32"     }, //FIXME: replace drvVal by get/set functions
+       //--- reg values the ctlr must support ---
+       // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
+       //ptr-to-paramID    drvVal          param name     addr asyn-fmt      ctlr-fmt
+       { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32" },
+       { nullptr,          nullptr,        "upMs           0x0 Int32         U32" },
 
-       { &idSyncPktID,     &syncPktID,     "syncPktID      0x1  Int32"         },
-       { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1  Int32"         },
-       { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1  Int32"         },
-       { &idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1  Int32"         },
-       { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1  Int32"         },
-       { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1  Int32"         },
-       { &idStateFlags,    &stateFlags,    "stateFlags     0x1  UInt32Digital" },
+       { nullptr,          nullptr,        "writerIP       0x0 Int32         U32" },
+       { nullptr,          nullptr,        "writerPort     0x0 Int32         U32" },
+
+       { &idSessionID,     &sessionID.sId, "sessionID      0x0 Int32         U32" }, //FIXME: replace drvVal by get/set functions
+
+       //--- driver-only values ---
+       // addr 0x1 == Read-Only, 0x2 = Read/Write
+       { &idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         U32" },
+       { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         U32" },
+       { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         U32" },
+
+       { &idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         U32" },
+       { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         U32" },
+       { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32" },
+
+       { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32" },
+
+       { &idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32" },
      };
 
 };
