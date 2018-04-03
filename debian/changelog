@@ -1,3 +1,26 @@
+drvfgpdb (0.2.0) unstable; urgency=medium
+
+  [ Mark Davis ]
+  * Automatically maintain write access
+  * Automatically resync ctlr to IOC after a com problem Logic to detect and recover from com errors.
+
+  [ Martin Konrad ]
+  * Mark verifyReqParams() as const
+  * Keep write access using empty write packages
+  * Read response to keep-alive package
+
+  [ Mark Davis ]
+  * Smarter resend settings and com problem recovery logic
+  * Resend settings only if controller restarted
+  * Rebased on master
+  * Update Overview/main_page
+  * Minor corrections.
+  * Merge and eliminate duplicate files
+  * Add missing item in state-to-string map.
+  * Configurable mode for ctlr and IOC restarts
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 03 Apr 2018 08:54:56 -0400
+
 drvfgpdb (0.1.0) unstable; urgency=medium
 
   First potentially useful release.
