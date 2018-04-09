@@ -141,9 +141,8 @@ namespace LCP {
    */
   class sessionId {
     std::default_random_engine randGen; //!< Pseudo-random numbers generator
-  public:
-    uint16_t sId;    //!< SessionID. @warning Its use from outside of this class is deprecated
 
+  public:
     /**
      * @brief Constructs the sessionID in the range of [1,65534],
      *        using a random number distribution with a pseudo-random generated seed
@@ -178,6 +177,9 @@ namespace LCP {
      * @return sessionID value
      */
     uint16_t get() const;
+
+  private:
+    uint16_t sId;  //!< current value
   };
 }
 
