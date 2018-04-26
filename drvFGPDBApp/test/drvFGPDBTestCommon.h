@@ -16,7 +16,7 @@ static int testNum = 0; //!< number of the test being executed
 
 const string UDPPortName("FGPDB_com"); //!< name of the UDP port
 
-const uint32_t startupDiagFlags = TestMode_; //!< test mode used in the tests
+const uint32_t startupDiagFlags = 0x0;
 
 /**
  * @brief creates the UDP communication port
