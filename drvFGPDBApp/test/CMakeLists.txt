@@ -1,3 +1,6 @@
+find_package(Boost COMPONENTS filesystem program_options system REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -Wunused -Wshadow")
 include_directories(${GTEST_INCLUDE_DIRS} "${PROJECT_SOURCE_DIR}/drvFGPDBApp/src")
 set(DRVFGPDBTEST_COMPONENTS
@@ -10,7 +13,7 @@ set(DRVFGPDBINTEGRATIONTEST_COMPONENTS
   drvFGPDBIntegrationTests.cpp
 )
 add_executable(drvFGPDBIntegrationTests ${DRVFGPDBINTEGRATIONTEST_COMPONENTS})
-target_link_libraries(drvFGPDBIntegrationTests drvFGPDBShared ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
+target_link_libraries(drvFGPDBIntegrationTests drvFGPDBShared llrfsim ${Boost_LIBRARIES} ${asyn_LIBRARIES} ${EPICS_LIBRARIES} gmock_main)
 
 set(PARAMINFOTEST_COMPONENTS
   ParamInfoTests.cpp

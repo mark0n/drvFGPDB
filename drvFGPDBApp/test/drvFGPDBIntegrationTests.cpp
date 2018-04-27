@@ -15,13 +15,20 @@
 #include "asynOctetSyncIOWrapper.h"
 #include "drvFGPDBTestCommon.h"
 
+#include <lcpsimulatorClass.hpp>
+#include <diagFlagsClass.hpp>
+
+const std::string localIPAddr="0.0.0.0";
+const unsigned short localPort=2005;
 
 //=============================================================================
 class AnFGPDBDriverUsingIOSyncWrapper : public AnFGPDBDriver
 {
 public:
   AnFGPDBDriverUsingIOSyncWrapper() :
-    AnFGPDBDriver(make_shared<asynOctetSyncIOWrapper>())
+    AnFGPDBDriver(make_shared<asynOctetSyncIOWrapper>()),
+    lcpSim_diag(false),
+    lcpSim(localIPAddr,localPort,lcpSim_diag,0)
   {
     testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName,
                                     startupDiagFlags,
@@ -34,6 +41,8 @@ public:
     numDrvParams = testDrv->numParams();
   };
 
+  ~AnFGPDBDriverUsingIOSyncWrapper(){
+  }
   //----------------------------------------
   void initConnection()
   {
@@ -49,7 +58,9 @@ public:
 
     testDrv->startCommunication();
   }
-
+private:
+  diagFlags lcpSim_diag;
+  simulator lcpSim;
 };
 
 /**
@@ -70,7 +81,6 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, readsWithinDefinedRegRange) {
  */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, writesGroupOfSetRegs) {
   addParams();
-
   initConnection();
 
   pasynUser->reason = testParamID_WA;
@@ -124,7 +134,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncWrapper, setsPendingWriteStateForAParam) {
 }
 
 /**
- * @brief Proccess pending writes of params previously set
+ * @brief Process pending writes of params previously set
  */
 TEST_F(AnFGPDBDriverUsingIOSyncWrapper, processesPendingWrites) {
   addParams();
