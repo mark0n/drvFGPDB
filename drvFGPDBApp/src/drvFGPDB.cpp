@@ -151,14 +151,12 @@ void drvFGPDB::syncComLCP()
     auto start_time = chrono::system_clock::now();
     unfinishedArrayRWs = false;
 
-    if (!TestMode())  {
-      if (!writeAccess)  getWriteAccess();  else  keepWriteAccess();
-      updateRegs = (start_time - lastRegUpdateTime >= 200ms);
-      if (updateRegs)  lastRegUpdateTime = chrono::system_clock::now();
-      updateReadValues();  postNewReadValues();
-      processPendingWrites();
-      checkComStatus();
-    }
+    if (!writeAccess)  getWriteAccess();  else  keepWriteAccess();
+    updateRegs = (start_time - lastRegUpdateTime >= 200ms);
+    if (updateRegs)  lastRegUpdateTime = chrono::system_clock::now();
+    updateReadValues();  postNewReadValues();
+    processPendingWrites();
+    checkComStatus();
 
     if (!exitDriver)  {
       auto sleepTime = (unfinishedArrayRWs ? 20ms : 200ms);
@@ -174,8 +172,7 @@ void drvFGPDB::checkComStatus(void)
 
   if (connected)  {
     if (chrono::system_clock::now() - lastRespTime >= 5s)  {
-      if (!TestMode())
-        cout << endl << "*** " << portName << " ctlr offline ***" << endl << endl;
+      cout << endl << "*** " << portName << " ctlr offline ***" << endl << endl;
       resetReadStates();  connected = false;
     }
   }
@@ -189,8 +186,7 @@ void drvFGPDB::checkComStatus(void)
           unreadValues = true;  break; }
     }
     if (!unreadValues)  {
-      if (!TestMode())
-        cout << endl << "=== " << portName << " ctlr online ===" << endl << endl;
+      cout << endl << "=== " << portName << " ctlr online ===" << endl << endl;
       connected = true;
     }
   }
@@ -275,19 +271,17 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
 
   // If ctlr restarted, resend all the settings
   if ((int32_t)(newUpSince - prevUpSince) > 3)  {
-    if (!TestMode())
-      cout << endl << "*** " << portName
-           << " Controller restarted at: " << ctime(&upSince) << "***"
-           << endl << endl;
+    cout << endl << "*** " << portName
+         << " Controller restarted at: " << ctime(&upSince) << "***"
+         << endl << endl;
     if (resendMode == ResendMode::AfterCtlrRestart)  resetSetStates();
   }
   else {
     // ctlr did not restart, so clear set state for all Restored settings
     if (firstRestartCheck)  {
-      if (!TestMode())
-        cout << endl << "=== " << portName
-             << " Controller up since: " << ctime(&upSince) << "==="
-             << endl << endl;
+      cout << endl << "=== " << portName
+           << " Controller up since: " << ctime(&upSince) << "==="
+           << endl << endl;
       clearSetStates();
     }
   }
@@ -746,11 +740,10 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
 asynStatus drvFGPDB::updateReadValues()
 {
   // LCP reg values will normally be read by the async/streaming thread...
-   if (!TestMode() and updateRegs)  {
+   if (updateRegs)  {
     readRegs(0x10000, procGroupSize(ProcGroup_LCP_RO));
     readRegs(0x20000, procGroupSize(ProcGroup_LCP_WA));
   }
-
 
   lock_guard<drvFGPDB> asynLock(*this);
 

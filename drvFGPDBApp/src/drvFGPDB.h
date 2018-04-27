@@ -44,7 +44,6 @@ const uint32_t  ForSyncThread_  = 0x00000400; //!< Show SyncThread info         
 const uint32_t  ForAsyncThread_ = 0x00000800; //!< Show AsyncThread info                 @warning TODO: Not currently used
 
 const uint32_t  ShowInit_       = 0x00001000; //!< Show driver initialization info
-const uint32_t  TestMode_       = 0x00002000; //!< Disable reads/writes in thread body
 const uint32_t  DebugTrace_     = 0x00004000; //!< Show debugging trace                  @warning TODO: Not currently used
 const uint32_t  DisableStreams_ = 0x00008000; //!< Disable streams                       @warning TODO: Not currently used
 
@@ -688,7 +687,6 @@ class drvFGPDB : public asynPortDriver {
     bool ForAsyncThread() const  { return diagFlags & ForAsyncThread_; } //!< true if ForAsyncThread_ enabled
 
     bool ShowInit() const        { return diagFlags & ShowInit_;       } //!< true if ShowInit_ enabled
-    bool TestMode() const        { return diagFlags & TestMode_;       } //!< true if TestMode_ enabled
     bool DebugTrace() const      { return diagFlags & DebugTrace_;     } //!< true if DebugTrace_ enabled
 //  bool DisableStreams()   { return (diagFlags & _DisableStreams_)
 //                                                 or readOnlyMode; }
