@@ -162,14 +162,11 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 
   if (stat) {
     logMsgHdr("\n");
-    cout << "  asyn driver for: " << drvPortName
-         << " unable to connect to asyn UDP port: " << udpPortName
+    cout << "***  asyn driver for: " << drvPortName
+         << " unable to connect to asyn UDP port: " << udpPortName << " ***"
          << endl << endl;
     throw invalid_argument("Invalid asyn UDP port name");
   }
-
-//  cout << "  asyn driver for: " << drvPortName
-//       << " connected to asyn UDP port: " << udpPortName << endl;
 }
 
 //-----------------------------------------------------------------------------
@@ -1123,7 +1120,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   if (ShowRegReads())  {
     logMsgHdr("\n");
-    cout << "  === " << portName << ": readRegs(0x" << hex << firstReg
+    cout << "=== " << portName << ": readRegs(0x" << hex << firstReg
          << ", " << dec << numRegs << ")" << endl;
   }
 
@@ -1187,7 +1184,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   if (ShowRegWrites())  {
     logMsgHdr("\n");
-    cout << "  === " << portName << ":" << "writeRegs(0x" << hex << firstReg
+    cout << "=== " << portName << ":" << "writeRegs(0x" << hex << firstReg
          << ", " << dec << numRegs << ")" << endl;
   }
 
@@ -1266,7 +1263,7 @@ asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
 {
   if (ShowInit())  {
     logMsgHdr("\n");
-    cout << "  === " << typeid(this).name() << "::"
+    cout << "=== " << typeid(this).name() << "::"
          << __func__ << "()  [" << portName << "]: "
          << " list:" << dec << list;
     if (validParamID(index))  { cout << " " << params.at(index).name; }
@@ -1280,7 +1277,7 @@ asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
 {
   if (ShowInit())  {
     logMsgHdr("\n");
-    cout << "  === " << typeid(this).name() << "::"
+    cout << "=== " << typeid(this).name() << "::"
          << __func__ << "()  [" << portName << "]: "
          << " list:" << dec << list;
     if (validParamID(index))  { cout << " " << params.at(index).name; }
@@ -1295,7 +1292,7 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
 {
   if (ShowInit())  {
     logMsgHdr("\n");
-    cout << "  === " << typeid(this).name() << "::"
+    cout << "=== " << typeid(this).name() << "::"
          << __func__ << "()  [" << portName << "]: "
          << " list:" << dec << list;
     if (validParamID(index))  { cout << " " << params.at(index).name; }
@@ -1629,11 +1626,11 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   // If not replacing all the bytes in the block, then read the existing
   // contents of the block to be modified.
   if (param.rwCount != param.blockSize)
-  if (readBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf))  {
-    printf("*** error reading block %u ***\r\n", param.blockNum);
-    perror("readBlock()");  /*rwSockMutex->unlock();*/
-    return asynError;
-  }
+    if (readBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf))  {
+      printf("*** error reading block %u ***\r\n", param.blockNum);
+      perror("readBlock()");  /*rwSockMutex->unlock();*/
+      return asynError;
+    }
 
   // If required, 1st erase the next block to be written to
   if (param.eraseReq)
@@ -1842,27 +1839,11 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
   int  paramID = pasynUser->reason;
   ParamInfo &param = params.at(paramID);
 
-  if (ShowBlkWrites())  {
-    logMsgHdr("\n");
-    cout << portName << "::" << __func__ << "(): "
-         << endl << "   write " << dec << nElements << " elements to: "
-         << endl << "   " << param << endl;
-  }
-
   if (!isValidWritableParam(__func__, pasynUser))  return asynError;
-
-  if (ShowBlkWrites())  {
-    logMsgHdr("\n");
-    cout << portName << "::" << __func__ << "(): "
-         << endl << "   write " << dec << nElements << " elements to: "
-         << endl << "   " << param << endl;
-  }
 
   if (!acceptWrites())  return asynError;
 
   asynStatus  stat = asynSuccess;
-//  int  paramID = pasynUser->reason;
-  //ParamInfo &param = params.at(paramID);
 
   if (ShowBlkWrites())  {
     logMsgHdr("\n");

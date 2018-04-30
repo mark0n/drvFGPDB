@@ -28,6 +28,10 @@ static constexpr double  DontReschedule = -1.0;  //!< Sleep until restarted/trig
   In particular, the value specified by a concurrent call to the start()
   function should effectively override the value returned by the expired()
   function (since it will always be applied AFTER expire() completes).
+
+  Unfortunately, it also means that any thread that reschedules a timer will
+  be blocked if the expire() function is running in (or is about to be called
+  by) the timer queue thread.
 */
 
 //----------------------------------------------------------------------------
