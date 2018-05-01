@@ -1076,16 +1076,15 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     writeAccess = (respSessionID == sessionID.get());
 
     if (prevWriteAccess != writeAccess)  {
+      setStateFlags(eStateFlags::WriteAccess, writeAccess);
       logMsgHdr("\n");
       if (writeAccess)
         cout << "=== " << portName << " now has write access ===" << endl;
       else
         cout << "*** " << portName << " lost write access ***" << endl;
     }
-
     return asynSuccess;
   }
-
   return asynError;
 }
 
@@ -1132,7 +1131,6 @@ asynStatus drvFGPDB::setAsynParamVal(int paramID)
   ParamInfo &param = params.at(paramID);
   asynStatus stat = asynError;
   double dval;
-
 
   switch (param.getAsynType())  {
 
@@ -1214,6 +1212,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
     if (!validParamID(paramID))  continue;
 
     ParamInfo &param = params.at(paramID);
+
     if ((justReadVal == param.ctlrValRead)
       and (param.readState == ReadState::Current))  continue;
 
@@ -1932,5 +1931,10 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
   return stat;
 }
 
+void drvFGPDB::setStateFlags(eStateFlags bitPos, bool value){
+  std::bitset<32> setVal(stateFlags);
+  setVal.set(static_cast<size_t>(bitPos), value);
+  stateFlags = setVal.to_ulong();
+}
 //-----------------------------------------------------------------------------
 
