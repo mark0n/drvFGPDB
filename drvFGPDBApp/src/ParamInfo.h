@@ -54,10 +54,25 @@ enum class ReadState {
  * that are linked to these parameters.
  */
 class ParamInfo {
+    uint           regAddr;     //!< LCP reg addr or driver param group
+
+    asynParamType  asynType;    //!< Format used by asyn interface
+
+    // properties for pmem (array) parameters
+    uint           chipNum;     //!< ID for persistent memory chip
+    ulong          blockSize;   //!< Size to use in PMEM r/w cmds
+    bool           eraseReq;    //!< Is erasing a block reqd before writing to it?
+    ulong          offset;      //!< Offset from start of chips memory
+    ulong          length;      //!< Number of bytes that make up logical entity
   public:
     ParamInfo() :
       regAddr(0),
       asynType(asynParamNotDefined),
+      chipNum(0),
+      blockSize(0),
+      eraseReq(false),
+      offset(0),
+      length(0),
       ctlrFmt(CtlrDataFmt::NotDefined),
       readOnly(true),
       ctlrValSet(0),
@@ -65,11 +80,6 @@ class ParamInfo {
       ctlrValRead(0),
       readState(ReadState::Undefined),
       drvValue(nullptr),
-      chipNum(0),
-      blockSize(0),
-      eraseReq(false),
-      offset(0),
-      length(0),
       statusParamID(-1),
       rwOffset(0),
       blockNum(0),
@@ -229,9 +239,9 @@ class ParamInfo {
 
     std::string    name;        //!< Name of the parameter
 
-    uint           regAddr;     //!< LCP reg addr or driver param group
+    uint getRegAddr() const { return regAddr; }
 
-    asynParamType  asynType;    //!< Format used by asyn interface
+    asynParamType getAsynType() const { return asynType; };
     CtlrDataFmt    ctlrFmt;     //!< Format of run-time value in ctlr or driver
 
     bool           readOnly;    //!< Clients cannot write to the value
@@ -248,11 +258,9 @@ class ParamInfo {
     std::vector<uint8_t> arrayValSet;   //!< Array to write to ctlr
     std::vector<uint8_t> arrayValRead;  //!< Most recently read array from ctlr
 
-    uint           chipNum;     //!< ID for persistent memory chip
-    ulong          blockSize;   //!< Size to use in PMEM r/w cmds
-    bool           eraseReq;    //!< Is erasing a block reqd before writing to it?
-    ulong          offset;      //!< Offset from start of chips memory
-    ulong          length;      //!< Number of bytes that make up logical entity
+    uint  getChipNum()   const { return chipNum;   }
+    ulong getBlockSize() const { return blockSize; }
+    bool  getEraseReq()  const { return eraseReq;  }
 
     std::string    statusParamName; //!< Name of the status param associated to an PMEM param
     int            statusParamID;   //!< ID of the status param
