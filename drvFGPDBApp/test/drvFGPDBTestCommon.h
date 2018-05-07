@@ -98,10 +98,7 @@ public:
 
     // Set addr for required RO regs already added by driver
     addParam("upSecs 0x10005 Int32 U32");
-    addParam("upMs 0x10006 Int32 U32");
-    addParam("writerIP 0x10007 Int32 U32");
-    addParam("writerPort 0x10008 Int32 U32");
-    RO_groupSize = 0x0009u;
+    RO_groupSize = 0x0006u;
 
     id = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams+2));

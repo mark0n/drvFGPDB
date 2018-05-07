@@ -739,10 +739,6 @@ asynStatus drvFGPDB::addRequiredParams(void)
     // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
     //ptr-to-paramID    drvVal          param name     addr asyn-fmt      ctlr-fmt
     { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32" },
-    { nullptr,          nullptr,        "upMs           0x0 Int32         U32" },
-
-    { nullptr,          nullptr,        "writerIP       0x0 Int32         U32" },
-    { nullptr,          nullptr,        "writerPort     0x0 Int32         U32" },
 
     { &idSessionID,     nullptr,        "sessionID      0x0 Int32         U32" },
 
