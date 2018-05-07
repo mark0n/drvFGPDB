@@ -717,7 +717,7 @@ asynStatus drvFGPDB::addRequiredParams(void)
   class RequiredParam {
     public:
       int         *id;      //!< address of int value to save the paramID
-      void        *drvVal;  //!< value for driver-only params
+      uint32_t    *drvVal;  //!< value for driver-only params
       std::string  def;     //!< string that defines the parameter
   };
 
@@ -766,7 +766,7 @@ asynStatus drvFGPDB::addRequiredParams(void)
     if (paramDef.id)  *paramDef.id = paramID;
     if (paramDef.drvVal)  {
       ParamInfo &param = params.at(paramID);
-      param.drvValue = (uint32_t *)paramDef.drvVal;
+      param.drvValue = paramDef.drvVal;
     }
   }
 
