@@ -716,7 +716,7 @@ asynStatus drvFGPDB::addRequiredParams(void)
   */
   class RequiredParam {
     public:
-      int         *id;      //!< address of int value to save the paramID
+      int&         id;      //!< address of int value to save the paramID
       uint32_t    *drvVal;  //!< value for driver-only params
       std::string  def;     //!< string that defines the parameter
   };
@@ -737,33 +737,33 @@ asynStatus drvFGPDB::addRequiredParams(void)
   const std::list<RequiredParam> requiredParamDefs = {
     //--- reg values the ctlr must support ---
     // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
-    //ptr-to-paramID    drvVal          param name     addr asyn-fmt      ctlr-fmt
-    { &idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32" },
+    //ptr-to-paramID   drvVal          param name     addr asyn-fmt      ctlr-fmt
+    { idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32" },
 
-    { &idSessionID,     nullptr,        "sessionID      0x0 Int32         U32" },
+    { idSessionID,     nullptr,        "sessionID      0x0 Int32         U32" },
 
     //--- driver-only values ---
     // addr 0x1 == Read-Only, 0x2 = Read/Write
-    { &idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         U32" },
-    { &idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         U32" },
-    { &idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         U32" },
+    { idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         U32" },
+    { idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         U32" },
+    { idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         U32" },
 
-    { &idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         U32" },
-    { &idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         U32" },
-    { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32" },
+    { idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         U32" },
+    { idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         U32" },
+    { idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32" },
 
-    { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32" },
+    { idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32" },
 
-    { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital U32" },
+    { idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital U32" },
 
-    { &idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32" },
+    { idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32" },
  };
 
   for (auto const &paramDef : requiredParamDefs)  {
     int paramID = processParamDef(paramDef.def);
     if (paramID < 0)  {
       stat = asynError;  continue; }
-    if (paramDef.id)  *paramDef.id = paramID;
+    paramDef.id = paramID;
     if (paramDef.drvVal)  {
       ParamInfo &param = params.at(paramID);
       param.drvValue = paramDef.drvVal;
