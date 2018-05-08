@@ -335,12 +335,6 @@ class drvFGPDB : public asynPortDriver {
   private:
 #endif
     /**
-     * @brief Task run in a separate thread to manage synchronous communication with a
-     *        controller that supports LCP.
-     */
-    void syncComLCP(void);
-
-    /**
      * @brief Method to reset read state of all param values
      *        - @b ReadStates set to @b Undefined
      *        - @b paramStatus set to @b asynDisconnected
