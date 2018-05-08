@@ -173,7 +173,16 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
 drvFGPDB::~drvFGPDB()
 {
   exitDriver = true;
-  //ToDo:  destroy all the eventTimers (?)
+
+  writeAccessTimer.destroy();
+  scalarReadsTimer.destroy();
+  scalarWritesTimer.destroy();
+  arrayReadsTimer.destroy();
+  arrayWritesTimer.destroy();
+  postNewReadingsTimer.destroy();
+  comStatusTimer.destroy();
+
+  timerQueue.release();
 
   syncIO->disconnect(pAsynUserUDP);
 }

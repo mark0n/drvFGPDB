@@ -56,7 +56,16 @@ class eventTimer : public epicsTimerNotify
         timer(queue.createTimer())
         { }
 
-    virtual ~eventTimer()  { timer.destroy(); }
+    virtual ~eventTimer()  { };
+
+
+    /**
+     * @brief Method to cancel and free all resources used by the timer. Note
+     *        that this will block if the timer's expire callback is running
+     *        (or is about to be called).  This needs to be called for each
+     *        timer using a queue before releasing the queue.
+     */
+    void destroy(void)  { timer.destroy(); }
 
     /**
      * @brief Method to activate an inactive/idle timer using its default
