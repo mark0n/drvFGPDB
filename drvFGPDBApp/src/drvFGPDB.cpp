@@ -96,20 +96,20 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
                    AsynFlags, AutoConnect, Priority, StackSize),
     timerQueue(epicsTimerQueueActive::allocate(false, TimerThreadPriority)),
-    writeAccessTimer(
-            eventTimer((void *)this, keepWriteAccess_,     2.000, timerQueue)),
-    scalarReadsTimer(
-            eventTimer((void *)this, processScalarReads_,  0.200, timerQueue)),
-    scalarWritesTimer(
-            eventTimer((void *)this, processScalarWrites_, 0.200, timerQueue)),
-    arrayReadsTimer(
-            eventTimer((void *)this, processArrayReads_,   0.020, timerQueue)),
-    arrayWritesTimer(
-            eventTimer((void *)this, processArrayWrites_,  0.020, timerQueue)),
-    postNewReadingsTimer(
-            eventTimer((void *)this, postNewReadings_,     0.200, timerQueue)),
-    comStatusTimer(
-            eventTimer((void *)this, checkComStatus_,      1.000, timerQueue)),
+    writeAccessTimer(eventTimer(bind(&drvFGPDB::keepWriteAccess, this),
+                                2.000, timerQueue)),
+    scalarReadsTimer(eventTimer(bind(&drvFGPDB::processScalarReads, this),
+                                0.200, timerQueue)),
+    scalarWritesTimer(eventTimer(bind(&drvFGPDB::processScalarWrites, this),
+                                 0.200, timerQueue)),
+    arrayReadsTimer(eventTimer(bind(&drvFGPDB::processArrayReads, this),
+                               0.020, timerQueue)),
+    arrayWritesTimer(eventTimer(bind(&drvFGPDB::processArrayWrites, this),
+                                0.020, timerQueue)),
+    postNewReadingsTimer(eventTimer(bind(&drvFGPDB::postNewReadings, this),
+                                    0.200, timerQueue)),
+    comStatusTimer(eventTimer(bind(&drvFGPDB::checkComStatus, this),
+                              1.000, timerQueue)),
     callback_thread_id(0),
     syncIO(syncIOWrapper),
     initComplete(false),

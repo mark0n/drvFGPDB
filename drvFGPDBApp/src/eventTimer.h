@@ -43,15 +43,13 @@ class eventTimer : public epicsTimerNotify
      * @brief Constructor for a event timer object that does a callback to a
      *        specified function after a specified interval of time passes.
      *
-     * @param[in] timerUserObj   context passed to the callback func
-     * @param[in] callbackFunc   func to be called at end of interval
-     * @param[in] defalutDelay   default interval between callbacks
+     * @param[in] handlerFunc    func to be called at end of interval
+     * @param[in] defaultDelay   default interval between callbacks
      * @param[in] queue          epicsTimerQueue that manages the timer
      */
-    eventTimer(void *timerUserObj, eventTimerFunc callbackFunc,
-               double defaultDelay, epicsTimerQueueActive &queue) :
-        forObj(timerUserObj),
-        eventFunc(callbackFunc),
+    eventTimer(std::function<double()> handlerFunc, double defaultDelay,
+               epicsTimerQueueActive &queue) :
+        m_handlerFunc(handlerFunc),
         normDelay(defaultDelay),
         timer(queue.createTimer())
         { }
@@ -125,8 +123,7 @@ class eventTimer : public epicsTimerNotify
      *         another callback.
      */
     virtual expireStatus expire(const epicsTime & currentTime)  {
-      // NOTE:  All attempts at using std_invoke() failed...
-      double newDelay = (*eventFunc)(forObj);
+      double newDelay = m_handlerFunc();
       if (newDelay < 0.0)  return expireStatus(epicsTimerNotify::noRestart);
       if (newDelay == DefaultInterval)
         return expireStatus(epicsTimerNotify::restart, normDelay);
@@ -134,8 +131,7 @@ class eventTimer : public epicsTimerNotify
     }
 
   private:
-    void *forObj;               //!< context for timer (usually ptr to an object)
-    eventTimerFunc  eventFunc;  //!< func to call each time timer expires
+    std::function<double()> m_handlerFunc; //!< func to call each time timer expires
     const double  normDelay;    //!< The default interval between callbacks
     epicsTimer  &timer;         //!< EPICS libCom timer object
 };
