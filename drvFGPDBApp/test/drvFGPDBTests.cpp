@@ -158,7 +158,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.getRegAddr(),  Eq(0x10001u));
   ASSERT_THAT(param.getAsynType(), Eq(asynParamInt32));
-  ASSERT_THAT(param.ctlrFmt,  Eq(CtlrDataFmt::U32));
+  ASSERT_THAT(param.getCtlrFmt(),  Eq(CtlrDataFmt::U32));
 }
 
 //-----------------------------------------------------------------------------

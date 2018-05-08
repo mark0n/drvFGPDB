@@ -50,7 +50,8 @@ static string NotDefined("<NotDefined>");
 //    OR
 //  name addr chipID blockSize eraseReq offset len statusName
 //-----------------------------------------------------------------------------
-ParamInfo::ParamInfo(const string& paramStr, const string& portName)
+ParamInfo::ParamInfo(const string& paramStr, const string& portName,
+                     bool readOnly)
          : ParamInfo()
 {
   stringstream paramStream(paramStr);
@@ -70,6 +71,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     arrayValRead.assign(length, 0);
     initBlockRW(arrayValRead.size());
     readState = ReadState::Update;
+    m_readOnly = readOnly;
     return;
   }
 
