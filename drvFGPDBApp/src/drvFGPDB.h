@@ -12,19 +12,21 @@
  *            - 2017-01-24/2017-xx-xx: initial development of completely new version
  */
 
-#include <map>
 #include <string>
 #include <vector>
 #include <list>
 #include <memory>
 #include <thread>
 #include <atomic>
+#include <chrono>
 
 #include <asynPortDriver.h>
 
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
 #include "LCPProtocol.h"
+#include "eventTimer.h"
+
 
 // Bit usage for diagFlags parameter
 
@@ -47,6 +49,8 @@ const uint32_t  ShowInit_       = 0x00001000; //!< Show driver initialization in
 const uint32_t  DebugTrace_     = 0x00004000; //!< Show debugging trace                  @warning TODO: Not currently used
 const uint32_t  DisableStreams_ = 0x00008000; //!< Disable streams                       @warning TODO: Not currently used
 
+const uint32_t  ShowCallbacks_  = 0x00010000; //!< Show eventTimer callbacks
+
 
 /**
  * @brief Stores the IDs of all registered params from one processing group.
@@ -67,12 +71,12 @@ class RequiredParam {
 };
 
 /**
- * @brief Method to use for handling controller and IOC restarts
+ * @brief How controller and IOC restarts should be handled
  */
 enum class ResendMode {
-  Never,             //!< Old settings NEVER resent after IOC or ctlr restart
   AfterCtlrRestart,  //!< All settings resent whenever the ctlr restarts
-  AfterIOCRestart    //!< All settings resent whenever IOC restarts
+  AfterIOCRestart,   //!< All settings resent whenever IOC restarts
+  Never              //!< Old settings NEVER resent after IOC or ctlr restart
 };
 
 
@@ -229,13 +233,19 @@ class drvFGPDB : public asynPortDriver {
     uint numParams(void) const { return params.size(); }
 
     /**
-     * @brief Method to set new error after posting a new read value
+     * @brief Method to update status value if no previous error
      *
      * @param[out] curStat state to be updated.
-     * @param[in]  newStat new state
+     * @param[in]  newStat new state if curStat not already an error value
      */
     static void setIfNewError(asynStatus &curStat, asynStatus newStat)
                   { if (curStat == asynSuccess)  curStat = newStat; }
+
+    /**
+     * @brief Method to check ID of thread that did a callback to make sure
+     *        they always come from the same thread.
+     */
+    void checkCallbackThread(const std::string &funcName);
 
     /**
      * @brief Method to update the diagnostic flag at runtime
@@ -248,17 +258,6 @@ class drvFGPDB : public asynPortDriver {
 #ifndef TEST_DRVFGPDB
   private:
 #endif
-    /**
-     * @brief Task run in a separate thread to manage synchronous communication with a
-     *        controller that supports LCP.
-     */
-    void syncComLCP(void);
-
-    /**
-     * @brief Method to check if the ctlr is connected, disconnected or was rebooted
-     */
-    void checkComStatus(void);
-
     /**
      * @brief Method to reset read state of all param values
      *        - @b ReadStates set to @b Undefined
@@ -275,6 +274,10 @@ class drvFGPDB : public asynPortDriver {
      *        - @b setStates changed from @b Restored to @b Sent
      */
     void clearSetStates(void);
+    /**
+     * @brief Method to abort any Pending/incomplete array write operations
+     */
+    void cancelArrayWrites(void);
 
     /**
      * @brief Method to determine if ctlr restarted since last connected
@@ -291,15 +294,71 @@ class drvFGPDB : public asynPortDriver {
      * @return asynStatus
      */
     asynStatus getWriteAccess(void);
-    asynStatus keepWriteAccess(void);
 
     /**
-     * @brief  Method called by the syncComLCP thread to write in the ctrl
-     *         all parameters whose SetState is "Pending"
+     * @brief Event-timer callback func to maintain write access
      *
-     * @return Number of successful writes performed
+     * @return > 0: Use returned time until next callback
+     *           0: Use Default time until next callback
+     *         < 0: Sleep unless/until woken up
      */
-    int processPendingWrites(void);
+    double keepWriteAccess(void);
+
+    /**
+     * @brief Event-timer callback func to update scalar readings
+     *
+     * @return > 0: Use returned time until next callback
+     *           0: Use Default time until next callback
+     *         < 0: Sleep unless/until woken up
+     */
+    double processScalarReads(void);
+
+    /**
+     * @brief Event-timer callback func to process pending writes to scalar
+     *        values
+     *
+     * @return > 0: Use returned time until next callback
+     *           0: Use Default time until next callback
+     *         < 0: Sleep unless/until woken up
+     */
+    double processScalarWrites(void);
+
+    /**
+     * @brief Event-timer callback func to process pending/ongoing reads of
+     *        array values
+     *
+     * @return > 0: Use returned time until next callback
+     *           0: Use Default time until next callback
+     *         < 0: Sleep unless/until woken up
+     */
+    double processArrayReads(void);
+
+    /**
+     * @brief Event-timer callback func to process pending/ongoing writes to
+     *        array values
+     *
+     * @return > 0: Use returned time until next callback
+     *           0: Use Default time until next callback
+     *         < 0: Sleep unless/until woken up
+     */
+    double processArrayWrites(void);
+
+    /*
+     * @brief Event-timer callback func to post any changes to the readings
+     *
+     * @return asynStatus
+     */
+    double postNewReadings(void);
+
+    /**
+     * @brief Event-timer callback func to check if the ctlr is connected,
+     *        disconnected or was rebooted
+     *
+     * @return > 0: Use returned time until next callback
+     *           0: Use Default time until next callback
+     *         < 0: Sleep unless/until woken up
+     */
+    double checkComStatus(void);
 
     /**
      * @brief Check if a given param is a valid param
@@ -419,29 +478,22 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
 
     /**
-     * @brief Method that takes care of updating the new read value to
-     *        the asynDriver layer
+     * @brief Method that updates the state of the specified asyn param
      *
      * @param[in] paramID ID of the param to update
      *
      * @return asynStatus
      */
-    asynStatus postNewReadVal(int paramID);
+    asynStatus setAsynParamVal(int paramID);
 
     /*
-     * @brief Update the read state and value for ParamInfo objects
+     * @brief Method that reads the lastest scalar values (from the controller
+     *        and local driver variables) and updates the read state of the
+     *        corresponding ParamInfo objects
      *
      * @return asynStatus
      */
-    asynStatus updateReadValues();
-
-    /*
-     * @brief Method that takes care of updating the readState of a param
-     *        if its value has been updated in the asynDriver layer
-     *
-     * @return asynStatus
-     */
-    asynStatus postNewReadValues();
+    asynStatus updateScalarReadValues();
 
     /**
      * @brief Method to search a given param
@@ -566,6 +618,14 @@ class drvFGPDB : public asynPortDriver {
     asynStatus writeNextBlock(ParamInfo &param);
 
     /**
+     * @brief Method that initializes array parameter for readback operation
+     *        and insures the readback event timer is active.
+     *
+     * @param[in] param parameter for the array value to be read
+     */
+    void initArrayReadback(ParamInfo &param);
+
+    /**
      * @brief Method that sets the status param value to the percentage done
      *        for the current read or write operation for the array.
      *
@@ -592,7 +652,8 @@ class drvFGPDB : public asynPortDriver {
                                      asynFloat64ArrayMask | asynOctetMask;
                                      //!< Asyn Interfaces that can generate interrupts
 
-    static const int AsynFlags = 0;   /*!< Flags when creating the asyn port driver;
+    static const int AsynFlags = ASYN_CANBLOCK;
+                                      /*!< Flags when creating the asyn port driver;
                                        *   includes ASYN_CANBLOCK and ASYN_MULTIDEVICE.\n
                                        *   This driver does not block and it is not multi-device
                                        */
@@ -603,6 +664,19 @@ class drvFGPDB : public asynPortDriver {
     static const int StackSize = 0;   /*!< The stack size for the asyn port driver thread if ASYN_CANBLOCK.\n
                                        *   0 -> epicsThreadStackMedium (default value)
                                        */
+    static const uint  TimerThreadPriority = epicsThreadPriorityMedium;
+
+    epicsTimerQueueActive  &timerQueue;  //<! queue used by timer thread to manage our timer events
+
+    eventTimer  writeAccessTimer;     //<! To manage writeAccess keep-alives
+    eventTimer  scalarReadsTimer;     //<! To periodically update scalar readings
+    eventTimer  scalarWritesTimer;    //<! To process pending writes to scalar values
+    eventTimer  arrayReadsTimer;      //<! To process pending reads of array values
+    eventTimer  arrayWritesTimer;     //<! To process pending writes to array values
+    eventTimer  postNewReadingsTimer; //<! To post the latest readings
+    eventTimer  comStatusTimer;       //<! To periodically update status of connection
+
+    std::thread::id callback_thread_id;
 
 
     std::shared_ptr<asynOctetSyncIOInterface> syncIO; //!< interface to perform "synchronous" I/O operations
@@ -637,11 +711,10 @@ class drvFGPDB : public asynPortDriver {
     std::atomic<bool> initComplete;  //!< initialization has finished
     std::atomic<bool> exitDriver;    //!< exit the driver. Set to true by epicsAtExit registered function
 
-    std::thread syncThread;          //!< std thread that executes the syncComLCP's body function
-
     std::atomic<bool> writeAccess;   //!< the driver has write access to the ctlr
 
-    bool  unfinishedArrayRWs;        //!< read/write array in proccess
+    bool  arrayWritesInProgress;     //!< actively writing array values
+    bool  arrayReadsInProgress;      //!< actively reading array values
     bool  updateRegs;                //!< registers must be updated
     bool  firstRestartCheck;         //!< 1st time testing for ctlr restart
 
@@ -669,7 +742,7 @@ class drvFGPDB : public asynPortDriver {
 
     ResendMode  resendMode;  //!< mode for determining if/when to resend settings to the ctlr
 
-    uint32_t diagFlags;
+    int  idDiagFlags;     uint32_t diagFlags;
 
     bool ShowPackets() const     { return diagFlags & ShowPackets_;    } //!< true if ShowPackets_ enabled
     bool ShowContents() const    { return diagFlags & ShowContents_;   } //!< true if ShowContents_ enabled
@@ -690,6 +763,10 @@ class drvFGPDB : public asynPortDriver {
     bool DebugTrace() const      { return diagFlags & DebugTrace_;     } //!< true if DebugTrace_ enabled
 //  bool DisableStreams()   { return (diagFlags & _DisableStreams_)
 //                                                 or readOnlyMode; }
+
+    bool ShowCallbacks() const   { return diagFlags & ShowCallbacks_;  } //!< true if ShowCallbacks_ enabled
+
+
     /**
      * @brief List that includes all parameters required by the driver.
      *
@@ -713,7 +790,7 @@ class drvFGPDB : public asynPortDriver {
        { nullptr,          nullptr,        "writerIP       0x0 Int32         U32" },
        { nullptr,          nullptr,        "writerPort     0x0 Int32         U32" },
 
-       { &idSessionID,     &sessionID.sId, "sessionID      0x0 Int32         U32" }, //FIXME: replace drvVal by get/set functions
+       { &idSessionID,     nullptr,        "sessionID      0x0 Int32         U32" }, //FIXME: replace drvVal by get/set functions
 
        //--- driver-only values ---
        // addr 0x1 == Read-Only, 0x2 = Read/Write
@@ -726,6 +803,8 @@ class drvFGPDB : public asynPortDriver {
        { &idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32" },
 
        { &idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32" },
+
+       { &idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital U32" },
 
        { &idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32" },
      };

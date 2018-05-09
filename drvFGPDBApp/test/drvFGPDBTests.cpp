@@ -94,14 +94,6 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canBeConstructedWithoutAnyErrors) {
 
 //-----------------------------------------------------------------------------
 /**
- * @brief Thread object identifies an active thread of execution
- */
-TEST_F(AnFGPDBDriverUsingIOSyncMock, launchesSyncComThread) {
-  ASSERT_THAT(testDrv->syncThread.joinable(), Eq(true));
-}
-
-//-----------------------------------------------------------------------------
-/**
  * @brief Driver instance has params registered
  */
 TEST_F(AnFGPDBDriverUsingIOSyncMock, newDriverInstanceContainsDriverParams) {
