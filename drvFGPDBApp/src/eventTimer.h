@@ -54,9 +54,6 @@ class eventTimer : public epicsTimerNotify
         timer(queue.createTimer())
         { }
 
-    virtual ~eventTimer()  { };
-
-
     /**
      * @brief Method to cancel and free all resources used by the timer. Note
      *        that this will block if the timer's expire callback is running

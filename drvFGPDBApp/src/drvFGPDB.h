@@ -12,13 +12,13 @@
  *            - 2017-01-24/2017-xx-xx: initial development of completely new version
  */
 
-#include <map>
 #include <string>
 #include <vector>
 #include <list>
 #include <memory>
 #include <thread>
 #include <atomic>
+#include <chrono>
 
 #include <asynPortDriver.h>
 
