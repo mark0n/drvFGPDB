@@ -664,7 +664,8 @@ double drvFGPDB::keepWriteAccess(void)
 {
   checkCallbackThread(__func__);
 
-  if (exitDriver or !connected)  return asynError;
+  if (exitDriver)  return DontReschedule;
+  if (!connected)  return DefaultInterval;
 
   lock_guard<drvFGPDB> asynlock(*this);
 
