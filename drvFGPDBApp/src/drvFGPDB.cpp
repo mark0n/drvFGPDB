@@ -153,9 +153,6 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     throw invalid_argument("Invalid Req Params config");
   }
 
-  params.at(idUpSecs).readOnly = true;
-  params.at(idSessionID).readOnly = true;
-
   // Create a pAsynUser and connect it to the asyn port that was created by
   // the startup script for communicating with the LCP controller
   auto stat = syncIO->connect(udpPortName.c_str(), 0, &pAsynUserUDP, nullptr);
@@ -281,9 +278,9 @@ double drvFGPDB::processScalarWrites(void)
     if (setState != SetState::Pending)  continue;
 
     // LCP reg param: Write new setting to the controller
-    if (LCPUtil::isLCPRegParam(param.regAddr))  {
+    if (LCPUtil::isLCPRegParam(param.getRegAddr()))  {
       if (!connected or !writeAccess)  continue;
-      if (writeRegs(param.regAddr, 1) != asynSuccess)
+      if (writeRegs(param.getRegAddr(), 1) != asynSuccess)
         writeErrors = true;
       else if (param.drvValue)  {  // also update local var if one specified
         lock_guard<drvFGPDB> asynLock(*this);
@@ -476,7 +473,7 @@ double drvFGPDB::checkComStatus(void)
   else  {
     bool  unreadValues = false;
     for (auto &param : params)  {
-      auto groupID = LCPUtil::addrGroupID(param.regAddr);
+      auto groupID = LCPUtil::addrGroupID(param.getRegAddr());
       if ((groupID == ProcGroup_LCP_RO) or (groupID == ProcGroup_LCP_WA))
         if (param.readState != ReadState::Current)  {
           unreadValues = true;  break; }
@@ -514,7 +511,7 @@ void drvFGPDB::resetReadStates(void)
     setParamStatus(paramID, asynDisconnected);
 
     // required to get status change to process for an array param
-    if (param.asynType == asynParamInt8Array)
+    if (param.getAsynType() == asynParamInt8Array)
        doCallbacksInt8Array((epicsInt8 *)"", 0, paramID, 0);
   }
 
@@ -529,7 +526,7 @@ void drvFGPDB::resetSetStates(void)
   lock_guard<drvFGPDB> asynLock(*this);
 
   for (auto &param : params)  {
-    if ( (LCPUtil::addrGroupID(param.regAddr) == ProcGroup_LCP_WA) and
+    if ( (LCPUtil::addrGroupID(param.getRegAddr()) == ProcGroup_LCP_WA) and
         ((param.setState == SetState::Processing) or
          (param.setState == SetState::Restored) or
          (param.setState == SetState::Sent)) )
@@ -546,7 +543,7 @@ void drvFGPDB::clearSetStates(void)
   lock_guard<drvFGPDB> asynLock(*this);
 
   for (auto &param : params)  {
-    if ( (LCPUtil::addrGroupID(param.regAddr) == ProcGroup_LCP_WA) and
+    if ( (LCPUtil::addrGroupID(param.getRegAddr()) == ProcGroup_LCP_WA) and
         (param.setState == SetState::Restored) )
       param.setState = SetState::Sent;
   }
@@ -638,7 +635,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
     param.ctlrValSet = sessionID.get();
     param.setState = SetState::Pending;
 
-    if (writeRegs(param.regAddr, 1) != asynSuccess)  continue;
+    if (writeRegs(param.getRegAddr(), 1) != asynSuccess)  continue;
 
     if (!writeAccess)  continue;
 
@@ -712,14 +709,63 @@ asynStatus drvFGPDB::addRequiredParams(void)
 {
   asynStatus  stat = asynSuccess;
 
+  /**
+  * @brief Defines the properties of all parameters required by the driver.
+  */
+  class RequiredParam {
+    public:
+      int&         id;       //!< address of int value to save the paramID
+      uint32_t    *drvVal;   //!< value for driver-only params
+      std::string  def;      //!< string that defines the parameter
+      bool         readOnly; //!< write protect this parameter?
+  };
+
+  /**
+   * @brief List that includes all parameters required by the driver.
+   *
+   * @note  Register values that the ctlr must support:\n
+   *        The final LCP addr is supplied by EPICS records.\n
+   *        Use addr 0x0.\n
+   *        - upSecs, upMs, writerIP, writerPort and sessionID
+   * @n
+   * @note  Driver-Only values:\n
+   *        Use addr=0x1 for Read-Only, addr=0x2 for Read/Write.\n
+   *        - syncPktID, syncPktsSent, syncPktsRcvd, asyncPktID, asyncPktsSent
+   *          and asyncPktsRcvd, ctlrUpSince
+   */
+  const std::list<RequiredParam> requiredParamDefs = {
+    //--- reg values the ctlr must support ---
+    // Use addr 0x0 for LCP reg values (LCP addr is supplied by EPICS recs)
+    //ptr-to-paramID   drvVal          param name     addr asyn-fmt      ctlr-fmt read-only?
+    { idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32",    true  },
+
+    { idSessionID,     nullptr,        "sessionID      0x0 Int32         U32",    true  },
+
+    //--- driver-only values ---
+    // addr 0x1 == Read-Only, 0x2 = Read/Write
+    { idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         U32",    false },
+    { idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         U32",    false },
+    { idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         U32",    false },
+
+    { idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         U32",    false },
+    { idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         U32",    false },
+    { idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32",    false },
+
+    { idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32",    false },
+
+    { idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital U32",    false },
+
+    { idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32",    false },
+ };
+
   for (auto const &paramDef : requiredParamDefs)  {
-    int paramID = processParamDef(paramDef.def);
+    int paramID = processParamDef(paramDef.def, paramDef.readOnly);
     if (paramID < 0)  {
       stat = asynError;  continue; }
-    if (paramDef.id)  *paramDef.id = paramID;
+    paramDef.id = paramID;
     if (paramDef.drvVal)  {
       ParamInfo &param = params.at(paramID);
-      param.drvValue = (uint32_t *)paramDef.drvVal;
+      param.drvValue = paramDef.drvVal;
     }
   }
 
@@ -739,7 +785,7 @@ asynStatus drvFGPDB::verifyReqParams(void) const
   uint  errCount = 0;
 
   for (auto &param : params)  {
-    if (param.regAddr < 1)  {
+    if (param.getRegAddr() < 1)  {
       logMsgHdr("\n");
       cout << "*** " << portName << ": Incomplete param def ***" << endl
            << "[" << param << "]" << endl;
@@ -785,13 +831,13 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
   asynStatus  stat;
   int paramID;
 
-  if (newParam.asynType == asynParamNotDefined)  {
+  if (newParam.getAsynType() == asynParamNotDefined)  {
     logMsgHdr("\n");
     cout << "*** " << portName << ": No asyn type specified ***"
          << "[" << newParam << "] ***" << endl;
     return -1;
   }
-  stat = createParam(newParam.name.c_str(), newParam.asynType, &paramID);
+  stat = createParam(newParam.name.c_str(), newParam.getAsynType(), &paramID);
   if (stat != asynSuccess)  return -1;
 
   setParamStatus(paramID, asynDisconnected);
@@ -811,7 +857,7 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
     throw runtime_error("mismatching paramIDs");
   }
 
-  if (newParam.regAddr) if (updateRegMap(paramID) != asynSuccess)  return -1;
+  if (newParam.getRegAddr()) if (updateRegMap(paramID) != asynSuccess)  return -1;
 
   return paramID;
 }
@@ -820,12 +866,12 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
 //  Process a param def and add it to the driver and asyn layer lists or update
 //  its properties.
 //-----------------------------------------------------------------------------
-int drvFGPDB::processParamDef(const string &paramDef)
+int drvFGPDB::processParamDef(const string &paramDef, bool readOnly = false)
 {
   asynStatus  stat;
   int  paramID;
 
-  ParamInfo newParam(paramDef, portName);
+  ParamInfo newParam(paramDef, portName, readOnly);
   if (newParam.name.empty())  return -1;
 
   if ((paramID = findParamByName(newParam.name)) < 0)
@@ -839,7 +885,7 @@ int drvFGPDB::processParamDef(const string &paramDef)
   stat = curParam.updateParamDef(portName, newParam);
   if (stat != asynSuccess)  return -1;
 
-  if (newParam.regAddr)
+  if (newParam.getRegAddr())
     if ((stat = updateRegMap(paramID)) != asynSuccess)  return -1;
 
   return paramID;
@@ -895,7 +941,7 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
 
   ParamInfo &param = params.at(paramID);
 
-  auto addr = param.regAddr;
+  auto addr = param.getRegAddr();
   uint groupID = LCPUtil::addrGroupID(addr);
   uint offset = LCPUtil::addrOffset(addr);
 
@@ -1064,7 +1110,7 @@ asynStatus drvFGPDB::updateScalarReadValues()
   // For driver-only params: Read the latest value from a local variable
   for (auto &param : params)  {
     if (!param.drvValue or !param.isScalarParam())  continue;
-    if (LCPUtil::isLCPRegParam(param.regAddr))  continue;
+    if (LCPUtil::isLCPRegParam(param.getRegAddr()))  continue;
 
     U32 newValue = *param.drvValue;
 
@@ -1088,7 +1134,7 @@ asynStatus drvFGPDB::setAsynParamVal(int paramID)
   double dval;
 
 
-  switch (param.asynType)  {
+  switch (param.getAsynType())  {
 
     case asynParamInt32:
       stat = setIntegerParam(paramID, param.ctlrValRead);
@@ -1099,7 +1145,7 @@ asynStatus drvFGPDB::setAsynParamVal(int paramID)
       break;
 
     case asynParamFloat64:
-      dval = ParamInfo::ctlrFmtToDouble(param.ctlrValRead, param.ctlrFmt);
+      dval = ParamInfo::ctlrFmtToDouble(param.ctlrValRead, param.getCtlrFmt());
       stat = setDoubleParam(paramID, dval);
       break;
 
@@ -1324,7 +1370,7 @@ bool drvFGPDB::isValidWritableParam(const char *funcName, asynUser *pasynUser)
   }
 
   ParamInfo &param = params.at(paramID);
-  if (param.readOnly)  {
+  if (param.isReadOnly())  {
     epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "\n%s::%s() [%s]  Called for read-only param: %s [%d]",
                   typeid(this).name(), funcName, portName,
@@ -1557,7 +1603,7 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
   if ((setState == SetState::Pending) or (setState == SetState::Processing)
     or !connected)  return asynSuccess;
 
-  if (!param.bytesLeft)  {
+  if (!param.getBytesLeft())  {
     lock_guard<drvFGPDB> asynLock(*this);
     param.readState = ReadState::Pending;
     postNewReadingsTimer.wakeUp();
@@ -1569,28 +1615,29 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
 //--- initialize values used in the loop ---
   arraySize = param.arrayValRead.size();
 
-  param.rwBuf.assign(param.blockSize, 0);
+  param.rwBuf.assign(param.getBlockSize(), 0);
 
   // adjust # of bytes to read from the next block if necessary
-  if (param.rwCount > param.bytesLeft)  param.rwCount = param.bytesLeft;
+  if (param.getRWCount() > param.getBytesLeft())  param.setRWCount(param.getBytesLeft());
 
   // read the next block of bytes
-  if (readBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf))  {
-    printf("*** error reading block %u ***\r\n", param.blockNum);
+  if (readBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum(), param.rwBuf))  {
+    printf("*** error reading block %u ***\r\n", param.getBlockNum());
     perror("readBlock()");  return asynError;
   }
 
   lock_guard<drvFGPDB> asynLock(*this);
 
   // Copy just read data to the appropriate bytes in the buffer
-  memcpy(param.arrayValRead.data() + param.rwOffset,
-         param.rwBuf.data() + param.dataOffset,
-         param.rwCount);
+  memcpy(param.arrayValRead.data() + param.getRWOffset(),
+         param.rwBuf.data() + param.getDataOffset(),
+         param.getRWCount());
 
-  ++param.blockNum;  param.dataOffset = 0;  param.bytesLeft -= param.rwCount;
-  param.rwOffset += param.rwCount;  param.rwCount = param.blockSize;
+  param.incrementBlockNum();  param.setDataOffset(0);  param.reduceBytesLeftBy(param.getRWCount());
+  param.setRWOffset(param.getRWOffset() + param.getRWCount());
+  param.setRWCount(param.getBlockSize());
 
-  ttl = arraySize - param.bytesLeft;  perc = (float)ttl / arraySize * 100.0;
+  ttl = arraySize - param.getBytesLeft();  perc = (float)ttl / arraySize * 100.0;
 
   setArrayOperStatus(param, (uint32_t)perc);  // update the status param
 
@@ -1609,7 +1656,7 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   {
     lock_guard<drvFGPDB> asynLock(*this);
 
-    if (!param.bytesLeft)  {
+    if (!param.getBytesLeft())  {
       param.setState = SetState::Sent;
       initArrayReadback(param);  // readback what we just finished sending
       return asynSuccess;
@@ -1628,44 +1675,45 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   // initialize values used in the loop
   arraySize = param.arrayValSet.size();
 
-  param.rwBuf.assign(param.blockSize, 0);
+  param.rwBuf.assign(param.getBlockSize(), 0);
 
   // adjust # of bytes to write to the next block if necessary
-  if (param.rwCount > param.bytesLeft)  param.rwCount = param.bytesLeft;
+  if (param.getRWCount() > param.getBytesLeft())  param.setRWCount(param.getBytesLeft());
 
   // If not replacing all the bytes in the block, then read the existing
   // contents of the block to be modified.
-  if (param.rwCount != param.blockSize)
-    if (readBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf))  {
-      printf("*** error reading block %u ***\r\n", param.blockNum);
+  if (param.getRWCount() != param.getBlockSize())
+    if (readBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum(), param.rwBuf))  {
+      printf("*** error reading block %u ***\r\n", param.getBlockNum());
       perror("readBlock()");  /*rwSockMutex->unlock();*/
       return asynError;
     }
 
   // If required, 1st erase the next block to be written to
-  if (param.eraseReq)
-    if (eraseBlock(param.chipNum, param.blockSize, param.blockNum))  {
-      printf("*** error erasing block %u ***\r\n", param.blockNum);
+  if (param.getEraseReq())
+    if (eraseBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum()))  {
+      printf("*** error erasing block %u ***\r\n", param.getBlockNum());
       perror("eraseBlock()");  /*rwSockMutex->unlock();*/
       return asynError;
     }
 
   // Copy new data in to the appropriate bytes in the buffer
-  memcpy(param.rwBuf.data() + param.dataOffset,
-         param.arrayValSet.data() + param.rwOffset,
-         param.rwCount);
+  memcpy(param.rwBuf.data() + param.getDataOffset(),
+         param.arrayValSet.data() + param.getRWOffset(),
+         param.getRWCount());
 
   // write the next block of bytes
-  if (writeBlock(param.chipNum, param.blockSize, param.blockNum, param.rwBuf)) {
-    printf("*** error writing block %u ***\r\n", param.blockNum);
+  if (writeBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum(), param.rwBuf)) {
+    printf("*** error writing block %u ***\r\n", param.getBlockNum());
     perror("writeBlock()");  /*rwSockMutex->unlock()*/;
     return asynError;
   }
 
-  ++param.blockNum;  param.dataOffset = 0;  param.bytesLeft -= param.rwCount;
-  param.rwOffset += param.rwCount;  param.rwCount = param.blockSize;
+  param.incrementBlockNum();  param.setDataOffset(0);  param.reduceBytesLeftBy(param.getRWCount());
+  param.setRWOffset(param.getRWOffset() + param.getRWCount());
+  param.setRWCount(param.getBlockSize());
 
-  ttl = arraySize - param.bytesLeft;  perc = (float)ttl / arraySize * 100.0;
+  ttl = arraySize - param.getBytesLeft();  perc = (float)ttl / arraySize * 100.0;
 
   setArrayOperStatus(param, (uint32_t)perc);  // update the status param
 
@@ -1695,7 +1743,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   int  paramID = pasynUser->reason;
   ParamInfo &param = params.at(paramID);
 
-  uint32_t setVal = ParamInfo::int32ToCtlrFmt(newVal, param.ctlrFmt);
+  uint32_t setVal = ParamInfo::int32ToCtlrFmt(newVal, param.getCtlrFmt());
 
   applyNewParamSetting(param, setVal);
 
@@ -1769,7 +1817,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   int  paramID = pasynUser->reason;
   ParamInfo &param = params.at(paramID);
 
-  uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.ctlrFmt);
+  uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.getCtlrFmt());
 
   applyNewParamSetting(param, setVal);
 
