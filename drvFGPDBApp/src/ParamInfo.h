@@ -105,9 +105,8 @@ class ParamInfo {
      *                     - name addr asynType ctlrFmt.
      *                     - name addr chipID blockSize eraseReq offset length statusName.
      * @param[in] portName Name of the port that owns the parameter.
-     * @param[in] readOnly Should the parameter be write protected?
      */
-    ParamInfo(const std::string& paramStr, const std::string& portName, bool readOnly = false);
+    ParamInfo(const std::string& paramStr, const std::string& portName);
 
     /**
      * @brief Method to set param attribute values related with the array read/write process.

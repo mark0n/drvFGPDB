@@ -50,8 +50,7 @@ static string NotDefined("<NotDefined>");
 //    OR
 //  name addr chipID blockSize eraseReq offset len statusName
 //-----------------------------------------------------------------------------
-ParamInfo::ParamInfo(const string& paramStr, const string& portName,
-                     bool readOnly)
+ParamInfo::ParamInfo(const string& paramStr, const string& portName)
          : ParamInfo()
 {
   stringstream paramStream(paramStr);
@@ -67,11 +66,10 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName,
                 >> statusParamName;
     eraseReq = (eraseReqStr.at(0) == 'Y');
     asynType = asynParamInt8Array;
-    readOnly = LCPUtil::readOnlyAddr(regAddr);
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
     arrayValRead.assign(length, 0);
     initBlockRW(arrayValRead.size());
     readState = ReadState::Update;
-    m_readOnly = readOnly;
     return;
   }
 
@@ -83,7 +81,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName,
                 >> ctlrFmtName;
     asynType = strToAsynType(asynTypeName);
     ctlrFmt = strToCtlrFmt(ctlrFmtName);
-    readOnly = LCPUtil::readOnlyAddr(regAddr);
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
     return;
   }
 
