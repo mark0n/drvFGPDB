@@ -283,8 +283,7 @@ asynStatus ParamInfo::updateParamDef(const string &context,
   conflict |= (updateProp(ctlrFmt, newParam.ctlrFmt,
                  CtlrDataFmt::NotDefined) != asynSuccess);
 
-//conflict |= (updateProp(syncMode, newParam.syncMode,
-//               SyncMode::NotDefined) != asynSuccess);
+  m_readOnly = LCPUtil::readOnlyAddr(regAddr);
 
   if (!conflict)  return asynSuccess;
 
