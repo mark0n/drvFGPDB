@@ -69,6 +69,16 @@ enum class ResendMode {
   Never              //!< Old settings NEVER resent after IOC or ctlr restart
 };
 
+/**
+ * @brief Enum class to describe currently used stateFlags.
+ */
+enum class eStateFlags{
+  SyncConActive,
+  AsyncConActive,
+  UndefRegs,
+  DisconRegs,
+  WriteAccess
+};
 
 /**
  * The main class of the driver.
@@ -693,6 +703,14 @@ class drvFGPDB : public asynPortDriver {
     int procGroupSize(uint groupID)  {
            return getProcGroup(groupID).paramIDs.size(); }
 
+    /**
+     * @brief update stateFlag with newValue
+     *
+     * @param[in] bitPos bit to be updated
+     * @param[in] value  true/false
+     */
+    void setStateFlags(eStateFlags bitPos, bool value);
+
     std::vector<ParamInfo> params;  //!< Vector with all the parameters registered in the driver
 
     uint ParamID(ParamInfo &param)  { return (&param - params.data()); }
@@ -720,14 +738,20 @@ class drvFGPDB : public asynPortDriver {
 
     //driver-only values
     int idSyncPktID ;     uint32_t syncPktID;       //!< ID of last packet sent/received
-    int idSyncPktsSent;   uint32_t syncPktsSent;    //!< TODO: Not being checked
-    int idSyncPktsRcvd;   uint32_t syncPktsRcvd;    //!< TODO: Not being checked
+    int idSyncPktsSent;   uint32_t syncPktsSent;    //!< Updated in sendMsg()
+    int idSyncPktsRcvd;   uint32_t syncPktsRcvd;    //!< Updated in readResp()
 
     int idAsyncPktID;     uint32_t asyncPktID;      //!< TODO: Not being used
     int idAsyncPktsSent;  uint32_t asyncPktsSent;   //!< TODO: Not being used
     int idAsyncPktsRcvd;  uint32_t asyncPktsRcvd;   //!< TODO: Not being used
 
-    int idStateFlags;     uint32_t stateFlags;      //!< TODO: Not being used
+    int idStateFlags;     uint32_t stateFlags;      /*< Bits currently used:
+                                                        - SyncConActive:  0x00000001
+                                                        - AsyncConActive: 0x00000002
+                                                        - UndefRegs:      0x00000004
+                                                        - DisconRegs:     0x00000008
+                                                        - WriteAccess:    0x00000010
+                                                     */
 
     int idCtlrUpSince;    uint32_t ctlrUpSince;     //!< last time ctlr restarted
 
