@@ -467,6 +467,7 @@ double drvFGPDB::checkComStatus(void)
       logMsgHdr("\n");
       cout << "*** " << portName << " ctlr offline ***" << endl << endl;
       resetReadStates();  connected = false;
+      setStateFlags(eStateFlags::SyncConActive, false);
     }
   }
   // scan list of RO and WA regs to see if all of them are current
@@ -482,6 +483,9 @@ double drvFGPDB::checkComStatus(void)
       logMsgHdr("\n");
       cout << "=== " << portName << " ctlr online ===" << endl << endl;
       connected = true;
+      setStateFlags(eStateFlags::SyncConActive, true);
+      setStateFlags(eStateFlags::UndefRegs, false);
+      setStateFlags(eStateFlags::DisconRegs, false);
       scalarWritesTimer.wakeUp();
     }
   }
@@ -514,6 +518,8 @@ void drvFGPDB::resetReadStates(void)
     if (param.getAsynType() == asynParamInt8Array)
        doCallbacksInt8Array((epicsInt8 *)"", 0, paramID, 0);
   }
+
+  setStateFlags(eStateFlags::DisconRegs, true);
 
   callParamCallbacks();
 }
@@ -806,6 +812,14 @@ int drvFGPDB::findParamByName(const string &name) const
   auto it = find_if(params.begin(), params.end(), [&] (const ParamInfo& p)
                     { return p.name == name; } );
   return (it != params.end()) ? it - params.begin() : -1;
+}
+
+//-----------------------------------------------------------------------------
+void drvFGPDB::setStateFlags(eStateFlags bitPos, bool value)
+{
+  std::bitset<32> setVal(stateFlags);
+  setVal.set(static_cast<size_t>(bitPos), value);
+  stateFlags = setVal.to_ulong();
 }
 
 //-----------------------------------------------------------------------------
@@ -1931,10 +1945,5 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
   return stat;
 }
 
-void drvFGPDB::setStateFlags(eStateFlags bitPos, bool value){
-  std::bitset<32> setVal(stateFlags);
-  setVal.set(static_cast<size_t>(bitPos), value);
-  stateFlags = setVal.to_ulong();
-}
 //-----------------------------------------------------------------------------
 
