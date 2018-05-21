@@ -75,8 +75,8 @@ enum class ResendMode {
 enum class eStateFlags{
   SyncConActive,
   AsyncConActive,
-  UndefRegs,
-  DisconRegs,
+  RegsDefined,
+  RegsConnected,
   WriteAccess
 };
 
