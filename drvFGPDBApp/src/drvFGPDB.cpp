@@ -484,8 +484,7 @@ double drvFGPDB::checkComStatus(void)
       cout << "=== " << portName << " ctlr online ===" << endl << endl;
       connected = true;
       setStateFlags(eStateFlags::SyncConActive, true);
-      setStateFlags(eStateFlags::RegsDefined, true);
-      setStateFlags(eStateFlags::RegsConnected, true);
+      setStateFlags(eStateFlags::AllRegsConnected, true);
       scalarWritesTimer.wakeUp();
     }
   }
@@ -519,7 +518,7 @@ void drvFGPDB::resetReadStates(void)
        doCallbacksInt8Array((epicsInt8 *)"", 0, paramID, 0);
   }
 
-  setStateFlags(eStateFlags::RegsConnected, false);
+  setStateFlags(eStateFlags::AllRegsConnected, false);
 
   callParamCallbacks();
 }
