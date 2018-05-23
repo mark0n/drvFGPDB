@@ -64,7 +64,8 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName,
                 >> blockSize
                 >> eraseReqStr
                 >> hex >> offset >> length
-                >> statusParamName;
+                >> rdStatusParamName
+                >> wrStatusParamName;
     eraseReq = (eraseReqStr.at(0) == 'Y');
     asynType = asynParamInt8Array;
     readOnly = LCPUtil::readOnlyAddr(regAddr);
@@ -151,7 +152,8 @@ const regex& ParamInfo::pmemParamDefRegex()
   const string offset       = "0x[0-9a-fA-F]+";
   const string length       = "0x[0-9a-fA-F]+";
 
-  const string statusParamName = "\\w+";
+  const string rdStatusParamName = "\\w+";
+  const string wrStatusParamName = "\\w+";
 
 
   const string pmemArrayRegExStr = paramName
@@ -161,7 +163,8 @@ const regex& ParamInfo::pmemParamDefRegex()
                                  + whiteSpaces + eraseReq
                                  + whiteSpaces + offset
                                  + whiteSpaces + length
-                                 + whiteSpaces + statusParamName;
+                                 + whiteSpaces + rdStatusParamName
+                                 + whiteSpaces + wrStatusParamName;
 
   static const regex re(pmemArrayRegExStr);
 
@@ -183,7 +186,9 @@ ostream& operator<<(ostream& os, const ParamInfo &param)
        << hex
        << " 0x" << param.offset
        << " 0x" << param.length
-       << " " << param.statusParamName << dec;
+       << dec
+       << " " << param.rdStatusParamName
+       << " " << param.wrStatusParamName;
   else
     os << " " << ParamInfo::asynTypeToStr(param.asynType)
        << " " << ParamInfo::ctlrFmtToStr(param.ctlrFmt);
@@ -198,6 +203,41 @@ void ParamInfo::newReadVal(uint32_t newVal)
   readState = ReadState::Pending;
 
   if (drvValue)  *drvValue = newVal;
+}
+
+//-----------------------------------------------------------------------------
+string ParamInfo::getStatusParamName(void)
+{
+  if (activePMEMwrite())  return wrStatusParamName;
+  if (activePMEMread())   return rdStatusParamName;
+  return "";
+}
+
+//-----------------------------------------------------------------------------
+int ParamInfo::getStatusParamID(void)
+{
+  if (activePMEMwrite())  return wrStatusParamID;
+  if (activePMEMread())   return rdStatusParamID;
+  return -1;
+}
+
+//-----------------------------------------------------------------------------
+void ParamInfo::setStatusParamID(int paramID)
+{
+  if (activePMEMwrite())  { wrStatusParamID = paramID;  return; }
+  if (activePMEMread())   { rdStatusParamID = paramID;  return; }
+}
+
+//-----------------------------------------------------------------------------
+uint32_t ParamInfo::getArraySize(void)
+{
+  if ((setState == SetState::Pending) or (setState == SetState::Processing))
+    return arrayValSet.size();
+
+  if ((readState == ReadState::Update) or (readState == ReadState::Pending))
+    return arrayValRead.size();
+
+  return 0;
 }
 
 //-----------------------------------------------------------------------------
