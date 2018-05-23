@@ -404,11 +404,10 @@ class drvFGPDB : public asynPortDriver {
      *        its properties.
      *
      * @param[in] paramDef string with the definition of the param.
-     * @param[in] readOnly should the parameter be write protected?
      *
      * @return ID of the new parameter
      */
-    int processParamDef(const std::string &paramDef, bool readOnly);
+    int processParamDef(const std::string &paramDef);
 
     /**
      * @brief Method to register in the driver all required Parameters
