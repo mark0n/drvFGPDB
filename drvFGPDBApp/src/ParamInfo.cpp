@@ -66,7 +66,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
                 >> statusParamName;
     eraseReq = (eraseReqStr.at(0) == 'Y');
     asynType = asynParamInt8Array;
-    readOnly = LCPUtil::readOnlyAddr(regAddr);
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
     arrayValRead.assign(length, 0);
     initBlockRW(arrayValRead.size());
     readState = ReadState::Update;
@@ -81,7 +81,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
                 >> ctlrFmtName;
     asynType = strToAsynType(asynTypeName);
     ctlrFmt = strToCtlrFmt(ctlrFmtName);
-    readOnly = LCPUtil::readOnlyAddr(regAddr);
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
     return;
   }
 
@@ -283,8 +283,7 @@ asynStatus ParamInfo::updateParamDef(const string &context,
   conflict |= (updateProp(ctlrFmt, newParam.ctlrFmt,
                  CtlrDataFmt::NotDefined) != asynSuccess);
 
-//conflict |= (updateProp(syncMode, newParam.syncMode,
-//               SyncMode::NotDefined) != asynSuccess);
+  m_readOnly = LCPUtil::readOnlyAddr(regAddr);
 
   if (!conflict)  return asynSuccess;
 

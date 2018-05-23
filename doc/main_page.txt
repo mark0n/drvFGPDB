@@ -71,8 +71,9 @@
 //
 //     @note
 //       At present, the driver assumes that the Write-Anytime registers
-//       represents the set of values that should be saved and restored
-//       whenever the controller or the IOC is restarted.  This means that, for
+//       represents the set of values that are saved and restored by autosave
+//       whenever the the IOC is restarted and (if configured to do so)
+//       restored to the controller whenever it restarts.  This means that, for
 //       certain key values, even though they fit the general description for
 //       write-anytime values, they often need to be part of the write-once
 //       group instead.  The most common example is the on/off state.  While
@@ -142,10 +143,10 @@
 //==========================
 //
 //     Each record that reads from or writes to an asyn param must specify
-//     which asyn layer interface to use in its DTYP field and include a
-//     compatible driver definition for the param in its INP or OUT field.  If
-//     more than one record references the same field, the driver definitions
-//     for the param must all be the same.
+//     which of asyn's devEpics interfaces to use in its DTYP field and include
+//     a compatible driver definition for the param in its INP or OUT field.
+//     If more than one record references the same field, the driver
+//     definitions for the param must all be the same.
 //
 //     For each such record, the driver's drvUserCreate() function is called
 //     during IOC initialization with the contents of the record's INP/OUT
@@ -155,8 +156,8 @@
 //
 //     The EPICS initHook callback feature is used to determine when all the
 //     parameters have been defined (i.e. any additional calls to
-//     drvUserCreate() will be for existing, fully define parameters) and it is
-//     safe to begin normal processing for the paramters.
+//     drvUserCreate() will be for existing, fully defined parameters) and it
+//     is safe to begin normal processing for the paramters.
 //
 //     @note
 //        - The drvUserCreate() function is called multiple times for each
@@ -185,7 +186,9 @@
 //          \n
 //        - There is currently no known way to determine what record the call
 //          was for, or to get the DTYP or MTYP value for the record containing
-//          the param definition.
+//          the param definition.  And doing so would violate the asyn model
+//          where all such client-specific knowledge is hidden by the core asyn
+//          layer.
 //
 //        - None of the calls to drvUserCreate() are from threads created by
 //          the driver.  But since these calls occur BEFORE the driver actually
@@ -199,78 +202,118 @@
 //
 //==========================================
 //
-//     The driver constructor currently creates a single thread that is
-//     responsible for all the ongoing synchronous (polling) communication with
-//     the controller. In the future, it will (optionally) create a second
-//     thread to manage a separate streaming (asynchronous) connection to the
-//     controller that allows the controller to send new data without being
-//     asked for it each time.
+//     The driver constructor currently creates a timer queue and several
+//     eventTimer objects (which is based on the epicsTimer interface).  Each
+//     of these timer objects is responsible for one of the following runtime
+//     processing tasks:
+//        - Obtaining and keeping write access
+//        - Reading the latest scalar values from the controller
+//        - Sending new settings for scalar values to the controller
+//        - Reading the latest array values from the controller
+//        - Sending new array values to the controller
+//        - Posting any changes to values read from the controller
+//        - Checking on the state of the connection to the controller
 //
-//     Currently, the synchronous thread provides a simple scheduler that
-//     periodically executes one or more run-to-completion tasks.  The interval
-//     between each pass and what gets executed each pass can vary depending on
-//     the outstanding tasks, allowing certain higher-priority tasks to run
-//     sooner or more often as needed without adversely affecting normal
-//     lower-priority tasks. In particular, write operations wake up this
-//     thread early to insure new writes are processed ASAP, and unfinished
-//     reads or writes for array values are processed more often than scalar
-//     reads and writes.
+//     Each of these timers has a callback function associated with it and a
+//     default interval for how much time should pass between each callback.
+//     The callbacks are all done by a thread that is created along with the
+//     queue to manage the timers, so the callback for only 1 timer is ever
+//     active at any time.  For each callback, the driver checks and logs an
+//     error if the callback functions are invoked by more than one thread.
+//
+//     The time remaining until the next callback is performed for a timer can
+//     be changed by any thread, which means the relative priority of each
+//     processing task can be changed on the fly.  This is used either to cause
+//     one of the above processes to occur sooner than it normally would (e.g.
+//     to cause a new setpoint to be sent to the controller ASAP), or to delay
+//     the next callback for some periodic operation (currently used to avoid
+//     having the write access callback send another keep-alive write packet
+//     that is not needed because another write operation just occurred).
+//
+//     Although this feature is very useful, it has one main drawback:  If the
+//     callback function for the affected timer is currently running, then the
+//     thread that requested the change will block until the callback function
+//     completes.  This means (e.g.) that using this feature in the driver's
+//     writeXxx() functions (to avoid delays in processing a new setpoint) can
+//     cause the thread that called the writeXxx() function to block.  For this
+//     reason (and others), the driver now uses the ASYN_CANBLOCK flag to avoid
+//     blocking processing unrelated to the associated controller.
+//
+//     @note
+//        The callback functions themselves return a value that determines
+//        whether or not another callback will occur and how soon.  The usual
+//        return value tells the timer logic to use the default interval for
+//        the timer between callbacks (specified in the constructor call), but
+//        it can specify a different value or even cause the timer to become
+//        idle (no more callbacks unless/until the timer is reactivated).
+//
+//     In the future, the driver will (optionally) create a second thread to
+//     manage a separate streaming (asynchronous) connection to the controller
+//     that allows the controller to send new data without being asked for it
+//     each time.
 //
 //
 //<h3> Write processing: </h3>
 //
-//     The driver uses the non-blocking mode option for the asyn layer.  This
-//     has several advantages over using the blocking mode option:
-//        - It avoids the overhead of having the asyn layer create a queue for
-//          write operations and the additional thread per driver object to
-//          process it.
-//        - It means lengthy write operations (e.g. the current model of
-//          updating the controller's firmware, which is to write the entire
-//          image to a very large waveform record) do not block all other read
-//          and write operations until they complete (or fail).
+//     Although the driver now uses the ASYN_CANBLOCK feature that tells the
+//     asyn layer it may block when called (as described above for the timer
+//     event-driven logic), the driver currently doesn't attempt to send or
+//     read data from the controller during a read or write call.  This may or
+//     may not change (there are pros/cons to doing so), but even if it does,
+//     the driver must still include the existing functionality to be able to
+//     continue to handle controller restarts and communication problems
+//     gracefully and to avoid blocking all scalar processing during lengthy
+//     array read and write operations.
 //
-//     To avoid blocking, the write functions do not do any I/O.  Instead, they
-//     save the value passed to them in the corresponding ParamInfo object,
-//     change the write state to Pending, wake up the driver's synchronous
-//     thread, and then return.
+//     This means that the write functions save the value passed to them in the
+//     corresponding ParamInfo object, change the write state to Pending, wake
+//     up the timer responsible for sending new settings, and then return.
 //
-//     When the synchronous thread wakes up, it processes any outstanding
-//     writes ASAP.  For scalar values, this means the new value is sent right
-//     away.  For array values it means it writes the next unsent block of data
-//     and causes the thread to run more frequently (to minimize the time
-//     needed to complete the writing of all the blocks).
+//     This causes the callback for the timer to execute ASAP, which then
+//     attempts to process any outstanding writes. For scalar values, this
+//     means the new value is sent right away.  For array values it means it
+//     writes the next unsent block of data and causes the timer callback to
+//     repeat using either the normal short interval (if there is still more to
+//     be written) or a longer interval (when we are waiting for a new setting
+//     for an array value).
 //
 //     @note
-//        - An array write to persistent memory (PMEM values: The only type
-//          supported so far) also changes the read state for the param.  This
-//          causes the read value to be updated ASAP following the completion
-//          (or failure) of the write operation.
+//        - When the write operation for a persistent memory array (PMEM
+//          values: The only type supported so far) finishes (or fails), the
+//          read state for the param is changed to trigger reading back the new
+//          value that in persistent memory.  At present, the driver does not
+//          try to compare this to what was written, although this could be
+//          added in the future.
 //        - The configuration for array values can include a scalar status
 //          parameter that is updated during the read and write operations to
 //          indicate the status of the operation (in percent done).
 //
 //<h3> Read processing: </h3>
 //
-//     The syncrhonous thread currently reads and processes the current values
-//     of all the Read-Only and Write-Anytime registers.  In the future, this
-//     functionality will be handled by the asynchronous thread that will
-//     handle streaming connections (with the synchronous thread doing it only
-//     if there are no active streaming connections updating the same values).
+//     The read scalar timer callback periodically reads the current values of
+//     all the LCP registers and then wakes up the timer that posts any
+//     changes.
 //
-//     Each value in a read response is compared to the last processed value,
-//     and if it is different, the state of the corresponding ParamInfo object
-//     is updated and the new value is posted (written to the asyn layer and
-//     callbacks processed for all new values).
+//     The read array timer callback reads the current state of any array
+//     values that need to be (re)read using a short interval between reading
+//     each block, then uses a relatively long delay until something wakes itup
+//     to begin a new read.  After completion of each array readback, this
+//     timer wakes up the one that posts the just-read value (the driver does
+//     not currently attempt to detect if the value of an array changed since
+//     it last posted it, although this could be done efficiently using a hash
+//     tag.
 //
 //<h3> Driver-only values: </h3>
 //
 //     Parameters can also be defined for driver values that do not represent
-//     LCP registers.  In most cases, this is done to provide easy and flexible
-//     access to read-only values updated by the driver for diagnostic
-//     purposes.  Allowing such values to be accessed via EPICS records means
-//     we can leverage the power of all the tools that can be used with EPICS
-//     PVs to monitor these values, their behavior over time, and any
-//     relationships between them.
+//     LCP registers.  This is done to provide easy and flexible access to
+//     values within the driver, leveraging the capabilities of the same tools
+//     that allow access to the register values.  To insure consistency and
+//     avoid the need to add special-case code to handle these values
+//     differently than any other values in the driver, reading from and
+//     writing to these values are handled by the same timer callbacks that
+//     manage the LCP register values, which means adding new values is as
+//     simple as adding another line to list of existing values.
 //
 //=========================================
 //
@@ -280,19 +323,19 @@
 //
 //     One of the register values that each controller is required to support
 //     is the upSecs counter, which is reset to 0 whenever the controller is
-//     restarted and is incremented by one each second the controller is
+//     restarted and is incremented by one for each second the controller is
 //     running.  The driver uses this value to determine if/when the controller
 //     was restarted, and to keep track of the date/time it was last known to
 //     have restarted.
 //
-//     When the driver detects that the controller has restarted, it resends
-//     all the settings for the write-anytime registers it has gotten since the
-//     IOC restarted (including ones restored during IOC initialization).  This
-//     insures that the controller is using the last known settings from before
-//     it was restarted, avoiding the need to manually reapply all the settings
-//     and some possibly nasty surprises because someone turned it back on
-//     without noticing that the readbacks indicate it is using default
-//     settings.
+//     When the driver detects that the controller has restarted, it logs the
+//     event and, if configured to do so, resends all the settings for the
+//     write-anytime registers it has gotten since the IOC restarted (including
+//     ones restored during IOC initialization).  This insures that the
+//     controller is using the last known settings from before it was
+//     restarted, avoiding the need to manually reapply all the settings and
+//     some possibly nasty surprises because someone turned it back on without
+//     noticing that the readbacks ahd reverted to default settings.
 //
 //     Although changes in the upSecs value alone is sufficient to detect
 //     controller restarts that occur while the driver is running, doing so
@@ -336,12 +379,18 @@
 //     client with the write access becomes idle it does not disable the
 //     ability of another client to get write access.
 //
+//     @note
+//       The controller identifies a client by its IP address and the UDP port
+//       used to send packets to the controller.  Since the UDP port # will
+//       generally be different each time the IOC connects to the controller,
+//       restarting the IOC means it will appear to be a different client.
+//
 //     This also means that, to keep write access, a client must perform a
 //     successful write operation at least once every 10 seconds.  At present,
 //     the driver keeps track of the last time it did a successful write
 //     operation and insures that it does so at least once every 2 seconds.
 //
-//     Although its existence of the sessionID makes the logic for managing
+//     Although the existence of the sessionID makes the logic for managing
 //     write access simpler, the primary reason it was introduced was to
 //     provide a way to detect that the state of the controller changed BEFORE
 //     processing affected packets.
@@ -352,15 +401,17 @@
 //     restarted or that another client somehow got the write access.
 //
 //     What this means is that, for each packet the driver receives, it can
-//     determine BEFORE processing the packet whether or not the state of the
-//     controller changed.  While potentially useful for synchronous (polling
-//     style) communication, it is most useful for the asynchronous (streaming)
-//     connections where it is possible to receive an old packet from a
-//     previous "session" that may contain outdated information (i.e. from
-//     before the sessionID was changed or the controller restarted).  In such
-//     cases, the sessionID in the packet will will be different than the value
-//     most recently written by the driver, so the driver can choose to discard
-//     the packet rather than risk processing outdated values.
+//     determine BEFORE processing any data in the packet whether or not the
+//     state of the controller changed.
+//
+//     While potentially useful for synchronous (polling style) communication,
+//     it is most useful for the asynchronous (streaming) connections where it
+//     is possible to receive an old packet from a previous "session" that may
+//     contain outdated information (i.e. from before the sessionID was changed
+//     or the controller restarted).  In such cases, the sessionID in the
+//     packet will will be different than the value most recently written by
+//     the driver, so the driver can discard the packet rather than risk
+//     processing outdated values.
 //
 //
 //=====================================================
@@ -382,19 +433,21 @@
 //     offline (not connected).  When this occurs, the driver changes the
 //     status of all the parameters to indicate the problem.
 //
-//     During IOC initialization the drive must accept writes because that is
+//     During IOC initialization the driver must accept writes because that is
 //     when settings are restored.  But after that, it rejects write operations
 //     whenever the controller is offline.  The reasoning for this is that we
 //     have no idea why the controller is offline or how long it will remain
 //     offline and we don't want to apply what could be very old settings by
-//     the time it comes back online.  The other option (used by the older
-//     driver) would be to accept new settings but then discard them if they
-//     get too old (although the older driver would then change the settings to
-//     match the readings, whereas we might want to store the last value that
-//     was successfully sent and revert to that).
+//     the time it comes back online.
+//
+//     The other option (used by the older driver) would be to always accept
+//     new settings but then discard them if they get too old (although the
+//     older driver would then change the settings to match the readings,
+//     whereas we might want to store the last value that was successfully sent
+//     and revert to that).
 //
 //     Once normal communication is restored, if the driver discovers that the
-//     controller restarted, it will resend all the settings (see the
-//     "Controller Restarts" section).
+//     controller restarted, and it is configured to do so, it will resend all
+//     the settings (see the "Controller Restarts" section).
 //
 **/

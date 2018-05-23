@@ -16,7 +16,7 @@ static int testNum = 0; //!< number of the test being executed
 
 const string UDPPortName("FGPDB_com"); //!< name of the UDP port
 
-const uint32_t startupDiagFlags = TestMode_; //!< test mode used in the tests
+const uint32_t startupDiagFlags = 0x0;
 
 /**
  * @brief creates the UDP communication port
@@ -98,10 +98,7 @@ public:
 
     // Set addr for required RO regs already added by driver
     addParam("upSecs 0x10005 Int32 U32");
-    addParam("upMs 0x10006 Int32 U32");
-    addParam("writerIP 0x10007 Int32 U32");
-    addParam("writerPort 0x10008 Int32 U32");
-    RO_groupSize = 0x0009u;
+    RO_groupSize = 0x0006u;
 
     id = addParam("lcpRegWA_1 0x20000 Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams+2));
