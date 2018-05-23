@@ -1,3 +1,47 @@
+drvfgpdb (1.0.0) unstable; urgency=medium
+
+  First release for production use.
+
+  [ Bernal Ruiz, Enrique ]
+  * Add one LCP Simulator instance as member of the integration test Class
+
+  [ Martin Konrad ]
+  * Remove test mode from driver code
+
+  [ Mark Davis ]
+  * Initial changes for event-driven model
+  * Minor tweaks and updated overview
+  * Proper cleanup of eventTimer's and associated timerQueue
+
+  [ Martin Konrad ]
+  * Remove some obsolete code
+  * Remove all integration tests
+  * Leverage std::function and std::bind
+  * Clean up includes, remove unneeded destructor
+  * Move definition of required parameter where used
+  * Purge params that aren't required by the driver from required list
+  * Improve type safety for drvVal (no void* anymore)
+  * Required param list: replace pointer by reference
+  * Start making members of ParamInfo class private
+  * Make more members of ParamInfo class private
+
+  [ Bernal Ruiz, Enrique ]
+  * Fix return value in keepWriteAccess() when exitDriver or !connected
+  * Add support to set stateFlags, writeAccess flag set when appropriate
+
+  [ Martin Konrad ]
+  * Fix broken read-only state
+  * Update read-only flag of param when it gets updated
+
+  [ Mark Davis ]
+  * Set/Clear remaining bits in stateFlags param
+
+  [ Bernal Ruiz, Enrique ]
+  * Apply changes related w/ redef of UndefRegs and DisconRegs records
+  * Remove RegsDefined flag & update RegsConnected to AllRegsConnected
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Wed, 23 May 2018 15:05:17 -0400
+
 drvfgpdb (0.2.0) unstable; urgency=medium
 
   [ Mark Davis ]
