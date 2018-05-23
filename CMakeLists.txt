@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(drvFGPDB)
 
-set(drvFGPDB_VERSION_MAJOR 0)
+set(drvFGPDB_VERSION_MAJOR 1)
 set(drvFGPDB_VERSION_MINOR 0)
 set(drvFGPDB_VERSION_PATCH 1)
 
