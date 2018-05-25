@@ -1919,12 +1919,12 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 
   if (!param.isArrayParam() or param.activePMEMwrite())  return asynError;
 
-  setArrayOperStatus(param);  // init the status param
-
   param.arrayValSet.assign(&values[0], &values[nElements]);
 
   param.initBlockRW(param.arrayValSet.size());
   param.setState = SetState::Pending;
+
+  setArrayOperStatus(param);  // init the status param
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
             "%s::%s() [%s]:  paramID=%d, name=%s, nElements=%lu\n",
