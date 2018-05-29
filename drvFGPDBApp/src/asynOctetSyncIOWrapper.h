@@ -16,12 +16,13 @@ public:
   asynStatus connect(const char *port, int addr, asynUser **ppasynUser,
                              const char *drvInfo) override;
   asynStatus disconnect(asynUser *pasynUser) override;
-  asynStatus write(asynUser *pasynUser, writeData outData,
+  asynStatus write(asynUser *pasynUser, writeData outData, size_t *nbytesOut,
                    double timeout) override;
   asynStatus read(asynUser *pasynUser, readData inData, double timeout,
                   int *eomReason) override;
-  asynStatus writeRead(asynUser *pasynUser, writeData outData, readData inData,
-                       double timeout, int *eomReason) override;
+  asynStatus writeRead(asynUser *pasynUser, writeData outData,
+                       size_t *nbytesOut, readData inData, double timeout,
+                       int *eomReason) override;
   asynStatus flush(asynUser *pasynUser) override;
   asynStatus setInputEos(asynUser *pasynUser, const char *eos, int eoslen)
       override;
@@ -32,14 +33,14 @@ public:
   asynStatus getOutputEos(asynUser *pasynUser, char *eos, int eossize,
                                   int *eoslen) override;
   asynStatus writeOnce(const char *port, int addr, writeData outData,
-                       double timeout, const char *drvInfo)
+                       size_t *nbytesOut, double timeout, const char *drvInfo)
       override;
   asynStatus readOnce(const char *port, int addr, readData inData,
                       double timeout, int *eomReason,
                       const char *drvInfo) override;
   asynStatus writeReadOnce(const char *port, int addr, writeData outData,
-                           readData inData, double timeout, int *eomReason,
-                           const char *drvInfo) override;
+                           size_t *nbytesOut, readData inData, double timeout,
+                           int *eomReason, const char *drvInfo) override;
   asynStatus flushOnce(const char *port, int addr,const char *drvInfo) override;
   asynStatus setInputEosOnce(const char *port, int addr, const char *eos,
                              int eoslen, const char *drvInfo) override;

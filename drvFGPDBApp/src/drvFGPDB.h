@@ -754,6 +754,9 @@ class drvFGPDB : public asynPortDriver {
 
     ResendMode  resendMode;  //!< mode for determining if/when to resend settings to the ctlr
 
+    const double writeTimeout = 0.5;
+    const double readTimeout  = 0.5;
+
     int  idDiagFlags;     uint32_t diagFlags;
 
     bool ShowPackets() const     { return diagFlags & ShowPackets_;    } //!< true if ShowPackets_ enabled

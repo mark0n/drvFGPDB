@@ -51,10 +51,6 @@ typedef  epicsFloat64   F64;
 typedef  unsigned int   uint;
 typedef  unsigned char  uchar;
 
-
-static const double writeTimeout = 0.5;
-static const double readTimeout  = 0.5;
-
 //-----------------------------------------------------------------------------
 //  print the specified date/time in YYY-MM-DD HH:MM:SS format
 //-----------------------------------------------------------------------------
@@ -997,9 +993,8 @@ asynStatus drvFGPDB::sendMsg(asynUser *pComPort, vector<uint32_t> &cmdBuf)
   writeData outData {
     .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
     .write_buffer_len = bytesToSend,
-    .nbytesOut = &bytesSent
   };
-  asynStatus stat = syncIO->write(pComPort, outData, writeTimeout);
+  asynStatus stat = syncIO->write(pComPort, outData, &bytesSent, writeTimeout);
   ++syncPktsSent;
   if (stat != asynSuccess)  return stat;
   if (bytesSent != bytesToSend)  return asynError;

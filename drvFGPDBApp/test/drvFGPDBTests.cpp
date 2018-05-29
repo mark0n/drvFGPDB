@@ -18,13 +18,13 @@ public:
   MOCK_METHOD4(connect, asynStatus(const char *port, int addr,
                                    asynUser **ppasynUser, const char *drvInfo));
   MOCK_METHOD1(disconnect, asynStatus(asynUser *pasynUser));
-  MOCK_METHOD3(write, asynStatus(asynUser *pasynUser, writeData outData,
-                                 double timeout));
+  MOCK_METHOD4(write, asynStatus(asynUser *pasynUser, writeData outData,
+                                 size_t *nbytesOut, double timeout));
   MOCK_METHOD4(read, asynStatus(asynUser *pasynUser, readData inData,
                                 double timeout, int *eomReason));
-  MOCK_METHOD5(writeRead, asynStatus(asynUser *pasynUser, writeData outData,
-                                     readData inData, double timeout,
-                                     int *eomReason));
+  MOCK_METHOD6(writeRead, asynStatus(asynUser *pasynUser, writeData outData,
+                                     size_t *nbytesOut, readData inData,
+                                     double timeout, int *eomReason));
   MOCK_METHOD1(flush, asynStatus(asynUser *pasynUser));
   MOCK_METHOD3(setInputEos, asynStatus(asynUser *pasynUser, const char *eos,
                                        int eoslen));
@@ -34,16 +34,16 @@ public:
                                         int eoslen));
   MOCK_METHOD4(getOutputEos, asynStatus(asynUser *pasynUser, char *eos,
                                         int eossize, int *eoslen));
-  MOCK_METHOD5(writeOnce, asynStatus(const char *port, int addr,
-                                     writeData outData, double timeout,
-                                     const char *drvInfo));
+  MOCK_METHOD6(writeOnce, asynStatus(const char *port, int addr,
+                                     writeData outData, size_t *nbytesOut,
+                                     double timeout, const char *drvInfo));
   MOCK_METHOD6(readOnce, asynStatus(const char *port, int addr, readData inData,
                                     double timeout, int *eomReason,
                                     const char *drvInfo));
-  MOCK_METHOD7(writeReadOnce, asynStatus(const char *port, int addr,
-                                         writeData outData, readData inData,
-                                         double timeout, int *eomReason,
-                                         const char *drvInfo));
+  MOCK_METHOD8(writeReadOnce, asynStatus(const char *port, int addr,
+                                         writeData outData, size_t *nbytesOut,
+                                         readData inData, double timeout,
+                                         int *eomReason, const char *drvInfo));
   MOCK_METHOD3(flushOnce, asynStatus(const char *port, int addr,
                                      const char *drvInfo));
 
@@ -344,4 +344,19 @@ TEST_F(AnFGPDBDriver, writesDataToAsyn) {
 */
 
 //-----------------------------------------------------------------------------
+TEST_F(AnFGPDBDriverUsingIOSyncMock, passesMsgToAsyn) {
+  vector<uint32_t> arbitraryData { 42, 43, 44 };
+  size_t bytesToBeSent = arbitraryData.size() * sizeof(arbitraryData[0]);
+  writeData outData {
+    .write_buffer = reinterpret_cast<char *>(arbitraryData.data()),
+    .write_buffer_len = bytesToBeSent,
+  };
+  EXPECT_CALL(
+    *static_pointer_cast<asynOctetSyncIOWrapperMock>(syncIO),
+    write(pasynUser, outData, _, testDrv->writeTimeout)
+  ).WillOnce(DoAll(SetArgPointee<2>(bytesToBeSent), Return(asynSuccess)));
 
+  stat = testDrv->sendMsg(pasynUser, arbitraryData);
+
+  ASSERT_THAT(stat, Eq(asynSuccess));
+}

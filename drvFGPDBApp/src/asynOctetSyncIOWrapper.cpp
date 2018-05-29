@@ -15,11 +15,10 @@ asynStatus asynOctetSyncIOWrapper::disconnect(asynUser* pasynUser)
 }
 
 asynStatus asynOctetSyncIOWrapper::write(asynUser* pasynUser, writeData outData,
-                                         double timeout)
+                                         size_t *nbytesOut, double timeout)
 {
   return pasynOctetSyncIO->write(pasynUser, outData.write_buffer,
-                                 outData.write_buffer_len, timeout,
-                                 outData.nbytesOut);
+                                 outData.write_buffer_len, timeout, nbytesOut);
 }
 
 asynStatus asynOctetSyncIOWrapper::read(asynUser* pasynUser, readData inData,
@@ -31,14 +30,15 @@ asynStatus asynOctetSyncIOWrapper::read(asynUser* pasynUser, readData inData,
 }
 
 asynStatus asynOctetSyncIOWrapper::writeRead(asynUser* pasynUser,
-                                             writeData outData, readData inData,
+                                             writeData outData,
+                                             size_t *nbytesOut, readData inData,
                                              double timeout, int* eomReason)
 {
   return pasynOctetSyncIO->writeRead(pasynUser, outData.write_buffer,
                                      outData.write_buffer_len,
                                      inData.read_buffer, inData.read_buffer_len,
-                                     timeout, outData.nbytesOut,
-                                     inData.nbytesIn, eomReason);
+                                     timeout, nbytesOut, inData.nbytesIn,
+                                     eomReason);
 }
 
 asynStatus asynOctetSyncIOWrapper::flush(asynUser* pasynUser)
@@ -71,12 +71,13 @@ asynStatus asynOctetSyncIOWrapper::getOutputEos(asynUser* pasynUser, char* eos,
 }
 
 asynStatus asynOctetSyncIOWrapper::writeOnce(const char* port, int addr,
-                                             writeData outData, double timeout,
+                                             writeData outData,
+                                             size_t *nbytesOut, double timeout,
                                              const char* drvInfo)
 {
   return pasynOctetSyncIO->writeOnce(port, addr, outData.write_buffer,
                                      outData.write_buffer_len, timeout,
-                                     outData.nbytesOut, drvInfo);
+                                     nbytesOut, drvInfo);
 }
 
 asynStatus asynOctetSyncIOWrapper::readOnce(const char* port, int addr,
@@ -90,6 +91,7 @@ asynStatus asynOctetSyncIOWrapper::readOnce(const char* port, int addr,
 
 asynStatus asynOctetSyncIOWrapper::writeReadOnce(const char* port, int addr,
                                                  writeData outData,
+                                                 size_t *nbytesOut,
                                                  readData inData,
                                                  double timeout, int* eomReason,
                                                  const char* drvInfo)
@@ -98,7 +100,7 @@ asynStatus asynOctetSyncIOWrapper::writeReadOnce(const char* port, int addr,
                                          outData.write_buffer_len,
                                          inData.read_buffer,
                                          inData.read_buffer_len, timeout,
-                                         outData.nbytesOut, inData.nbytesIn,
+                                         nbytesOut, inData.nbytesIn,
                                          eomReason, drvInfo);
 }
 
