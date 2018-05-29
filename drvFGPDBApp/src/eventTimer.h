@@ -119,7 +119,7 @@ class eventTimer : public epicsTimerNotify
      *         restarted and, if so, how long until it expires and triggers
      *         another callback.
      */
-    virtual expireStatus expire(const epicsTime & currentTime)  {
+    virtual expireStatus expire(const epicsTime &)  {
       double newDelay = m_handlerFunc();
       if (newDelay < 0.0)  return expireStatus(epicsTimerNotify::noRestart);
       if (newDelay == DefaultInterval)
