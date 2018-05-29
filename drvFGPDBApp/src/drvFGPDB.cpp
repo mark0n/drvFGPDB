@@ -1011,10 +1011,9 @@ int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
   size_t rcvd = 0;
   readData inData {
     .read_buffer = reinterpret_cast<char *>(respBuf.data()),
-    .read_buffer_len = respBuf.size() * sizeof(respBuf[0]),
-    .nbytesIn = &rcvd
+    .read_buffer_len = respBuf.size() * sizeof(respBuf[0])
   };
-  stat = syncIO->read(pComPort, inData, readTimeout, &eomReason);
+  stat = syncIO->read(pComPort, inData, &rcvd, readTimeout, &eomReason);
   if (stat != asynSuccess)  return -1;
   ++syncPktsRcvd;
 

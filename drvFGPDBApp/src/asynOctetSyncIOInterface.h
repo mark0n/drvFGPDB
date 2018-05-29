@@ -13,7 +13,15 @@
 struct readData {
   char *read_buffer;
   size_t read_buffer_len;
-  size_t *nbytesIn;
+
+  bool operator==(const readData& rhs) const
+  {
+    if (read_buffer_len != rhs.read_buffer_len) return false;
+    for(size_t i = 0; i < read_buffer_len; ++i) {
+      if(read_buffer[i] != rhs.read_buffer[i]) return false;
+    }
+    return true;
+  }
 };
 
 /**
@@ -43,11 +51,12 @@ public:
   virtual asynStatus disconnect(asynUser *pasynUser) = 0;
   virtual asynStatus write(asynUser *pasynUser, writeData outData,
                            size_t *nbytesOut, double timeout) = 0;
-  virtual asynStatus read(asynUser *pasynUser, readData inData, double timeout,
-                          int *eomReason) = 0;
+  virtual asynStatus read(asynUser *pasynUser, readData inData,
+                          size_t *nbytesIn, double timeout, int *eomReason) = 0;
   virtual asynStatus writeRead(asynUser *pasynUser, writeData outData,
                                size_t *nbytesOut, readData inData,
-                               double timeout, int *eomReason) = 0;
+                               size_t *nbytesIn, double timeout,
+                               int *eomReason) = 0;
   virtual asynStatus flush(asynUser *pasynUser) = 0;
   virtual asynStatus setInputEos(asynUser *pasynUser, const char *eos,
                                  int eoslen) = 0;
@@ -61,12 +70,13 @@ public:
                                size_t *nbytesOut, double timeout,
                                const char *drvInfo) = 0;
   virtual asynStatus readOnce(const char *port, int addr, readData inData,
-                              double timeout, int *eomReason,
+                              size_t *nbytesIn, double timeout, int *eomReason,
                               const char *drvInfo) = 0;
   virtual asynStatus writeReadOnce(const char *port, int addr,
                                    writeData outData, size_t *nbytesOut,
-                                   readData inData, double timeout,
-                                   int *eomReason, const char *drvInfo) = 0;
+                                   readData inData, size_t *nbytesIn,
+                                   double timeout, int *eomReason,
+                                   const char *drvInfo) = 0;
   virtual asynStatus flushOnce(const char *port, int addr,
                                const char *drvInfo) = 0;
   virtual asynStatus setInputEosOnce(const char *port, int addr,
