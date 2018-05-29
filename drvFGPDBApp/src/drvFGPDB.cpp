@@ -1790,9 +1790,14 @@ asynStatus drvFGPDB::writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal,
 
   // Compute result of applying specified changes
   uint32_t  setVal;
-  setVal = param.ctlrValSet;   // start with cur value
-  setVal |= (newVal & mask);   // set bits set in newVal and mask
-  setVal &= (newVal | ~mask);  // clear bits clear in newVal but set in mask
+  if(LCPUtil::addrGroupID(param.getRegAddr()) == ProcGroup_LCP_WO) {
+    setVal = newVal & mask; // all bits not in mask forced to 0
+  } else {
+    // Update only the bits specified by the mask
+    setVal = param.ctlrValSet;   // start with cur value
+    setVal |= (newVal & mask);   // set bits set in newVal and mask
+    setVal &= (newVal | ~mask);  // clear bits clear in newVal but set in mask
+  }
 
   uint32_t  prevVal = param.ctlrValSet;
   applyNewParamSetting(param, setVal);
