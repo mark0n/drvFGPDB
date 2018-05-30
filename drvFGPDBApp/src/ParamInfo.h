@@ -82,9 +82,8 @@ class ParamInfo {
      * @param[in] paramStr string that describes the parameter. Formats allowed are:
      *                     - name addr asynType ctlrFmt.
      *                     - name addr chipID blockSize eraseReq offset length statusName.
-     * @param[in] portName Name of the port that owns the parameter.
      */
-    ParamInfo(const std::string& paramStr, const std::string& portName);
+    ParamInfo(const std::string& paramStr);
 
     /**
      * @brief Method to set param attribute values related with the array read/write process.

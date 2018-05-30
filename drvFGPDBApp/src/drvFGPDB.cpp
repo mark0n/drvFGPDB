@@ -877,7 +877,7 @@ int drvFGPDB::processParamDef(const string &paramDef)
   asynStatus  stat;
   int  paramID;
 
-  ParamInfo newParam(paramDef, portName);
+  ParamInfo newParam(paramDef);
   if (newParam.name.empty())  return -1;
 
   if ((paramID = findParamByName(newParam.name)) < 0)
@@ -913,7 +913,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
     pasynUser->reason = processParamDef(string(drvInfo));
     return (pasynUser->reason < 0) ? asynError : asynSuccess;
   } catch(invalid_argument& e) {
-    cout << "ERROR: " << e.what() << endl;
+    cout << "ERROR: Port " << portName << ": " << e.what() << endl;
     return asynError;
   }
 }

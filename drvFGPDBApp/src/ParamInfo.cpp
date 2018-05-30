@@ -50,7 +50,7 @@ static string NotDefined("<NotDefined>");
 //    OR
 //  name addr chipID blockSize eraseReq offset len readStatusParam writeStatusParam
 //-----------------------------------------------------------------------------
-ParamInfo::ParamInfo(const string& paramStr, const string& portName)
+ParamInfo::ParamInfo(const string& paramStr)
          : regAddr(0),
            asynType(asynParamNotDefined),
            ctlrFmt(CtlrDataFmt::NotDefined),
@@ -100,7 +100,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     initBlockRW(arrayValRead.size());
     readState = ReadState::Update;
   } else {
-    throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\" for port \"" + portName + "\"");
+    throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\"");
   }
 }
 
