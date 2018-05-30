@@ -823,16 +823,10 @@ void drvFGPDB::setStateFlags(eStateFlags bitPos, bool value)
 //-----------------------------------------------------------------------------
 //  Return a copy of the ParamInfo struct for a parameter
 //-----------------------------------------------------------------------------
-std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
+ParamInfo& drvFGPDB::getParamInfo(const int paramID)
 {
-  ParamInfo paramInfo;
-  asynStatus status = asynError;
-  if (validParamID(paramID)) {
-    lock_guard<drvFGPDB> asynLock(*this);
-    paramInfo = params.at(paramID);
-    status = asynSuccess;
-  }
-  return make_pair(status, paramInfo);
+  lock_guard<drvFGPDB> asynLock(*this);
+  return params.at(paramID);
 }
 
 //-----------------------------------------------------------------------------

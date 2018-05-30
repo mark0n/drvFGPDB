@@ -153,9 +153,8 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canAddPropertiesToExistingParam) {
   id = addParam("testParam1 0x10001 Int32 U32");
   ASSERT_THAT(id, Eq(numDrvParams));
 
-  tie(stat, param) = testDrv->getParamInfo(numDrvParams);
+  param = testDrv->getParamInfo(numDrvParams);
 
-  ASSERT_THAT(stat, Eq(asynSuccess));
   ASSERT_THAT(param.getRegAddr(),  Eq(0x10001u));
   ASSERT_THAT(param.getAsynType(), Eq(asynParamInt32));
   ASSERT_THAT(param.getCtlrFmt(),  Eq(CtlrDataFmt::U32));
@@ -193,8 +192,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsIfMultParamsWithSameRegAddr) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
   addParams();
 
-  tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  param = testDrv->getParamInfo(testParamID_WA);
 
   stat = testDrv->findParam(param.name.c_str(), &id);
   ASSERT_THAT(stat, Eq(asynSuccess));
@@ -211,8 +209,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, canFindParamByName) {
   id = testDrv->findParamByName("sessionID");
   ASSERT_THAT(id , Ge(0));
 
-  tie(stat, param) = testDrv->getParamInfo(id);
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  param = testDrv->getParamInfo(id);
   ASSERT_THAT(param.name,  Eq("sessionID"));
 }
 
@@ -254,8 +251,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, rangeCheckReturnsValidResults) {
   bool validRange = testDrv->inDefinedRegRange(0, 1000);
   ASSERT_THAT(validRange, Eq(false));
 
-  tie(stat, param) = testDrv->getParamInfo(maxParamID_RO);
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  param = testDrv->getParamInfo(maxParamID_RO);
 
   uint numRegsRO = param.getRegAddr() - 0x10000;
   validRange = testDrv->inDefinedRegRange(0x10000, numRegsRO);
@@ -302,8 +298,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWriteWithUnsetRegs) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
   addParams();
 
-  tie(stat, param) = testDrv->getParamInfo(testParamID_WA);
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  param = testDrv->getParamInfo(testParamID_WA);
 
   stat = testDrv->writeRegs(param.getRegAddr(), lastRegID_WA - 0x20000 + 2);
   ASSERT_THAT(stat, Eq(asynError));
@@ -316,8 +311,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnWritesOutsideDefinedRegRange) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, failsOnAttemptToSendReadOnlyRegs) {
   addParams();
 
-  tie(stat, param) = testDrv->getParamInfo(testParamID_RO);
-  ASSERT_THAT(stat, Eq(asynSuccess));
+  param = testDrv->getParamInfo(testParamID_RO);
 
   stat = testDrv->writeRegs(param.getRegAddr(), 1);
   ASSERT_THAT(stat, Eq(asynError));
