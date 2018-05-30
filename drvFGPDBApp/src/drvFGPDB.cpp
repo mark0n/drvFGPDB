@@ -1840,7 +1840,8 @@ asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param)
 {
   int  statusParamID = param.getStatusParamID();
 
-  if (statusParamID < 0)  { // initializing statusParamIDs
+  // Lazily initialize statusParamID
+  if (statusParamID < 0)  {
     string statusParamName = param.getStatusParamName();
     if (statusParamName.size() > 0){
       statusParamID = findParamByName(statusParamName);
