@@ -1840,18 +1840,20 @@ asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param)
 {
   int  statusParamID = param.getStatusParamID();
 
-  if (statusParamID < 0)  {
+  if (statusParamID < 0)  { // initializing statusParamIDs
     string statusParamName = param.getStatusParamName();
-    if (statusParamName.size() > 0)
+    if (statusParamName.size() > 0){
       statusParamID = findParamByName(statusParamName);
-      if (statusParamID >= 0)  param.setStatusParamID(statusParamID);
-  }
-
-  if (statusParamID < 0)  {
-    logMsgHdr("\n");
-    cout << portName << "::" << __func__ << "(): " << endl
-         << "   *** invalid status parameter name: " << param << " ***" << endl;
-    return asynError;
+      if (statusParamID >= 0){
+        param.setStatusParamID(statusParamID);
+      }
+      else {
+        logMsgHdr("\n");
+        cout << portName << "::" << __func__ << "(): " << endl
+             << "   *** invalid status parameter name: " << param << " ***" << endl;
+        return asynError;
+      }
+    }
   }
 
   U32 arraySize = param.getArraySize();
