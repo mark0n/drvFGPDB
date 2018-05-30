@@ -74,8 +74,17 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
 {
   stringstream paramStream(paramStr);
 
-  if (regex_match(paramStr, pmemParamDefRegex()))  {
-    string  eraseReqStr;
+  if (regex_match(paramStr, scalarParamDefRegex())) {
+    string asynTypeName, ctlrFmtName;
+    paramStream >> name
+                >> hex >> regAddr
+                >> asynTypeName
+                >> ctlrFmtName;
+    asynType = strToAsynType(asynTypeName);
+    ctlrFmt = strToCtlrFmt(ctlrFmtName);
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
+  } else if (regex_match(paramStr, pmemParamDefRegex())) {
+    string eraseReqStr;
     paramStream >> name
                 >> hex >> regAddr
                 >> dec >> chipNum
@@ -90,22 +99,9 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     arrayValRead.assign(length, 0);
     initBlockRW(arrayValRead.size());
     readState = ReadState::Update;
-    return;
+  } else {
+    throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\" for port \"" + portName + "\"");
   }
-
-  if (regex_match(paramStr, scalarParamDefRegex()))  {
-    string asynTypeName, ctlrFmtName;
-    paramStream >> name
-                >> hex >> regAddr
-                >> asynTypeName
-                >> ctlrFmtName;
-    asynType = strToAsynType(asynTypeName);
-    ctlrFmt = strToCtlrFmt(ctlrFmtName);
-    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
-    return;
-  }
-
-  throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\" for port \"" + portName + "\"");
 }
 
 
