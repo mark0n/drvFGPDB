@@ -118,7 +118,7 @@ public:
 
     id = addParam("pmemWriteStatus 0x1 Int32");
     ASSERT_THAT(id, Eq(numDrvParams+7));  arrayWriteStatusID = id;
-    id = addParam("pmemWriteTest 0x2 1 256 Y 0x00800000 0x410000 pmemWriteStatus");
+    id = addParam("pmemWriteTest 0x2 1 256 Y 0x00800000 0x410000 pmemReadStatus pmemWriteStatus");
     ASSERT_THAT(id, Eq(numDrvParams+8));  testArrayID = id;
   }
 
