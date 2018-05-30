@@ -76,29 +76,6 @@ class ParamInfo {
     uint32_t       bytesLeft;   //!< Number of bytes left to r/w
     uint           rwCount;     //!< Number of bytes req in PMEM r/w cmd
   public:
-    ParamInfo() :
-      regAddr(0),
-      asynType(asynParamNotDefined),
-      ctlrFmt(CtlrDataFmt::NotDefined),
-      m_readOnly(true),
-      chipNum(0),
-      blockSize(0),
-      eraseReq(false),
-      offset(0),
-      length(0),
-      rwOffset(0),
-      blockNum(0),
-      dataOffset(0),
-      bytesLeft(0),
-      rwCount(0),
-      setState(SetState::Undefined),
-      readState(ReadState::Undefined),
-      ctlrValSet(0),
-      ctlrValRead(0),
-      drvValue(nullptr),
-      rdStatusParamID(-1),
-      wrStatusParamID(-1)
-    {};
     /**
      * @brief Constructs the Parameter object.
      *

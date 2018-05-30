@@ -909,8 +909,13 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                __attribute__((unused)) const char **pptypeName,
                                __attribute__((unused)) size_t *psize)
 {
-  pasynUser->reason = processParamDef(string(drvInfo));
-  return (pasynUser->reason < 0) ? asynError : asynSuccess;
+  try {
+    pasynUser->reason = processParamDef(string(drvInfo));
+    return (pasynUser->reason < 0) ? asynError : asynSuccess;
+  } catch(invalid_argument& e) {
+    cout << "ERROR: " << e.what() << endl;
+    return asynError;
+  }
 }
 
 //-----------------------------------------------------------------------------

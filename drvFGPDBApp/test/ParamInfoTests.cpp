@@ -43,11 +43,8 @@ TEST(construct, createNewParam)  {
 }
 
 //-----------------------------------------------------------------------------
-TEST(construct, rejectAndReturnDefConfigForInvalidDef)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 X32", __func__);
-
-  ASSERT_THAT(param.getRegAddr(), Eq(0));
-  ASSERT_THAT(param.getAsynType(), Eq(asynParamNotDefined));
+TEST(construct, rejectsInvalidParamDefString)  {
+  ASSERT_ANY_THROW(ParamInfo param("lcpRegRO_1 0x10002 Int32 X32", __func__));
 }
 
 //-----------------------------------------------------------------------------

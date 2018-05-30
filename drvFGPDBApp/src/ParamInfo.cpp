@@ -48,10 +48,29 @@ static string NotDefined("<NotDefined>");
 //
 //  name addr asynType ctlrFmt
 //    OR
-//  name addr chipID blockSize eraseReq offset len statusName
+//  name addr chipID blockSize eraseReq offset len readStatusParam writeStatusParam
 //-----------------------------------------------------------------------------
 ParamInfo::ParamInfo(const string& paramStr, const string& portName)
-         : ParamInfo()
+         : regAddr(0),
+           asynType(asynParamNotDefined),
+           ctlrFmt(CtlrDataFmt::NotDefined),
+           chipNum(0),
+           blockSize(0),
+           eraseReq(false),
+           offset(0),
+           length(0),
+           rwOffset(0),
+           blockNum(0),
+           dataOffset(0),
+           bytesLeft(0),
+           rwCount(0),
+           setState(SetState::Undefined),
+           readState(ReadState::Undefined),
+           ctlrValSet(0),
+           ctlrValRead(0),
+           drvValue(nullptr),
+           rdStatusParamID(-1),
+           wrStatusParamID(-1)
 {
   stringstream paramStream(paramStr);
 
@@ -86,10 +105,7 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     return;
   }
 
-  cout << endl
-       << "*** Param def error: Device: " << portName << " ***" << endl
-       << "    [" << paramStr << "]" << endl;
-  return;  // use values set by default constructor
+  throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\" for port \"" + portName + "\"");
 }
 
 
