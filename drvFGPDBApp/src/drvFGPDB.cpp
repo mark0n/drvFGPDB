@@ -1601,10 +1601,6 @@ asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
 {
-  U32  ttl, arraySize;
-  float  perc;
-
-
   SetState setState;
   {
     lock_guard<drvFGPDB> asynLock(*this);
@@ -1624,8 +1620,6 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
   arrayReadsInProgress = true;
 
 //--- initialize values used in the loop ---
-  arraySize = param.arrayValRead.size();
-
   param.rwBuf.assign(param.getBlockSize(), 0);
 
   // adjust # of bytes to read from the next block if necessary
@@ -1648,9 +1642,7 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
   param.setRWOffset(param.getRWOffset() + param.getRWCount());
   param.setRWCount(param.getBlockSize());
 
-  ttl = arraySize - param.getBytesLeft();  perc = (float)ttl / arraySize * 100.0;
-
-  setArrayOperStatus(param, (uint32_t)perc);  // update the status param
+  setArrayOperStatus(param);  // update the status param
 
   return asynSuccess;
 }
@@ -1660,10 +1652,6 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 {
-  U32  ttl, arraySize;
-  float  perc;
-
-
   {
     lock_guard<drvFGPDB> asynLock(*this);
 
@@ -1684,8 +1672,6 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   }
 
   // initialize values used in the loop
-  arraySize = param.arrayValSet.size();
-
   param.rwBuf.assign(param.getBlockSize(), 0);
 
   // adjust # of bytes to write to the next block if necessary
@@ -1724,9 +1710,7 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   param.setRWOffset(param.getRWOffset() + param.getRWCount());
   param.setRWCount(param.getBlockSize());
 
-  ttl = arraySize - param.getBytesLeft();  perc = (float)ttl / arraySize * 100.0;
-
-  setArrayOperStatus(param, (uint32_t)perc);  // update the status param
+  setArrayOperStatus(param);  // update the status param
 
   return asynSuccess;
 }
@@ -1856,24 +1840,38 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 //  If a status param has been provided for an array param, then set it to the
 //  percentage done for the current read or write operation for the array.
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param, uint32_t percDone)
+asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param)
 {
-  if (param.statusParamID < 0)
-    if (param.statusParamName.size() > 0)
-      if ((param.statusParamID = findParamByName(param.statusParamName)) < 0)  {
+  int  statusParamID = param.getStatusParamID();
+
+  // Lazily initialize statusParamID
+  if (statusParamID < 0)  {
+    string statusParamName = param.getStatusParamName();
+    if (statusParamName.size() > 0){
+      statusParamID = findParamByName(statusParamName);
+      if (statusParamID >= 0){
+        param.setStatusParamID(statusParamID);
+      }
+      else {
         logMsgHdr("\n");
         cout << portName << "::" << __func__ << "(): " << endl
              << "   *** invalid status parameter name: " << param << " ***" << endl;
         return asynError;
       }
-
-  if (param.statusParamID >= 0)  {
-    ParamInfo &statusParam = params.at(param.statusParamID);
-    lock_guard<drvFGPDB> asynLock(*this);
-    statusParam.ctlrValRead = percDone;
-    statusParam.readState = ReadState::Pending;
-    //postNewReadingsTimer.wakeUp();
+    }
   }
+
+  U32 arraySize = param.getArraySize();
+  if (arraySize == 0)  return asynError;
+
+  U32 ttl = arraySize - param.getBytesLeft();
+  U32 percDone = (U32)((float)ttl / arraySize * 100.0);
+
+  ParamInfo &statusParam = params.at(statusParamID);
+
+  lock_guard<drvFGPDB> asynLock(*this);
+
+  statusParam.newReadVal(percDone);
 
   return asynSuccess;
 }
@@ -1926,17 +1924,14 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
          << endl << "   " << param << endl;
   }
 
-  if (!param.isArrayParam())  return asynError;
-
-  if ((param.setState == SetState::Pending) or
-      (param.setState == SetState::Processing))  return asynError;
-
-  setArrayOperStatus(param, 0);  // init the status param
+  if (!param.isArrayParam() or param.activePMEMwrite())  return asynError;
 
   param.arrayValSet.assign(&values[0], &values[nElements]);
 
   param.initBlockRW(param.arrayValSet.size());
   param.setState = SetState::Pending;
+
+  setArrayOperStatus(param);  // init the status param
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
             "%s::%s() [%s]:  paramID=%d, name=%s, nElements=%lu\n",

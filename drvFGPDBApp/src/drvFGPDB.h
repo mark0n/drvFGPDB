@@ -626,14 +626,13 @@ class drvFGPDB : public asynPortDriver {
 
     /**
      * @brief Method that sets the status param value to the percentage done
-     *        for the current read or write operation for the array.
+     *        for the current PMEM read or write operation.
      *
-     * @param[in] param    status param
-     * @param[in] percDone percentage done, of the read/write operation
+     * @param[in] param    the PMEM/array param
      *
      * @return asynStatus
      */
-    asynStatus setArrayOperStatus(ParamInfo &param, uint32_t percDone);
+    asynStatus setArrayOperStatus(ParamInfo &param);
 
 
     static const int MaxAddr = 1;    //!< MAX number of asyn addresses supported by this driver
