@@ -34,7 +34,7 @@ TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
 }
 
 //-----------------------------------------------------------------------------
-TEST(construct, createNewParam)  {
+TEST(ParamInfo, constructsNewParamFromDefinitionString)  {
   ParamInfo param("lcpRegRO_1 0x10002 Int32 U32");
 
   ostringstream stream;
@@ -43,7 +43,17 @@ TEST(construct, createNewParam)  {
 }
 
 //-----------------------------------------------------------------------------
-TEST(construct, rejectsInvalidParamDefString)  {
+TEST(ParamInfo, ctorFailsIfParamDefinitionStringEmpty)  {
+  ASSERT_ANY_THROW(ParamInfo param(""));
+}
+
+//-----------------------------------------------------------------------------
+TEST(ParamInfo, ctorFailsIfParamNameNotSpecified)  {
+  ASSERT_ANY_THROW(ParamInfo param("0x10002 Int32 U32"));
+}
+
+//-----------------------------------------------------------------------------
+TEST(ParamInfo, rejectsInvalidParamDefString)  {
   ASSERT_ANY_THROW(ParamInfo param("lcpRegRO_1 0x10002 Int32 X32"));
 }
 
