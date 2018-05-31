@@ -134,6 +134,13 @@ class drvFGPDB : public asynPortDriver {
     void startCommunication();
 
     /**
+     * @brief Called from the initHook registered function, completes the initialization of
+     *        all parameters related with read/write arrays
+     */
+    void completeArrayParamInit ();
+
+
+    /**
      * @brief Returns the value for an integer from the parameter library.
      *
      * @param[in]  list   The parameter list number. Must be < maxAddr
