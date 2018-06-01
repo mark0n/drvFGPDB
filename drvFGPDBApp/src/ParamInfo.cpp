@@ -48,15 +48,43 @@ static string NotDefined("<NotDefined>");
 //
 //  name addr asynType ctlrFmt
 //    OR
-//  name addr chipID blockSize eraseReq offset len statusName
+//  name addr chipID blockSize eraseReq offset len readStatusParam writeStatusParam
 //-----------------------------------------------------------------------------
-ParamInfo::ParamInfo(const string& paramStr, const string& portName)
-         : ParamInfo()
+ParamInfo::ParamInfo(const string& paramStr)
+         : regAddr(0),
+           asynType(asynParamNotDefined),
+           ctlrFmt(CtlrDataFmt::NotDefined),
+           chipNum(0),
+           blockSize(0),
+           eraseReq(false),
+           offset(0),
+           length(0),
+           rwOffset(0),
+           blockNum(0),
+           dataOffset(0),
+           bytesLeft(0),
+           rwCount(0),
+           setState(SetState::Undefined),
+           readState(ReadState::Undefined),
+           ctlrValSet(0),
+           ctlrValRead(0),
+           drvValue(nullptr),
+           rdStatusParamID(-1),
+           wrStatusParamID(-1)
 {
   stringstream paramStream(paramStr);
 
-  if (regex_match(paramStr, pmemParamDefRegex()))  {
-    string  eraseReqStr;
+  if (regex_match(paramStr, scalarParamDefRegex())) {
+    string asynTypeName, ctlrFmtName;
+    paramStream >> name
+                >> hex >> regAddr
+                >> asynTypeName
+                >> ctlrFmtName;
+    asynType = strToAsynType(asynTypeName);
+    ctlrFmt = strToCtlrFmt(ctlrFmtName);
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
+  } else if (regex_match(paramStr, pmemParamDefRegex())) {
+    string eraseReqStr;
     paramStream >> name
                 >> hex >> regAddr
                 >> dec >> chipNum
@@ -71,25 +99,9 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     arrayValRead.assign(length, 0);
     initBlockRW(arrayValRead.size());
     readState = ReadState::Update;
-    return;
+  } else {
+    throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\"");
   }
-
-  if (regex_match(paramStr, scalarParamDefRegex()))  {
-    string asynTypeName, ctlrFmtName;
-    paramStream >> name
-                >> hex >> regAddr
-                >> asynTypeName
-                >> ctlrFmtName;
-    asynType = strToAsynType(asynTypeName);
-    ctlrFmt = strToCtlrFmt(ctlrFmtName);
-    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
-    return;
-  }
-
-  cout << endl
-       << "*** Param def error: Device: " << portName << " ***" << endl
-       << "    [" << paramStr << "]" << endl;
-  return;  // use values set by default constructor
 }
 
 

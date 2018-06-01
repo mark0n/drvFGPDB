@@ -823,16 +823,10 @@ void drvFGPDB::setStateFlags(eStateFlags bitPos, bool value)
 //-----------------------------------------------------------------------------
 //  Return a copy of the ParamInfo struct for a parameter
 //-----------------------------------------------------------------------------
-std::pair<asynStatus, ParamInfo> drvFGPDB::getParamInfo(int paramID)
+ParamInfo& drvFGPDB::getParamInfo(const int paramID)
 {
-  ParamInfo paramInfo;
-  asynStatus status = asynError;
-  if (validParamID(paramID)) {
-    lock_guard<drvFGPDB> asynLock(*this);
-    paramInfo = params.at(paramID);
-    status = asynSuccess;
-  }
-  return make_pair(status, paramInfo);
+  lock_guard<drvFGPDB> asynLock(*this);
+  return params.at(paramID);
 }
 
 //-----------------------------------------------------------------------------
@@ -883,7 +877,7 @@ int drvFGPDB::processParamDef(const string &paramDef)
   asynStatus  stat;
   int  paramID;
 
-  ParamInfo newParam(paramDef, portName);
+  ParamInfo newParam(paramDef);
   if (newParam.name.empty())  return -1;
 
   if ((paramID = findParamByName(newParam.name)) < 0)
@@ -915,8 +909,13 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
                                __attribute__((unused)) const char **pptypeName,
                                __attribute__((unused)) size_t *psize)
 {
-  pasynUser->reason = processParamDef(string(drvInfo));
-  return (pasynUser->reason < 0) ? asynError : asynSuccess;
+  try {
+    pasynUser->reason = processParamDef(string(drvInfo));
+    return (pasynUser->reason < 0) ? asynError : asynSuccess;
+  } catch(invalid_argument& e) {
+    cout << "ERROR: Port " << portName << ": " << e.what() << endl;
+    return asynError;
+  }
 }
 
 //-----------------------------------------------------------------------------

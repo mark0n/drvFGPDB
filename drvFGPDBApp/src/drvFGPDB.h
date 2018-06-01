@@ -517,7 +517,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return copy of the param
      */
-    std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
+    ParamInfo& getParamInfo(const int paramID);
 
     /**
      * @brief Method that updates the regAddr to paramID maps

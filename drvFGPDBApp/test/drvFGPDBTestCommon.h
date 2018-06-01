@@ -140,7 +140,6 @@ public:
   uint RO_groupSize;             //!< # of params in Read-Only group
   uint WA_groupSize;             //!< # of params in Write-Anytime group
   uint WO_groupSize;             //!< # of params in Write-Once group
-  ParamInfo  param;              //!< copy of a param
 };
 
 

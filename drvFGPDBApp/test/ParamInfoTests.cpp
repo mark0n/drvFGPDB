@@ -34,8 +34,8 @@ TEST(joinMapKeys, concatenatesMapKeysAndSeparators) {
 }
 
 //-----------------------------------------------------------------------------
-TEST(construct, createNewParam)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32", __func__);
+TEST(ParamInfo, constructsNewParamFromDefinitionString)  {
+  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32");
 
   ostringstream stream;
   stream << param;
@@ -43,11 +43,18 @@ TEST(construct, createNewParam)  {
 }
 
 //-----------------------------------------------------------------------------
-TEST(construct, rejectAndReturnDefConfigForInvalidDef)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 X32", __func__);
+TEST(ParamInfo, ctorFailsIfParamDefinitionStringEmpty)  {
+  ASSERT_ANY_THROW(ParamInfo param(""));
+}
 
-  ASSERT_THAT(param.getRegAddr(), Eq(0));
-  ASSERT_THAT(param.getAsynType(), Eq(asynParamNotDefined));
+//-----------------------------------------------------------------------------
+TEST(ParamInfo, ctorFailsIfParamNameNotSpecified)  {
+  ASSERT_ANY_THROW(ParamInfo param("0x10002 Int32 U32"));
+}
+
+//-----------------------------------------------------------------------------
+TEST(ParamInfo, rejectsInvalidParamDefString)  {
+  ASSERT_ANY_THROW(ParamInfo param("lcpRegRO_1 0x10002 Int32 X32"));
 }
 
 //-----------------------------------------------------------------------------
@@ -88,22 +95,22 @@ TEST(conversions, convertsStringToAsynType)  {
 
 //-----------------------------------------------------------------------------
 TEST(conversions, convertsSetStateToString)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32", __func__);
+  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32");
   param.setState = SetState::Pending;
   ASSERT_THAT(param.setStateToStr(), Eq("Pending"));
 }
 
 //-----------------------------------------------------------------------------
 TEST(conversions, convertsReadStateToString)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32", __func__);
+  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32");
   param.readState = ReadState::Current;
   ASSERT_THAT(param.readStateToStr(), Eq("Current"));
 }
 
 //-----------------------------------------------------------------------------
 TEST(conversions, failsOnConflictingUpdate)  {
-  ParamInfo param1("lcpRegRO_1 0x10002 Int32 U32", __func__);
-  ParamInfo param2("lcpRegRO_1 0x10002 Float64 U32", __func__);
+  ParamInfo param1("lcpRegRO_1 0x10002 Int32 U32");
+  ParamInfo param2("lcpRegRO_1 0x10002 Float64 U32");
 
   auto stat = param1.updateParamDef(__func__, param2);
   ASSERT_THAT(stat, Eq(asynError));
