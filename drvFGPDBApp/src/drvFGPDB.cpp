@@ -185,6 +185,23 @@ drvFGPDB::~drvFGPDB()
 }
 
 //-----------------------------------------------------------------------------
+void drvFGPDB::completeArrayParamInit (){
+  for (auto &param : params)  {
+    bool arrayParam = false;
+    if(param.rdStatusParamName.size()>0 and param.wrStatusParamName.size()>0){
+      param.rdStatusParamID = findParamByName(param.rdStatusParamName);
+      param.wrStatusParamID = findParamByName(param.wrStatusParamName);
+      arrayParam = true;
+    }
+    if(arrayParam and ((param.rdStatusParamID < 0) or (param.wrStatusParamID < 0))){
+      logMsgHdr("\n");
+      cout << portName << "::" << __func__ << "(): " << endl
+           << "   *** Invalid read/write status parameters for : " << param << " ***" << endl;
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
 void drvFGPDB::startCommunication()
 {
   if (verifyReqParams() != asynSuccess)  {
@@ -1843,20 +1860,7 @@ asynStatus drvFGPDB::setArrayOperStatus(ParamInfo &param)
 {
   int  statusParamID = param.getStatusParamID();
 
-  // Lazily initialize statusParamID
-  if (statusParamID < 0)  {
-    string statusParamName = param.getStatusParamName();
-    if (statusParamName.size() > 0)  {
-      statusParamID = findParamByName(statusParamName);
-      if (statusParamID >= 0)  param.setStatusParamID(statusParamID);
-    }
-    if (statusParamID < 0)  {
-      logMsgHdr("\n");
-      cout << portName << "::" << __func__ << "(): " << endl
-           << "   *** invalid status parameter name: " << param << " ***" << endl;
-      return asynError;
-    }
-  }
+  if (statusParamID < 0) return asynError;
 
   U32 arraySize = param.getArraySize();
   if (arraySize == 0)  return asynError;

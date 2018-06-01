@@ -216,26 +216,11 @@ void ParamInfo::newReadVal(uint32_t newVal)
 }
 
 //-----------------------------------------------------------------------------
-string ParamInfo::getStatusParamName(void)
-{
-  if (activePMEMwrite())  return wrStatusParamName;
-  if (activePMEMread())   return rdStatusParamName;
-  return "";
-}
-
-//-----------------------------------------------------------------------------
 int ParamInfo::getStatusParamID(void)
 {
   if (activePMEMwrite())  return wrStatusParamID;
   if (activePMEMread())   return rdStatusParamID;
   return -1;
-}
-
-//-----------------------------------------------------------------------------
-void ParamInfo::setStatusParamID(int paramID)
-{
-  if (activePMEMwrite())  { wrStatusParamID = paramID;  return; }
-  if (activePMEMread())   { rdStatusParamID = paramID;  return; }
 }
 
 //-----------------------------------------------------------------------------

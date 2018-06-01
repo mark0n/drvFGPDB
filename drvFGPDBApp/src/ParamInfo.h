@@ -286,10 +286,7 @@ class ParamInfo {
     uint  getRWCount() const { return rwCount; };     //!< Number of bytes req in PMEM r/w cmd
     void  setRWCount(uint newRWCount) { rwCount = newRWCount; }
 
-    std::string  getStatusParamName(void);  //!< name of status param for active PMEM read or write oper
-
     int  getStatusParamID(void);  //!< ID of status param for active PMEM read or write oper
-    void setStatusParamID(int paramID);
 
     uint32_t getArraySize(void);  //!< size of array for active active PMEM read or write
 
