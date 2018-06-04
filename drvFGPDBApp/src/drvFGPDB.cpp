@@ -186,17 +186,17 @@ drvFGPDB::~drvFGPDB()
 
 //-----------------------------------------------------------------------------
 void drvFGPDB::completeArrayParamInit (){
-  for (auto &param : params)  {
-    bool arrayParam = false;
-    if(param.rdStatusParamName.size()>0 and param.wrStatusParamName.size()>0){
-      param.rdStatusParamID = findParamByName(param.rdStatusParamName);
-      param.wrStatusParamID = findParamByName(param.wrStatusParamName);
-      arrayParam = true;
-    }
-    if(arrayParam and ((param.rdStatusParamID < 0) or (param.wrStatusParamID < 0))){
+
+  for (auto &param : params) {
+    if (!param.isArrayParam()) continue;
+
+    param.rdStatusParamID = findParamByName(param.rdStatusParamName);
+    param.wrStatusParamID = findParamByName(param.wrStatusParamName);
+
+    if((param.rdStatusParamID < 0) or (param.wrStatusParamID < 0)){
       logMsgHdr("\n");
       cout << portName << "::" << __func__ << "(): " << endl
-           << "   *** Invalid read/write status parameters for : " << param << " ***" << endl;
+          << "   *** Invalid read/write status parameters for : " << param << " ***" << endl;
     }
   }
 }
