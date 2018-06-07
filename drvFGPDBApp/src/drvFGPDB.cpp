@@ -51,10 +51,6 @@ typedef  epicsFloat64   F64;
 typedef  unsigned int   uint;
 typedef  unsigned char  uchar;
 
-
-static const double writeTimeout = 0.5;
-static const double readTimeout  = 0.5;
-
 //-----------------------------------------------------------------------------
 //  print the specified date/time in YYY-MM-DD HH:MM:SS format
 //-----------------------------------------------------------------------------
@@ -1013,9 +1009,8 @@ asynStatus drvFGPDB::sendMsg(asynUser *pComPort, vector<uint32_t> &cmdBuf)
   writeData outData {
     .write_buffer = reinterpret_cast<char *>(cmdBuf.data()),
     .write_buffer_len = bytesToSend,
-    .nbytesOut = &bytesSent
   };
-  asynStatus stat = syncIO->write(pComPort, outData, writeTimeout);
+  asynStatus stat = syncIO->write(pComPort, outData, &bytesSent, writeTimeout);
   ++syncPktsSent;
   if (stat != asynSuccess)  return stat;
   if (bytesSent != bytesToSend)  return asynError;
@@ -1032,10 +1027,9 @@ int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
   size_t rcvd = 0;
   readData inData {
     .read_buffer = reinterpret_cast<char *>(respBuf.data()),
-    .read_buffer_len = respBuf.size() * sizeof(respBuf[0]),
-    .nbytesIn = &rcvd
+    .read_buffer_len = respBuf.size() * sizeof(respBuf[0])
   };
-  stat = syncIO->read(pComPort, inData, readTimeout, &eomReason);
+  stat = syncIO->read(pComPort, inData, &rcvd, readTimeout, &eomReason);
   if (stat != asynSuccess)  return -1;
   ++syncPktsRcvd;
 
