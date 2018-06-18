@@ -1,3 +1,35 @@
+drvfgpdb (1.0.3) unstable; urgency=medium
+
+  [ Mark Davis ]
+  * Support separate Read and Write statuses for PMEM/array params
+
+  [ Bernal Ruiz, Enrique ]
+  * Init param's status param after setting param's SetState to pending
+
+  [ Martin Konrad ]
+  * Remove unneeded typedef
+
+  [ Bernal Ruiz, Enrique ]
+  * Fix wrong if-else statement in setArrayOperStatus()
+
+  [ Martin Konrad ]
+  * Clearify comment about lazy initialization of statusParamID
+  * Fix broken tests
+  * Simplify getParamInfo() method
+  * Get rid of default constructor for ParamInfo class
+  * Improve performance of ParamInfo constructor
+  * Simplify ParamInfo constructor
+  * More tests for ParamInfo constructor
+  * Test sendMsg() method
+  * Test readResp() method
+
+  [ Bernal Ruiz, Enrique ]
+  * Fix setArrayOperStatus to print error message if statusParamID is wrong
+  * Complete initialization of arrayParams after init database
+  * Fix completeArrayParamInit w/ Mark's comments in commit e318784ab9c
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 18 Jun 2018 18:10:41 -0400
+
 drvfgpdb (1.0.2) unstable; urgency=medium
 
   * Clear old bits before transmitting WO registers
