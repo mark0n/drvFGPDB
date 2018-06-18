@@ -134,6 +134,13 @@ class drvFGPDB : public asynPortDriver {
     void startCommunication();
 
     /**
+     * @brief Called from the initHook registered function, completes the initialization of
+     *        all parameters related with read/write arrays
+     */
+    void completeArrayParamInit ();
+
+
+    /**
      * @brief Returns the value for an integer from the parameter library.
      *
      * @param[in]  list   The parameter list number. Must be < maxAddr
@@ -517,7 +524,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return copy of the param
      */
-    std::pair<asynStatus, ParamInfo> getParamInfo(int paramID);
+    ParamInfo& getParamInfo(const int paramID);
 
     /**
      * @brief Method that updates the regAddr to paramID maps
@@ -626,14 +633,13 @@ class drvFGPDB : public asynPortDriver {
 
     /**
      * @brief Method that sets the status param value to the percentage done
-     *        for the current read or write operation for the array.
+     *        for the current PMEM read or write operation.
      *
-     * @param[in] param    status param
-     * @param[in] percDone percentage done, of the read/write operation
+     * @param[in] param    the PMEM/array param
      *
      * @return asynStatus
      */
-    asynStatus setArrayOperStatus(ParamInfo &param, uint32_t percDone);
+    asynStatus setArrayOperStatus(ParamInfo &param);
 
 
     static const int MaxAddr = 1;    //!< MAX number of asyn addresses supported by this driver
@@ -754,6 +760,9 @@ class drvFGPDB : public asynPortDriver {
     int idCtlrUpSince;    uint32_t ctlrUpSince;     //!< last time ctlr restarted
 
     ResendMode  resendMode;  //!< mode for determining if/when to resend settings to the ctlr
+
+    const double writeTimeout = 0.5;
+    const double readTimeout  = 0.5;
 
     int  idDiagFlags;     uint32_t diagFlags;
 

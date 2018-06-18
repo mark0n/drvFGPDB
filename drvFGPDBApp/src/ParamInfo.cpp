@@ -48,32 +48,33 @@ static string NotDefined("<NotDefined>");
 //
 //  name addr asynType ctlrFmt
 //    OR
-//  name addr chipID blockSize eraseReq offset len statusName
+//  name addr chipID blockSize eraseReq offset len readStatusParam writeStatusParam
 //-----------------------------------------------------------------------------
-ParamInfo::ParamInfo(const string& paramStr, const string& portName)
-         : ParamInfo()
+ParamInfo::ParamInfo(const string& paramStr)
+         : regAddr(0),
+           asynType(asynParamNotDefined),
+           ctlrFmt(CtlrDataFmt::NotDefined),
+           chipNum(0),
+           blockSize(0),
+           eraseReq(false),
+           offset(0),
+           length(0),
+           rwOffset(0),
+           blockNum(0),
+           dataOffset(0),
+           bytesLeft(0),
+           rwCount(0),
+           setState(SetState::Undefined),
+           readState(ReadState::Undefined),
+           ctlrValSet(0),
+           ctlrValRead(0),
+           drvValue(nullptr),
+           rdStatusParamID(-1),
+           wrStatusParamID(-1)
 {
   stringstream paramStream(paramStr);
 
-  if (regex_match(paramStr, pmemParamDefRegex()))  {
-    string  eraseReqStr;
-    paramStream >> name
-                >> hex >> regAddr
-                >> dec >> chipNum
-                >> blockSize
-                >> eraseReqStr
-                >> hex >> offset >> length
-                >> statusParamName;
-    eraseReq = (eraseReqStr.at(0) == 'Y');
-    asynType = asynParamInt8Array;
-    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
-    arrayValRead.assign(length, 0);
-    initBlockRW(arrayValRead.size());
-    readState = ReadState::Update;
-    return;
-  }
-
-  if (regex_match(paramStr, scalarParamDefRegex()))  {
+  if (regex_match(paramStr, scalarParamDefRegex())) {
     string asynTypeName, ctlrFmtName;
     paramStream >> name
                 >> hex >> regAddr
@@ -82,13 +83,25 @@ ParamInfo::ParamInfo(const string& paramStr, const string& portName)
     asynType = strToAsynType(asynTypeName);
     ctlrFmt = strToCtlrFmt(ctlrFmtName);
     m_readOnly = LCPUtil::readOnlyAddr(regAddr);
-    return;
+  } else if (regex_match(paramStr, pmemParamDefRegex())) {
+    string eraseReqStr;
+    paramStream >> name
+                >> hex >> regAddr
+                >> dec >> chipNum
+                >> blockSize
+                >> eraseReqStr
+                >> hex >> offset >> length
+                >> rdStatusParamName
+                >> wrStatusParamName;
+    eraseReq = (eraseReqStr.at(0) == 'Y');
+    asynType = asynParamInt8Array;
+    m_readOnly = LCPUtil::readOnlyAddr(regAddr);
+    arrayValRead.assign(length, 0);
+    initBlockRW(arrayValRead.size());
+    readState = ReadState::Update;
+  } else {
+    throw invalid_argument("Invalid parameter definition string \"" + paramStr + "\"");
   }
-
-  cout << endl
-       << "*** Param def error: Device: " << portName << " ***" << endl
-       << "    [" << paramStr << "]" << endl;
-  return;  // use values set by default constructor
 }
 
 
@@ -149,7 +162,8 @@ const regex& ParamInfo::pmemParamDefRegex()
   const string offset       = "0x[0-9a-fA-F]+";
   const string length       = "0x[0-9a-fA-F]+";
 
-  const string statusParamName = "\\w+";
+  const string rdStatusParamName = "\\w+";
+  const string wrStatusParamName = "\\w+";
 
 
   const string pmemArrayRegExStr = paramName
@@ -159,7 +173,8 @@ const regex& ParamInfo::pmemParamDefRegex()
                                  + whiteSpaces + eraseReq
                                  + whiteSpaces + offset
                                  + whiteSpaces + length
-                                 + whiteSpaces + statusParamName;
+                                 + whiteSpaces + rdStatusParamName
+                                 + whiteSpaces + wrStatusParamName;
 
   static const regex re(pmemArrayRegExStr);
 
@@ -181,7 +196,9 @@ ostream& operator<<(ostream& os, const ParamInfo &param)
        << hex
        << " 0x" << param.offset
        << " 0x" << param.length
-       << " " << param.statusParamName << dec;
+       << dec
+       << " " << param.rdStatusParamName
+       << " " << param.wrStatusParamName;
   else
     os << " " << ParamInfo::asynTypeToStr(param.asynType)
        << " " << ParamInfo::ctlrFmtToStr(param.ctlrFmt);
@@ -196,6 +213,26 @@ void ParamInfo::newReadVal(uint32_t newVal)
   readState = ReadState::Pending;
 
   if (drvValue)  *drvValue = newVal;
+}
+
+//-----------------------------------------------------------------------------
+int ParamInfo::getStatusParamID(void)
+{
+  if (activePMEMwrite())  return wrStatusParamID;
+  if (activePMEMread())   return rdStatusParamID;
+  return -1;
+}
+
+//-----------------------------------------------------------------------------
+uint32_t ParamInfo::getArraySize(void)
+{
+  if ((setState == SetState::Pending) or (setState == SetState::Processing))
+    return arrayValSet.size();
+
+  if ((readState == ReadState::Update) or (readState == ReadState::Pending))
+    return arrayValRead.size();
+
+  return 0;
 }
 
 //-----------------------------------------------------------------------------
