@@ -76,37 +76,14 @@ class ParamInfo {
     uint32_t       bytesLeft;   //!< Number of bytes left to r/w
     uint           rwCount;     //!< Number of bytes req in PMEM r/w cmd
   public:
-    ParamInfo() :
-      regAddr(0),
-      asynType(asynParamNotDefined),
-      ctlrFmt(CtlrDataFmt::NotDefined),
-      m_readOnly(true),
-      chipNum(0),
-      blockSize(0),
-      eraseReq(false),
-      offset(0),
-      length(0),
-      rwOffset(0),
-      blockNum(0),
-      dataOffset(0),
-      bytesLeft(0),
-      rwCount(0),
-      ctlrValSet(0),
-      setState(SetState::Undefined),
-      ctlrValRead(0),
-      readState(ReadState::Undefined),
-      drvValue(nullptr),
-      statusParamID(-1)
-    {};
     /**
      * @brief Constructs the Parameter object.
      *
      * @param[in] paramStr string that describes the parameter. Formats allowed are:
      *                     - name addr asynType ctlrFmt.
      *                     - name addr chipID blockSize eraseReq offset length statusName.
-     * @param[in] portName Name of the port that owns the parameter.
      */
-    ParamInfo(const std::string& paramStr, const std::string& portName);
+    ParamInfo(const std::string& paramStr);
 
     /**
      * @brief Method to set param attribute values related with the array read/write process.
@@ -258,13 +235,17 @@ class ParamInfo {
 
     bool isReadOnly() const { return m_readOnly; };    //!< Clients cannot write to the value
 
-    epicsUInt32    ctlrValSet;  //!< Value to write to ctlr @note In ctlr fmt, host byte order!
-    SetState       setState;    //!< State of ctlrValSet
 
-    epicsUInt32    ctlrValRead; //!< Most recently read value from ctlr @note In ctlr fmt, host byte order!
+    SetState       setState;    //!< State of ctlrValSet
     ReadState      readState;   //!< State of ctlrValRead
 
+
+    // properties for scalar parameters
+    epicsUInt32    ctlrValSet;  //!< Value to write to ctlr @note In ctlr fmt, host byte order!
+    epicsUInt32    ctlrValRead; //!< Most recently read value from ctlr @note In ctlr fmt, host byte order!
+
     uint32_t      *drvValue;    //!< Run-time variable for key freq-used scalar params
+
 
     // properties for pmem (array) parameters
     std::vector<uint8_t> arrayValSet;   //!< Array to write to ctlr
@@ -274,20 +255,40 @@ class ParamInfo {
     ulong getBlockSize() const { return blockSize; }
     bool  getEraseReq()  const { return eraseReq;  }
 
-    std::string    statusParamName; //!< Name of the status param associated to an PMEM param
-    int            statusParamID;   //!< ID of the status param
+    std::string    rdStatusParamName; //!< Name of param for status of a PMEM read oper
+    int            rdStatusParamID;   //!< ID of the rdStatusParam
+
+    std::string    wrStatusParamName; //!< Name of param for status of a PMEM write oper
+    int            wrStatusParamID;   //!< ID of the wrStatusParam
 
     // state data for in-progress read or write of an array value
     uint32_t getRWOffset() const { return rwOffset; }
     void setRWOffset(uint32_t newRWOffset) { rwOffset = newRWOffset; }
+
     uint32_t getBlockNum() const { return blockNum; }
     void incrementBlockNum() { ++blockNum; }
+
     uint32_t getDataOffset() const { return dataOffset; };  //!< Offset in to r/w cmd's block buffer
     void setDataOffset(uint32_t newDataOffset) { dataOffset = newDataOffset; }
+
     uint32_t getBytesLeft() const { return bytesLeft; };   //!< Number of bytes left to r/w
     void reduceBytesLeftBy(uint32_t bytes) { bytesLeft -= bytes; }
-    uint getRWCount() const { return rwCount; };     //!< Number of bytes req in PMEM r/w cmd
-    void setRWCount(uint newRWCount) { rwCount = newRWCount; }
+
+    bool  activePMEMread(void)   {
+        return ((readState == ReadState::Update)
+             or (readState == ReadState::Pending));
+    }
+    bool  activePMEMwrite(void)   {
+        return ((setState == SetState::Pending)
+             or (setState == SetState::Processing));
+    }
+
+    uint  getRWCount() const { return rwCount; };     //!< Number of bytes req in PMEM r/w cmd
+    void  setRWCount(uint newRWCount) { rwCount = newRWCount; }
+
+    int  getStatusParamID(void);  //!< ID of status param for active PMEM read or write oper
+
+    uint32_t getArraySize(void);  //!< size of array for active active PMEM read or write
 
     std::vector<uint8_t> rwBuf;
 

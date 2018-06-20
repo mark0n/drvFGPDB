@@ -3,11 +3,6 @@
 
 #include "epicsTimer.h"
 
-
-
-// typedef for eventTimer callback functions
-typedef double (*eventTimerFunc)(void *obj);
-
 // Return values for eventTimer callback functions
 // Values > 0 specify interval (in secs) until next callback occurs
 static constexpr double  DefaultInterval = 0.0;  //!< Use default time till next callback

@@ -118,7 +118,7 @@ public:
 
     id = addParam("pmemWriteStatus 0x1 Int32");
     ASSERT_THAT(id, Eq(numDrvParams+7));  arrayWriteStatusID = id;
-    id = addParam("pmemWriteTest 0x2 1 256 Y 0x00800000 0x410000 pmemWriteStatus");
+    id = addParam("pmemWriteTest 0x2 1 256 Y 0x00800000 0x410000 pmemReadStatus pmemWriteStatus");
     ASSERT_THAT(id, Eq(numDrvParams+8));  testArrayID = id;
   }
 
@@ -140,7 +140,6 @@ public:
   uint RO_groupSize;             //!< # of params in Read-Only group
   uint WA_groupSize;             //!< # of params in Write-Anytime group
   uint WO_groupSize;             //!< # of params in Write-Once group
-  ParamInfo  param;              //!< copy of a param
 };
 
 

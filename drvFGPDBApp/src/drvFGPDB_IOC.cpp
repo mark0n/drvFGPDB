@@ -28,6 +28,13 @@ extern "C" {
  */
 void drvFGPDB_initHookFunc(initHookState state)
 {
+  if (state == initHookAfterInitDatabase) {
+      if (drvFGPDBs) {
+        for (auto& d : *drvFGPDBs) {
+          d.second.completeArrayParamInit();
+        }
+      }
+  }
   if (state == initHookAfterInitialProcess) {
     if (drvFGPDBs) {
       for (auto& d : *drvFGPDBs) {
