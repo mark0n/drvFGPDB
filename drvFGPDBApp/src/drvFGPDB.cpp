@@ -92,7 +92,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
                    AsynFlags, AutoConnect, Priority, StackSize),
     timerQueue(epicsTimerQueueActive::allocate(false, TimerThreadPriority)),
-    writeAccessTimer(eventTimer(bind(&drvFGPDB::keepWriteAccess, this),
+    writeAccessTimer(eventTimer(bind(&drvFGPDB::WriteAccessHandler, this),
                                 2.000, timerQueue)),
     scalarReadsTimer(eventTimer(bind(&drvFGPDB::processScalarReads, this),
                                 0.200, timerQueue)),
@@ -645,15 +645,10 @@ asynStatus drvFGPDB::getWriteAccess(void)
 {
   if (exitDriver or !connected)  return asynError;
 
-  ParamInfo &param = params.at(idSessionID);
-
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
-    param.ctlrValSet = sessionID.get();
-    param.setState = SetState::Pending;
-
-    if (writeRegs(param.getRegAddr(), 1) != asynSuccess)  continue;
+    if (reqWriteAccess(sessionID.get(), 0) != asynSuccess)  continue;
 
     if (!writeAccess)  continue;
 
@@ -667,6 +662,20 @@ asynStatus drvFGPDB::getWriteAccess(void)
 }
 
 //-----------------------------------------------------------------------------
+//  keep write access to the ctlr
+//-----------------------------------------------------------------------------
+asynStatus drvFGPDB::keepWriteAccess(void)
+{
+  if (exitDriver or !connected)  return asynError;
+
+  if (reqWriteAccess(sessionID.get(), 1) != asynSuccess)    return asynError;
+
+  if (!writeAccess) return asynError;
+
+  return asynSuccess;
+}
+
+//-----------------------------------------------------------------------------
 //  Called by eventTimer thread as needed to get and to maintain write access.
 //
 //  Returns DefaultInternval or the # of secs until the next call.
@@ -675,7 +684,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
 //            the eventTimer.  To cause this function to be called by that
 //            thread ASAP, call scalarReadsTimer.wakeUp()
 //-----------------------------------------------------------------------------
-double drvFGPDB::keepWriteAccess(void)
+double drvFGPDB::WriteAccessHandler(void)
 {
   checkCallbackThread(__func__);
 
@@ -693,28 +702,14 @@ double drvFGPDB::keepWriteAccess(void)
     scalarWritesTimer.wakeUp();
     return DefaultInterval;
   }
-
-  if (ShowRegWrites())  {
-    logMsgHdr("\n");
-    cout << portName << ": keeping write access" << endl;
+  else{
+    if (ShowRegWrites())  {
+      logMsgHdr("\n");
+      cout << portName << ": keeping write access" << endl;
+    }
+    if (keepWriteAccess() != asynSuccess)  return 1.0;
+    return DefaultInterval;
   }
-
-  asynStatus stat;
-  vector<uint32_t> cmdBuf {
-    htonl(syncPktID),
-    htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS)),
-    0,
-    0
-  };
-  const int respHdrWords = 5;
-  vector<uint32_t> respBuf(respHdrWords, 0);
-  LCPStatus respStatus;
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
-
-  if (stat != asynSuccess) return  1.0;
-  if (respStatus != LCPStatus::SUCCESS) return 1.0;
-
-  return DefaultInterval;
 }
 
 //-----------------------------------------------------------------------------
@@ -756,8 +751,6 @@ asynStatus drvFGPDB::addRequiredParams(void)
     //ptr-to-paramID   drvVal          param name     addr asyn-fmt      ctlr-fmt
     { idUpSecs,        &upSecs,        "upSecs         0x0 Int32         U32" },
 
-    { idSessionID,     nullptr,        "sessionID      0x0 Int32         U32" },
-
     //--- driver-only values ---
     // addr 0x1 == Read-Only, 0x2 = Read/Write
     { idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         NotDefined" },
@@ -788,7 +781,6 @@ asynStatus drvFGPDB::addRequiredParams(void)
 
   // insure existance and config of critical values
   if (!validParamID(idUpSecs) or
-      !validParamID(idSessionID) or
       !validParamID(idCtlrUpSince))  return asynError;
 
   return stat;
@@ -1041,20 +1033,20 @@ int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
 //  For use by synchronous (1 resp for each cmd) thread only!
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
-                                    vector<uint32_t> &cmdBuf,
-                                    vector<uint32_t> &respBuf,
+                                    LCPCmdBase &LCPCmd,
                                     LCPStatus &respStatus)
 {
   asynStatus  stat;
   int  flushedPkts;
   U32  cmdRcvd = 0;
 
-  ++syncPktID;  cmdBuf[0] = htonl(syncPktID);  respStatus = LCPStatus::ERROR;
+  ++syncPktID;  LCPCmd.setCmdPktID(htonl(syncPktID)); respStatus = LCPStatus::ERROR;
 
   const int MaxMsgAttempts = 5;
   for (int attempt=0; attempt<MaxMsgAttempts; ++attempt)  {
 
-    stat = sendMsg(pComPort, cmdBuf);
+    stat = sendMsg(pComPort, LCPCmd.getCmdBuf());
+
     if (exitDriver)  return asynError;
     if (stat != asynSuccess)  {
       checkComStatus();  this_thread::sleep_for(100ms);  continue; }
@@ -1062,20 +1054,20 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     bool validResp = false;
     for (flushedPkts=0; flushedPkts<100; ++flushedPkts)  {
 
-      int respLen = readResp(pComPort, respBuf);
+      int respLen = readResp(pComPort, LCPCmd.getRespBuf());
       if (exitDriver)  return asynError;
       if (respLen <= 0)  break;
 
-      if ((uint)respLen != respBuf.size()*sizeof(respBuf[0]))  continue;
+      if ((uint)respLen != LCPCmd.getRespBuf().size()*sizeof(LCPCmd.getRespPktID()))  continue;
 
       lastRespTime = chrono::system_clock::now();
 
       // check values common to all commands
-      U32 pktIDSent = ntohl(cmdBuf[0]);  U32 pktIDRcvd = ntohl(respBuf[0]);
-      U32 cmdSent = ntohl(cmdBuf[1]);          cmdRcvd = ntohl(respBuf[1]);
-
+      U32 pktIDSent = ntohl(LCPCmd.getCmdPktID());  U32 pktIDRcvd = ntohl(LCPCmd.getRespPktID());
+      U32 cmdSent = ntohl(LCPCmd.getCmdLCPCommand());          cmdRcvd = ntohl(LCPCmd.getRespLCPCommand());
       if ((pktIDSent == pktIDRcvd) and (cmdSent == cmdRcvd))  {
-        validResp = true;  break; }
+        validResp = true;  break;
+      }
     }
 
     if (flushedPkts)  {
@@ -1087,8 +1079,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     if (!validResp)  {
       checkComStatus();  this_thread::sleep_for(100ms);  continue; }
 
-    U16 statOffset = LCPUtil::statusOffset((int16_t)cmdRcvd);
-    U32 sessID_and_status = ntohl(respBuf[statOffset]);
+    U32 sessID_and_status = ntohl(LCPCmd.getStatusSessionID());
 
     U32 respSessionID = (sessID_and_status >> 16) & 0xFFFF;
     U32 respStat = sessID_and_status & 0xFFFF;
@@ -1097,7 +1088,6 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     bool prevWriteAccess = writeAccess;
 
     writeAccess = (respSessionID == sessionID.get());
-
     if (prevWriteAccess != writeAccess)  {
       setStateFlags(eStateFlags::WriteAccess, writeAccess);
       logMsgHdr("\n");
@@ -1203,20 +1193,10 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
 
+  LCPReadRegs readCmd(firstReg, numRegs, 0); //3rd argument is the interval
 
-  const int CmdHdrWords = 5;
-  vector<uint32_t> cmdBuf(CmdHdrWords, 0);
+  stat = sendCmdGetResp(pAsynUserUDP, readCmd, respStatus);
 
-  const int RespHdrWords = 5;
-  vector<uint32_t> respBuf(RespHdrWords + numRegs, 0);
-
-  // packet ID is set by sendCmdGetResp()
-  cmdBuf[1] = htonl(static_cast<int32_t>(LCPCommand::READ_REGS));
-  cmdBuf[2] = htonl(firstReg);
-  cmdBuf[3] = htonl(numRegs);
-  cmdBuf[4] = htonl(0);
-
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
   if (stat != asynSuccess)  return stat;
 
   //todo:  Check cmd-specific header values in returned packet
@@ -1229,8 +1209,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
   lock_guard<drvFGPDB> asynLock(*this);
 
   for (uint u=0; u<numRegs; ++u,++offset)  {
-    U32 justReadVal = ntohl(respBuf.at(RespHdrWords+u));
 
+    U32 justReadVal = ntohl(readCmd.getRespBufData(readCmd.getRespHdrWords()+u));
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
 
@@ -1269,36 +1249,27 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
   if (LCPUtil::readOnlyAddr(firstReg))  return asynError;
 
-
-  const int CmdHdrWords = 4;
-  vector<uint32_t> cmdBuf(CmdHdrWords + numRegs, 0);
-
-  const int RespHdrWords = 5;
-  vector<uint32_t> respBuf(RespHdrWords, 0);
-
-  // packet ID is set by sendCmdGetResp()
-  cmdBuf[1] = htonl(static_cast<int32_t>(LCPCommand::WRITE_REGS));
-  cmdBuf[2] = htonl(firstReg);
-  cmdBuf[3] = htonl(numRegs);
+  LCPWriteRegs writeCmd(firstReg, numRegs);
 
   uint groupID = LCPUtil::addrGroupID(firstReg);
   uint offset = LCPUtil::addrOffset(firstReg);
 
   ProcGroup &group = getProcGroup(groupID);
 
-  uint16_t idx = CmdHdrWords;
+  uint16_t idx = writeCmd.getCmdHdrWords();
   {
     lock_guard<drvFGPDB> asynLock(*this);
     for (uint u=0; u<numRegs; ++u,++offset,++idx)  {
       int paramID = group.paramIDs.at(offset);
       if (!validParamID(paramID))  { return asynError; }
       ParamInfo &param = params.at(paramID);
-      cmdBuf[idx] = htonl(param.ctlrValSet);
+      writeCmd.setCmdBufData(idx, htonl(param.ctlrValSet));
       param.setState = SetState::Processing;
     }
   }
 
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
+  stat = sendCmdGetResp(pAsynUserUDP, writeCmd, respStatus);
+
   if (stat != asynSuccess)  return stat;
 
   if (respStatus != LCPStatus::SUCCESS)  return asynError;
@@ -1335,6 +1306,48 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   return asynSuccess;
 }
 
+//----------------------------------------------------------------------------
+// Requests write access to the LCP controller
+//----------------------------------------------------------------------------
+asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID, bool keepAlive)
+{
+  asynStatus stat;
+  LCPStatus  respStatus;
+
+
+  if (exitDriver)  return asynError;
+
+  if (ShowRegWrites())  {
+    logMsgHdr("\n");
+    cout << "=== " << portName << ":" << "reqWriteAccess(" << dec << drvSessionID
+         << ", " << dec << keepAlive << ")" << endl;
+  }
+
+  LCPReqWriteAccess reqWriteAccessCmd(drvSessionID, keepAlive);
+
+  stat = sendCmdGetResp(pAsynUserUDP, reqWriteAccessCmd, respStatus);
+
+
+  if (stat != asynSuccess)  return stat;
+
+  if (respStatus == LCPStatus::ACCESS_DENIED){
+    logMsgHdr("\n");
+       cout << "=== WRITE ACCESS DENIED! ctlr with write access is: === "
+            << " writerIP = " << ntohl(reqWriteAccessCmd.getRespBufData(3))
+            << " and writerPort = " << ntohl(reqWriteAccessCmd.getRespBufData(4))
+            << endl;
+  }
+
+  if (respStatus != LCPStatus::SUCCESS)  return asynError;
+
+  lastWriteTime = chrono::system_clock::now();
+
+  if (exitDriver)  return asynError;
+
+  writeAccessTimer.restart();  // reset timeout to avoid unnecessary callbacks
+
+  return asynSuccess;
+}
 
 //=============================================================================
 asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
@@ -1441,19 +1454,10 @@ asynStatus drvFGPDB::eraseBlock(uint chipNum, U32 blockSize, U32 blockNum)
          << blockSize << ", " << blockNum << ")" << endl;
   }
 
-  const int CmdHdrWords = 5;
-  vector<uint32_t> cmdBuf(CmdHdrWords, 0);
+  LCPEraseBlock eraseBlockCmd(chipNum,blockSize, blockNum);
 
-  const int RespHdrWords = 6;
-  vector<uint32_t> respBuf(RespHdrWords, 0);
+  stat = sendCmdGetResp(pAsynUserUDP, eraseBlockCmd, respStatus);
 
-  // packet ID is set by sendCmdGetResp()
-  cmdBuf[1] = htonl(static_cast<int32_t>(LCPCommand::ERASE_BLOCK));
-  cmdBuf[2] = htonl(chipNum);
-  cmdBuf[3] = htonl(blockSize);
-  cmdBuf[4] = htonl(blockNum);
-
-  stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
   if (stat != asynSuccess)  return stat;
 
   //todo:  Check cmd-specific header values in returned packet
@@ -1509,29 +1513,21 @@ asynStatus drvFGPDB::readBlock(uint chipNum, U32 blockSize, U32 blockNum,
 
   blockData = buf.data();
 
-  const int CmdHdrWords = 5;
-  vector<uint32_t> cmdBuf(CmdHdrWords, 0);
-
-  const int RespHdrWords = 6;
-  vector<uint32_t> respBuf(RespHdrWords + useBlockSize/4, 0);
-
-  // packet ID is set by sendCmdGetResp()
-  cmdBuf[1] = htonl(static_cast<int32_t>(LCPCommand::READ_BLOCK));
-  cmdBuf[2] = htonl(chipNum);
-  cmdBuf[3] = htonl(useBlockSize);
+  LCPReadBlock readBlockCmd(chipNum, useBlockSize, useBlockNum);
 
   while (subBlocks)  {
-    cmdBuf[4] = htonl(useBlockNum);
 
-    stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
+    stat = sendCmdGetResp(pAsynUserUDP, readBlockCmd, respStatus);
+
     if (stat != asynSuccess)  return stat;
 
     //todo:  Check cmd-specific header values in returned packet
     //       (the respStatus in particular!)
 
-    memcpy(blockData, respBuf.data() + RespHdrWords, useBlockSize);
+    memcpy(blockData, readBlockCmd.getRespBuf().data() + readBlockCmd.getRespHdrWords(), useBlockSize);
 
     blockData += useBlockSize;  ++useBlockNum;  --subBlocks;
+    readBlockCmd.setBlockNum(useBlockNum); // Update cmdBuf with new useBlockNum value
   }
 
   return asynSuccess;
@@ -1577,29 +1573,21 @@ asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
 
   blockData = buf.data();
 
-  const int CmdHdrWords = 5;
-  vector<uint32_t> cmdBuf(CmdHdrWords + useBlockSize/4, 0);
-
-  const int RespHdrWords = 6;
-  vector<uint32_t> respBuf(RespHdrWords, 0);
-
-  // packet ID is set by sendCmdGetResp()
-  cmdBuf[1] = htonl(static_cast<int32_t>(LCPCommand::WRITE_BLOCK));
-  cmdBuf[2] = htonl(chipNum);
-  cmdBuf[3] = htonl(useBlockSize);
+  LCPWriteBlock writeBlockCmd(chipNum, useBlockSize, useBlockNum);
 
   while (subBlocks)  {
-    cmdBuf[4] = htonl(useBlockNum);
 
-    memcpy(cmdBuf.data() + CmdHdrWords, blockData, useBlockSize);
+    memcpy(writeBlockCmd.getCmdBuf().data() + writeBlockCmd.getCmdHdrWords(), blockData, useBlockSize);
 
-    stat = sendCmdGetResp(pAsynUserUDP, cmdBuf, respBuf, respStatus);
+    stat = sendCmdGetResp(pAsynUserUDP, writeBlockCmd, respStatus);
+
     if (stat != asynSuccess)  return stat;
 
     //todo:  Check cmd-specific header values in returned packet
     //       (the respStatus in particular!)
 
     blockData += useBlockSize;  ++useBlockNum;  --subBlocks;
+    writeBlockCmd.setBlockNum(useBlockNum); // Update cmdBuf with new useBlockNum value
   }
 
   writeAccessTimer.restart();  // reset timeout to avoid unnecessary callbacks

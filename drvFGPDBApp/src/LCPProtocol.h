@@ -10,16 +10,22 @@
 #include <map>
 #include <random>
 
+//#define LCP_PKTID_IDX 0             //Index of the PktID value in each LCP-cmd buffer
+//#define LCP_CMD_NAME_IDX           //Index of the Command name in each LCP-cmd buffer
+//#define LCP_SESSIONID_STATUS_IDX 2 //Index of the sessionID/status value in each LCP-cmd response buffer
+
+
 /**
  * @brief LCP commands to communicate with the ctlr.
  */
 enum class LCPCommand : std::int32_t {
-  READ_REGS     = 1,    //!< Read registers
-  WRITE_REGS    = 2,    //!< Write Registers
-  READ_WAVEFORM = 3,    //!< Read Waveform
-  ERASE_BLOCK   = 4,    //!< Ease memory block
-  READ_BLOCK    = 5,    //!< Read memory block
-  WRITE_BLOCK   = 6     //!< Write memory block
+  READ_REGS        = 1,    //!< Read registers
+  WRITE_REGS       = 2,    //!< Write Registers
+  READ_WAVEFORM    = 3,    //!< Read Waveform
+  ERASE_BLOCK      = 4,    //!< Ease memory block
+  READ_BLOCK       = 5,    //!< Read memory block
+  WRITE_BLOCK      = 6,    //!< Write memory block
+  REQ_WRITE_ACCESS = 7     //!< Request write access
 };
 
 /**
@@ -108,20 +114,6 @@ public:
   }
 
   /**
-   * @brief Method to know the offset of the LCP_Status in the ctlr response
-   *        depending of the cmd sent
-   *
-   * @param[in] cmdID LCP_Command sent
-   *
-   * @return Offset of the LCP_Status
-   */
-  static int16_t statusOffset(const int16_t cmdID)
-  {
-    auto it = StatusOffset.find(cmdID);
-    return it == StatusOffset.end() ? 0 : it->second;
-  }
-
-  /**
    * @brief Method to generate a random Session ID
    *
    * @return SessionID
@@ -183,5 +175,93 @@ namespace LCP {
   };
 }
 
+//-----------------------------------------------------------------------------
+class LCPCmdBase{
+public:
+  LCPCmdBase(const int CmdHdrWords, const int RespHdrWords, const int cmdBufSize, const int respBufSize);
+
+  int getCmdHdrWords(){ return CmdHdrWords;}
+  int getRespHdrWords(){ return RespHdrWords;}
+
+  std::vector<uint32_t>& getCmdBuf(){ return cmdBuf; }
+  std::vector<uint32_t>& getRespBuf(){ return respBuf; }
+
+  void setCmdBufData(const int idx,const uint32_t value){ cmdBuf.at(idx) = value; }
+  void setRespBufData(const int idx,const uint32_t value){ respBuf.at(idx) = value; }
+
+  uint32_t getCmdBufData(const int idx){ return cmdBuf.at(idx); }
+  uint32_t getRespBufData(const int idx){ return respBuf.at(idx); }
+
+  void setCmdPktID(const uint32_t value){ setCmdBufData(0,value); }
+  void setRespPktID(const uint32_t value){ setRespBufData(0,value); }
+
+  uint32_t getCmdPktID(){ return getCmdBufData(0); }
+  uint32_t getRespPktID(){ return getRespBufData(0); }
+
+  uint32_t getCmdLCPCommand(){ return getCmdBufData(1); }
+  uint32_t getRespLCPCommand(){ return getRespBufData(1); }
+
+  uint32_t getStatusSessionID(){ return getRespBufData(2);}
+
+private:
+  const int CmdHdrWords;
+  const int RespHdrWords;
+
+  std::vector<uint32_t> cmdBuf;
+  std::vector<uint32_t> respBuf;
+};
+
+
+//-----------------------------------------------------------------------------
+class LCPCmdPmemBase : public LCPCmdBase {
+public:
+  LCPCmdPmemBase(const int cmdHdrWords, const int respHdrWords,const int cmdBufSize, const int respBufSize);
+
+  void setPmemCmd(const LCPCommand command);
+
+  void setChipNum(const uint chipNum);
+
+  void setBlockSize(const uint32_t blockSize);
+
+  void setBlockNum(const uint32_t blockNum);
+
+};
+
+//-----------------------------------------------------------------------------
+class LCPReadRegs : public LCPCmdBase {
+public:
+  LCPReadRegs(const uint Offset, const uint Count, const uint32_t Interval);
+};
+
+class LCPWriteRegs : public LCPCmdBase {
+public:
+  LCPWriteRegs(const uint Offset, const uint Count);
+};
+
+class LCPReadWF : public LCPCmdBase {
+public:
+  LCPReadWF(const uint32_t waveformID, const uint32_t Offset,const uint32_t Count, const uint32_t Interval);
+};
+
+class LCPEraseBlock : public LCPCmdPmemBase {
+public:
+  LCPEraseBlock(const uint chipNum, const uint32_t blockSize, const uint32_t blockNum);
+};
+
+class LCPReadBlock : public LCPCmdPmemBase {
+public:
+  LCPReadBlock(const uint chipNum, const uint32_t blockSize, const uint32_t blockNum);
+private:
+};
+
+class LCPWriteBlock : public LCPCmdPmemBase {
+public:
+  LCPWriteBlock(const uint chipNum, const uint32_t blockSize, const uint32_t blockNum);
+};
+
+class LCPReqWriteAccess : public LCPCmdBase {
+public:
+  LCPReqWriteAccess(const uint16_t drvsessionID, bool keepAlive);
+};
 
 #endif // LCPPROTOCOL_H
