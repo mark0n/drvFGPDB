@@ -760,19 +760,19 @@ asynStatus drvFGPDB::addRequiredParams(void)
 
     //--- driver-only values ---
     // addr 0x1 == Read-Only, 0x2 = Read/Write
-    { idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         U32" },
-    { idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         U32" },
-    { idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         U32" },
+    { idSyncPktID,     &syncPktID,     "syncPktID      0x1 Int32         NotDefined" },
+    { idSyncPktsSent,  &syncPktsSent,  "syncPktsSent   0x1 Int32         NotDefined" },
+    { idSyncPktsRcvd,  &syncPktsRcvd,  "syncPktsRcvd   0x1 Int32         NotDefined" },
 
-    { idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         U32" },
-    { idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         U32" },
-    { idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         U32" },
+    { idAsyncPktID,    &asyncPktID,    "asyncPktID     0x1 Int32         NotDefined" },
+    { idAsyncPktsSent, &asyncPktsSent, "asyncPktsSent  0x1 Int32         NotDefined" },
+    { idAsyncPktsRcvd, &asyncPktsRcvd, "asyncPktsRcvd  0x1 Int32         NotDefined" },
 
-    { idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital U32" },
+    { idStateFlags,    &stateFlags,    "stateFlags     0x1 UInt32Digital NotDefined" },
 
-    { idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital U32" },
+    { idDiagFlags,     &diagFlags,     "diagFlags      0x2 UInt32Digital NotDefined" },
 
-    { idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         U32" },
+    { idCtlrUpSince,   &ctlrUpSince,   "ctlrUpSince    0x2 Int32         NotDefined" },
  };
 
   for (auto const &paramDef : requiredParamDefs)  {
@@ -863,8 +863,8 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
 
   if (ShowInit())  {
     logMsgHdr("\n");
-    cout << "created " << portName << ":"
-         << newParam.name << " [" << dec << paramID << "]" << endl;
+    cout << "creating param" << " [" << dec << paramID << "] " << portName << ":"
+         << newParam.name << " with string def: " << newParam << endl;
   }
 
   params.push_back(newParam);
@@ -887,7 +887,8 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
 //-----------------------------------------------------------------------------
 int drvFGPDB::processParamDef(const string &paramDef)
 {
-  asynStatus  stat;
+  paramDefState  paramDefSt;
+  asynStatus stat;
   int  paramID;
 
   ParamInfo newParam(paramDef);
@@ -897,13 +898,13 @@ int drvFGPDB::processParamDef(const string &paramDef)
     return addNewParam(newParam);
 
   ParamInfo &curParam = params.at(paramID);
-  if (ShowInit())  {
-    logMsgHdr("\n");
-    cout << "update: [" << curParam << "] using: [" << newParam << "]" << endl;
-  }
-  stat = curParam.updateParamDef(portName, newParam);
-  if (stat != asynSuccess)  return -1;
+  paramDefSt = curParam.updateParamDef(portName, newParam);
 
+  if (paramDefSt == paramDefState::Updated and ShowInit()){
+    logMsgHdr("\n");
+    cout << "*** updating param" << " [" << dec << paramID << "] " << portName << ":"
+         << newParam.name << "  with string def: [" << curParam << "]" << endl;
+  }
   if (newParam.getRegAddr())
     if ((stat = updateRegMap(paramID)) != asynSuccess)  return -1;
 
