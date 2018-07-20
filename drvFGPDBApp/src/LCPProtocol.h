@@ -175,92 +175,319 @@ namespace LCP {
   };
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * Class that handles common LCP-Cmd's members
+ */
 class LCPCmdBase{
 public:
+  /**
+   * @brief C-tor of base LCP-Cmd object. It includes creation and pre-initialization (0) of
+   *        request and response buffers
+   *
+   * @param[in] CmdHdrWords     Number of uint32_t words in the request buffer
+   *
+   * @param[in] RespHdrWords    Number of uint32_t words in the response buffer
+   *
+   * @param[in] cmdBufSize      Size of the request buffer (in uint32_ words)
+   *
+   * @param[in] respBufSize     Size of the request buffer (in uint32_ words)
+   */
+
   LCPCmdBase(const int CmdHdrWords, const int RespHdrWords, const int cmdBufSize, const int respBufSize);
 
+  /**
+   * @brief Method that returns the number of words in the request buffer
+   *
+   * @return value
+   */
   int getCmdHdrWords(){ return CmdHdrWords;}
+
+  /**
+   * @brief Method that returns the number of words in the response buffer
+   *
+   * @return value
+   */
   int getRespHdrWords(){ return RespHdrWords;}
 
+  /**
+   * @brief Method that returns the request buffer
+   *
+   * @return buffer
+   */
   std::vector<uint32_t>& getCmdBuf(){ return cmdBuf; }
+
+  /**
+   * @brief Method that returns the response buffer
+   *
+   * @return buffer
+   */
   std::vector<uint32_t>& getRespBuf(){ return respBuf; }
 
+  /**
+   * @brief Method to set request buffer values
+   *
+   * @param[in] idx    index of the value to be set
+   * @param[in] value  value to be set
+   */
   void setCmdBufData(const int idx,const uint32_t value){ cmdBuf.at(idx) = value; }
+
+  /**
+   * @brief Method to set response buffer values
+   *
+   * @param[in] idx    index of the value to be set
+   * @param[in] value  value to be set
+   */
   void setRespBufData(const int idx,const uint32_t value){ respBuf.at(idx) = value; }
 
+  /**
+   * @brief Method that returns any value of the request buffer
+   *
+   * @param[in] idx  index of the value desired
+   *
+   * @return value
+   */
   uint32_t getCmdBufData(const int idx){ return cmdBuf.at(idx); }
+
+  /**
+   * @brief Method that returns any value of the response buffer
+   *
+   * @param[in] idx  index of the value desired
+   *
+   * @return value
+   */
   uint32_t getRespBufData(const int idx){ return respBuf.at(idx); }
 
+  /**
+   * @brief Method to set the PktID in the request buffer
+   *
+   * @param[in] value  PktID value
+   */
   void setCmdPktID(const uint32_t value){ setCmdBufData(0,value); }
+
+  /**
+   * @brief Method to set the PktID in the response buffer
+   *
+   * @param[in] value  PktID value
+   */
   void setRespPktID(const uint32_t value){ setRespBufData(0,value); }
 
+  /**
+   * @brief Method that returns the PktID of the request buffer
+   *
+   * @return PktID value
+   */
   uint32_t getCmdPktID(){ return getCmdBufData(0); }
+
+  /**
+   * @brief Method that returns the PktID of the response buffer
+   *
+   * @return PktID value
+   */
   uint32_t getRespPktID(){ return getRespBufData(0); }
 
+  /**
+   * @brief Method that returns the LCP Command of the request buffer
+   *
+   * @return LCP Command value
+   */
   uint32_t getCmdLCPCommand(){ return getCmdBufData(1); }
+
+  /**
+   * @brief Method that returns the LCP Command of the response buffer
+   *
+   * @return LCP Command value
+   */
   uint32_t getRespLCPCommand(){ return getRespBufData(1); }
 
+  /**
+   * @brief Method that returns the SessionID in the response buffer
+   *
+   * @return sessionID value
+   */
   uint32_t getStatusSessionID(){ return getRespBufData(2);}
 
 private:
-  const int CmdHdrWords;
-  const int RespHdrWords;
+  const int CmdHdrWords;    //!< Number of uint32_t words in the request buffer
+  const int RespHdrWords;   //!< Number of uint32_t words in the response buffer
 
-  std::vector<uint32_t> cmdBuf;
-  std::vector<uint32_t> respBuf;
+  std::vector<uint32_t> cmdBuf;   //!< Request Buffer
+  std::vector<uint32_t> respBuf;  //!< Response Buffer
 };
 
 
-//-----------------------------------------------------------------------------
+/**
+ * Class that handles common PMEM-related LCP-Cmd's members
+ */
 class LCPCmdPmemBase : public LCPCmdBase {
 public:
+
+  /**
+   * C-tor of PMEM related LCP-Cmd.
+   *
+   * @param[in] cmdHdrWords     Number of uint32_t words in the request buffer
+   *
+   * @param[in] respHdrWords    Number of uint32_t words in the response buffer
+   *
+   * @param[in] cmdBufSize      Size of the request buffer (in uint32_ words)
+   *
+   * @param[in] respBufSize     Size of the request buffer (in uint32_ words)
+   */
   LCPCmdPmemBase(const int cmdHdrWords, const int respHdrWords,const int cmdBufSize, const int respBufSize);
 
+  /**
+   * @brief Method to set the PMEM-relate LCP-Cmd in the request buffer
+   *
+   * @param[in] command  ERASE_BLOCK, READ_BLOCK or WRITE_BLOCK
+   */
   void setPmemCmd(const LCPCommand command);
 
+  /**
+   * @brief Method to set the Chip Number in the request buffer
+   *
+   * @param[in] chipNum  value indicating which memory chip to access
+   */
   void setChipNum(const uint chipNum);
 
+  /**
+   * @brief Method to set the Block Size in the request buffer
+   *
+   * @param[in] blockSize  size of the block
+   */
   void setBlockSize(const uint32_t blockSize);
 
+  /**
+   * @brief Method to set the Block Number in the request buffer
+   *
+   * @param[in] blockNum  block number
+   */
   void setBlockNum(const uint32_t blockNum);
 
 };
 
-//-----------------------------------------------------------------------------
+/**
+ * @brief Read Registers LCP-Cmd class
+ */
 class LCPReadRegs : public LCPCmdBase {
 public:
+  /**
+   * C-tor of the Read Registers LCP-Cmd
+   *
+   * @param[in] Offset     Address of the first register to read
+   *
+   * @param[in] Count      The number of register values to return
+   *
+   * @param[in] Interval   How often to repeat the read. A value larger than zero causes the controller
+   *                       to send new values without the client having to request them. The value specifies
+   *                       the minimum interval, in milliseconds, between new response packets
+   *
+   */
   LCPReadRegs(const uint Offset, const uint Count, const uint32_t Interval);
 };
 
+/**
+ * @brief Write Registers LCP-Cmd class
+ */
 class LCPWriteRegs : public LCPCmdBase {
 public:
+  /**
+   * C-tor of the Read Registers LCP-Cmd
+   *
+   * @param[in] Offset     Address of the first register to write
+   *
+   * @param[in] Count      The number of register values to write
+   *
+   */
   LCPWriteRegs(const uint Offset, const uint Count);
 };
 
+/**
+ * @brief Read Waveforms LCP-Cmd class
+ */
 class LCPReadWF : public LCPCmdBase {
 public:
+  /**
+   * C-tor of the Read Waveforms LCP-Cmd
+   *
+   * @param[in] waveformID  ID of waveform to be read
+   *
+   * @param[in] Offset      The offset of the first value to return from the waveform
+   *
+   * @param[in] Count       The number of values to return from the waveform
+   *
+   * @param[in] Interval    How often to repeat the read. (See LCPReadRegs for details)
+   *
+   */
   LCPReadWF(const uint32_t waveformID, const uint32_t Offset,const uint32_t Count, const uint32_t Interval);
 };
 
+/**
+ * @brief Erase PMEM Block LCP-Cmd class
+ */
 class LCPEraseBlock : public LCPCmdPmemBase {
 public:
+  /**
+   * C-tor of Erase PMEM Block LCP-Cmd.
+   *
+   * @param[in] chipNum    value indicating which memory chip to access
+   *
+   * @param[in] blockSize  size of the block to erase
+   *
+   * @param[in] blockNum   block number to erase
+   *
+   */
   LCPEraseBlock(const uint chipNum, const uint32_t blockSize, const uint32_t blockNum);
 };
 
+/**
+ * @brief Read PMEM Block LCP-Cmd class
+ */
 class LCPReadBlock : public LCPCmdPmemBase {
 public:
+  /**
+   * C-tor of Read PMEM Block LCP-Cmd.
+   *
+   * @param[in] chipNum    value indicating which memory chip to access
+   *
+   * @param[in] blockSize  size of the block to read
+   *
+   * @param[in] blockNum   block number to read
+   *
+   */
   LCPReadBlock(const uint chipNum, const uint32_t blockSize, const uint32_t blockNum);
-private:
 };
 
+/**
+ * @brief Write PMEM Block LCP-Cmd class
+ */
 class LCPWriteBlock : public LCPCmdPmemBase {
 public:
+  /**
+   * C-tor of Write PMEM Block LCP-Cmd.
+   *
+   * @param[in] chipNum    value indicating which memory chip to access
+   *
+   * @param[in] blockSize  size of the block to write
+   *
+   * @param[in] blockNum   block number to write
+   *
+   */
   LCPWriteBlock(const uint chipNum, const uint32_t blockSize, const uint32_t blockNum);
 };
 
+/**
+ * @brief Require Write Access LCP-Cmd class
+ */
 class LCPReqWriteAccess : public LCPCmdBase {
 public:
+  /**
+   * C-tor of Require Write Access LCP-Cmd.
+   *
+   * @param[in] drvsessionID    sessionID value assigned to the driver instance.
+   *
+   * @param[in] keepAlive       param to get write access for 1st time (0) or send
+   *                            keep write access requests to the controller (1)
+   *
+   */
   LCPReqWriteAccess(const uint16_t drvsessionID, bool keepAlive);
 };
 
