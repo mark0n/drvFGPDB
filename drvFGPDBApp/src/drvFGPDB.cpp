@@ -22,8 +22,6 @@
 #include <iomanip>
 #include <mutex>
 
-#include <arpa/inet.h>
-
 #include "drvFGPDB.h"
 #include "LCPProtocol.h"
 
@@ -1038,9 +1036,8 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
 {
   asynStatus  stat;
   int  flushedPkts;
-  U32  cmdRcvd = 0;
 
-  ++syncPktID;  LCPCmd.setCmdPktID(htonl(syncPktID)); respStatus = LCPStatus::ERROR;
+  ++syncPktID;  LCPCmd.setCmdPktID(syncPktID); respStatus = LCPStatus::ERROR;
 
   const int MaxMsgAttempts = 5;
   for (int attempt=0; attempt<MaxMsgAttempts; ++attempt)  {
@@ -1063,8 +1060,9 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
       lastRespTime = chrono::system_clock::now();
 
       // check values common to all commands
-      U32 pktIDSent = ntohl(LCPCmd.getCmdPktID());  U32 pktIDRcvd = ntohl(LCPCmd.getRespPktID());
-      U32 cmdSent = ntohl(LCPCmd.getCmdLCPCommand());          cmdRcvd = ntohl(LCPCmd.getRespLCPCommand());
+      U32 pktIDSent = LCPCmd.getCmdPktID();     U32 pktIDRcvd = LCPCmd.getRespPktID();
+      U32 cmdSent = LCPCmd.getCmdLCPCommand();  U32 cmdRcvd = LCPCmd.getRespLCPCommand();
+
       if ((pktIDSent == pktIDRcvd) and (cmdSent == cmdRcvd))  {
         validResp = true;  break;
       }
@@ -1079,11 +1077,8 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     if (!validResp)  {
       checkComStatus();  this_thread::sleep_for(100ms);  continue; }
 
-    U32 sessID_and_status = ntohl(LCPCmd.getStatusSessionID());
-
-    U32 respSessionID = (sessID_and_status >> 16) & 0xFFFF;
-    U32 respStat = sessID_and_status & 0xFFFF;
-    respStatus = static_cast<LCPStatus>(respStat);
+    U32 respSessionID = LCPCmd.getRespSessionID();
+    respStatus = LCPCmd.getRespStatus();
 
     bool prevWriteAccess = writeAccess;
 
@@ -1210,7 +1205,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   for (uint u=0; u<numRegs; ++u,++offset)  {
 
-    U32 justReadVal = ntohl(readCmd.getRespBufData(readCmd.getRespHdrWords()+u));
+    U32 justReadVal = readCmd.getRespBufData(readCmd.getRespHdrWords()+u);
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
 
@@ -1263,7 +1258,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
       int paramID = group.paramIDs.at(offset);
       if (!validParamID(paramID))  { return asynError; }
       ParamInfo &param = params.at(paramID);
-      writeCmd.setCmdBufData(idx, htonl(param.ctlrValSet));
+      writeCmd.setCmdBufData(idx, param.ctlrValSet);
       param.setState = SetState::Processing;
     }
   }
@@ -1333,8 +1328,8 @@ asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID, bool keepAlive)
   if (respStatus == LCPStatus::ACCESS_DENIED){
     logMsgHdr("\n");
        cout << "=== WRITE ACCESS DENIED! ctlr with write access is: === "
-            << " writerIP = " << ntohl(reqWriteAccessCmd.getRespBufData(3))
-            << " and writerPort = " << ntohl(reqWriteAccessCmd.getRespBufData(4))
+            << " writerIP = " << reqWriteAccessCmd.getWriterIP()
+            << " and writerPort = " << reqWriteAccessCmd.getWriterPort()
             << endl;
   }
 

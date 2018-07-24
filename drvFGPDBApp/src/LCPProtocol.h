@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <map>
 #include <random>
+#include <arpa/inet.h>
 
 //#define LCP_PKTID_IDX 0             //Index of the PktID value in each LCP-cmd buffer
 //#define LCP_CMD_NAME_IDX           //Index of the Command name in each LCP-cmd buffer
@@ -227,35 +228,35 @@ public:
    * @brief Method to set request buffer values
    *
    * @param[in] idx    index of the value to be set
-   * @param[in] value  value to be set
+   * @param[in] value  value set in network format (NOT in host format)
    */
-  void setCmdBufData(const int idx,const uint32_t value){ cmdBuf.at(idx) = value; }
+  void setCmdBufData(const int idx,const uint32_t value){ cmdBuf.at(idx) = htonl(value); }
 
   /**
    * @brief Method to set response buffer values
    *
    * @param[in] idx    index of the value to be set
-   * @param[in] value  value to be set
+   * @param[in] value  value set in network format (NOT in host format)
    */
-  void setRespBufData(const int idx,const uint32_t value){ respBuf.at(idx) = value; }
+  void setRespBufData(const int idx,const uint32_t value){ respBuf.at(idx) = htonl(value); }
 
   /**
    * @brief Method that returns any value of the request buffer
    *
    * @param[in] idx  index of the value desired
    *
-   * @return value
+   * @return value in host format (NOT in network format)
    */
-  uint32_t getCmdBufData(const int idx){ return cmdBuf.at(idx); }
+  uint32_t getCmdBufData(const int idx){ return ntohl(cmdBuf.at(idx)); }
 
   /**
    * @brief Method that returns any value of the response buffer
    *
    * @param[in] idx  index of the value desired
    *
-   * @return value
+   * @return value in host format (NOT in network format)
    */
-  uint32_t getRespBufData(const int idx){ return respBuf.at(idx); }
+  uint32_t getRespBufData(const int idx){ return ntohl(respBuf.at(idx)); }
 
   /**
    * @brief Method to set the PktID in the request buffer
@@ -300,11 +301,18 @@ public:
   uint32_t getRespLCPCommand(){ return getRespBufData(1); }
 
   /**
-   * @brief Method that returns the SessionID in the response buffer
+   * @brief Method that returns the SessionID of the response buffer
    *
    * @return sessionID value
    */
-  uint32_t getStatusSessionID(){ return getRespBufData(2);}
+  uint32_t getRespSessionID(){ return ((getRespBufData(2) >> 16) & 0xFFFF);}
+
+  /**
+   * @brief Method that returns the Status of the response buffer
+   *
+   * @return LCPStatus value
+   */
+  LCPStatus getRespStatus(){ return static_cast<LCPStatus>(getRespBufData(2) & 0xFFFF);}
 
 private:
   const int CmdHdrWords;    //!< Number of uint32_t words in the request buffer
@@ -489,6 +497,10 @@ public:
    *
    */
   LCPReqWriteAccess(const uint16_t drvsessionID, bool keepAlive);
+
+  uint32_t getWriterIP(){return getRespBufData(3);};
+
+  uint32_t getWriterPort(){return getRespBufData(4);};
 };
 
 #endif // LCPPROTOCOL_H
