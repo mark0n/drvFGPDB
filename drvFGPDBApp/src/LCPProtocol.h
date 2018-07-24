@@ -11,11 +11,6 @@
 #include <random>
 #include <arpa/inet.h>
 
-//#define LCP_PKTID_IDX 0             //Index of the PktID value in each LCP-cmd buffer
-//#define LCP_CMD_NAME_IDX           //Index of the Command name in each LCP-cmd buffer
-//#define LCP_SESSIONID_STATUS_IDX 2 //Index of the sessionID/status value in each LCP-cmd response buffer
-
-
 /**
  * @brief LCP commands to communicate with the ctlr.
  */
