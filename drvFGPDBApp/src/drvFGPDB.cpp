@@ -88,7 +88,7 @@ void logMsgHdr(const string& prefix)
 drvFGPDB::drvFGPDB(const string &drvPortName,
                    shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
                    const string &udpPortName, uint32_t startupDiagFlags,
-                   uint32_t resendMode_) :
+                   ResendMode resendMode_) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
                    AsynFlags, AutoConnect, Priority, StackSize),
     timerQueue(epicsTimerQueueActive::allocate(false, TimerThreadPriority)),

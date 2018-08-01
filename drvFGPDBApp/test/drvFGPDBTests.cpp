@@ -77,7 +77,7 @@ public:
                 disconnect(_)).WillOnce(Return(asynSuccess));
     testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName,
                                     startupDiagFlags,
-                                    static_cast<uint32_t>(ResendMode::AfterCtlrRestart));
+                                    ResendMode::AfterCtlrRestart);
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName
