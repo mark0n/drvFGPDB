@@ -280,19 +280,6 @@ const string & ParamInfo::readStateToStr(void) const
 }
 
 //-----------------------------------------------------------------------------
-void conflictingParamDefs(const string &context,
-                          const ParamInfo &curDef, const ParamInfo &newDef)
-{
-  cout << endl << "*** " << context << ":" << curDef.name << ": "
-                  "Conflicting parameter definitions ***" << endl
-               << "  cur: " << curDef << endl
-               << "  new: " << newDef << endl;
-
-  throw invalid_argument("Invalid parameter definition");
-
-}
-
-//-----------------------------------------------------------------------------
 template <typename T>
 std::pair<asynStatus,paramDefState> updateProp(T &curVal, const T &newVal, T notDefined, const paramDefState paramDefSt)
 {
@@ -342,7 +329,13 @@ paramDefState ParamInfo::updateParamDef(const string &context,
 
   m_readOnly = LCPUtil::readOnlyAddr(regAddr);
 
-  if (conflict) conflictingParamDefs(context, *this, newParam);
+  if (conflict) {
+    cout << endl << "*** " << context << ":" << name << ": "
+         "Conflicting parameter definitions ***" << endl
+         << "  cur: " << *this << endl
+         << "  new: " << newParam << endl;
+    throw invalid_argument("Invalid parameter definition");
+  }
 
   return paramDef;
 
