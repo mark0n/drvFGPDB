@@ -309,22 +309,26 @@ std::pair<asynStatus,paramDefState> updateProp(T &curVal, const T &newVal, T not
 //  from the new set of properties.
 //-----------------------------------------------------------------------------
 paramDefState ParamInfo::updateParamDef(const string &context,
-                                     const ParamInfo &newParam)
+                                        const ParamInfo &newParam)
 {
   if (name != newParam.name)
-    throw invalid_argument("Invalid parameter definition: No param name provided");
+    throw invalid_argument("Invalid parameter definition: No param name "
+                           "provided");
 
   asynStatus stat = asynSuccess;
   paramDefState paramDef = paramDefState::NotUpdated;
   bool conflict = false;
 
-  std::tie(stat,paramDef) = updateProp(regAddr, newParam.regAddr,(uint32_t)0, paramDef);
+  std::tie(stat, paramDef) = updateProp(regAddr, newParam.regAddr,
+                                        static_cast<uint32_t>(0), paramDef);
   conflict |= (stat != asynSuccess);
 
-  std::tie(stat,paramDef) = updateProp(asynType, newParam.asynType, asynParamNotDefined, paramDef);
+  std::tie(stat, paramDef) = updateProp(asynType, newParam.asynType,
+                                        asynParamNotDefined, paramDef);
   conflict |= (stat != asynSuccess);
 
-  std::tie(stat,paramDef) = updateProp(ctlrFmt, newParam.ctlrFmt, CtlrDataFmt::NotDefined, paramDef);
+  std::tie(stat, paramDef) = updateProp(ctlrFmt, newParam.ctlrFmt,
+                                        CtlrDataFmt::NotDefined, paramDef);
   conflict |= (stat != asynSuccess);
 
   m_readOnly = LCPUtil::readOnlyAddr(regAddr);
