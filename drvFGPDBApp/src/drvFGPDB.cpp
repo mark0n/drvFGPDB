@@ -548,7 +548,6 @@ void drvFGPDB::resetSetStates(void)
          (param.setState == SetState::Sent)) )
       param.setState = SetState::Pending;
   }
-  scalarWritesTimer.wakeUp();
 }
 
 //-----------------------------------------------------------------------------
@@ -617,8 +616,10 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
   if ((int32_t)(newUpSince - prevUpSince) > 3)  {
     logMsgHdr("\n");
     cout << "*** " << portName << " Controller restarted ***" << endl << endl;
+    writeAccess=false;
     if (resendMode == ResendMode::AfterCtlrRestart)  resetSetStates();
     cancelArrayWrites();  resetReadStates();
+    writeAccessTimer.wakeUp();
   }
   else {
     // ctlr did not restart, so clear set state for all Restored settings
@@ -642,6 +643,8 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
 asynStatus drvFGPDB::getWriteAccess(void)
 {
   if (exitDriver or !connected)  return asynError;
+
+  sessionID.generate();
 
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
@@ -1058,7 +1061,6 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
       if ((uint)respLen != LCPCmd.getRespBuf().size()*sizeof(LCPCmd.getRespPktID()))  continue;
 
       lastRespTime = chrono::system_clock::now();
-
       // check values common to all commands
       U32 pktIDSent = LCPCmd.getCmdPktID();     U32 pktIDRcvd = LCPCmd.getRespPktID();
       U32 cmdSent = LCPCmd.getCmdLCPCommand();  U32 cmdRcvd = LCPCmd.getRespLCPCommand();
