@@ -1205,9 +1205,11 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   lock_guard<drvFGPDB> asynLock(*this);
 
+  std::vector<uint32_t>& respBuff = readCmd.getRespBuf();
+  int RespHdrWords = readCmd.getRespHdrWords();
   for (uint u=0; u<numRegs; ++u,++offset)  {
-
-    U32 justReadVal = readCmd.getRespBufData(readCmd.getRespHdrWords()+u);
+    U32 justReadVal;
+    justReadVal = ntohl(respBuff.at(RespHdrWords +u));
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
 
