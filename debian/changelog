@@ -1,3 +1,10 @@
+drvfgpdb (1.1.0) unstable; urgency=medium
+
+  * Improve handling of resendMode variable
+  * Bump up version to 1.1.0
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 02 Aug 2018 15:58:59 -0400
+
 drvfgpdb (1.0.3) unstable; urgency=medium
 
   [ Mark Davis ]
