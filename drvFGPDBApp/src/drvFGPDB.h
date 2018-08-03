@@ -100,7 +100,7 @@ class drvFGPDB : public asynPortDriver {
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
              const std::string &udpPortName, uint32_t startupDiagFlags,
-             uint32_t resendMode);
+             ResendMode resendMode);
 
     /**
      * @brief Destructor of the driver instance
