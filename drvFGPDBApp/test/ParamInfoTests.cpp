@@ -63,7 +63,7 @@ TEST(conversions, convertsCtlDataFmtToString)  {
   ASSERT_THAT(strDesc, Eq("U16_16"));
 
   strDesc = ParamInfo::ctlrFmtToStr(CtlrDataFmt::NotDefined);
-  ASSERT_THAT(strDesc, Eq("<NotDefined>"));
+  ASSERT_THAT(strDesc, Eq("NotDefined"));
 }
 
 //-----------------------------------------------------------------------------
@@ -112,8 +112,7 @@ TEST(conversions, failsOnConflictingUpdate)  {
   ParamInfo param1("lcpRegRO_1 0x10002 Int32 U32");
   ParamInfo param2("lcpRegRO_1 0x10002 Float64 U32");
 
-  auto stat = param1.updateParamDef(__func__, param2);
-  ASSERT_THAT(stat, Eq(asynError));
+  ASSERT_THROW(param1.updateParamDef(__func__, param2), invalid_argument);
 }
 
 //-----------------------------------------------------------------------------

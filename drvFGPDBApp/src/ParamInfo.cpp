@@ -17,11 +17,13 @@ const std::map<std::string, asynParamType> ParamInfo::asynTypes = {
   { "Int8Array",     asynParamInt8Array     }
 };
 
+//NotDefined: Init value of every param's ctlrFmt and value of all driver-only param's ctlrFmt
 const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
-  { "S32",    CtlrDataFmt::S32    },
-  { "U32",    CtlrDataFmt::U32    },
-  { "F32",    CtlrDataFmt::F32    },
-  { "U16_16", CtlrDataFmt::U16_16 }
+  { "NotDefined", CtlrDataFmt::NotDefined},
+  { "S32",        CtlrDataFmt::S32       },
+  { "U32",        CtlrDataFmt::U32       },
+  { "F32",        CtlrDataFmt::F32       },
+  { "U16_16",     CtlrDataFmt::U16_16    }
 };
 
 const std::map<SetState, std::string> ParamInfo::setStates = {
@@ -278,24 +280,26 @@ const string & ParamInfo::readStateToStr(void) const
 }
 
 //-----------------------------------------------------------------------------
-void conflictingParamDefs(const string &context,
-                          const ParamInfo &curDef, const ParamInfo &newDef)
-{
-  cout << "*** " << context << ":" << curDef.name << ": "
-          "Conflicting parameter definitions ***" << endl
-       << "  cur: " << curDef << endl
-       << "  new: " << newDef << endl;
-}
-
-//-----------------------------------------------------------------------------
 template <typename T>
-asynStatus updateProp(T &curVal, const T &newVal, T notDefined)
+std::pair<asynStatus,paramDefState> updateProp(T &curVal, const T &newVal, T notDefined, const paramDefState paramDefSt)
 {
-  if (curVal == notDefined)  { curVal = newVal;  return asynSuccess; }
-  if (newVal == notDefined)  return asynSuccess;
-  if (newVal != curVal)  return asynError;
+  paramDefState newparamDefSt = paramDefSt;
 
-  return asynSuccess;
+  //NOTE: defined followed by not defined is valid
+  if (newVal == notDefined)  return std::make_pair(asynSuccess,newparamDefSt);
+
+  // First "defined" value for this property?
+  if (curVal == notDefined)  {
+    curVal = newVal;
+    newparamDefSt = paramDefState::Updated;
+    return std::make_pair(asynSuccess,newparamDefSt);
+  }
+
+  // curVal and newVal both defined, so they must be equal
+  if (newVal != curVal)  return std::make_pair(asynError,newparamDefSt);
+
+  return std::make_pair(asynSuccess,newparamDefSt);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -304,28 +308,41 @@ asynStatus updateProp(T &curVal, const T &newVal, T notDefined)
 //  Checks for conflicts and updates any missing property values using ones
 //  from the new set of properties.
 //-----------------------------------------------------------------------------
-asynStatus ParamInfo::updateParamDef(const string &context,
-                                     const ParamInfo &newParam)
+paramDefState ParamInfo::updateParamDef(const string &context,
+                                        const ParamInfo &newParam)
 {
-  if (name != newParam.name)  return asynError;
+  if (name != newParam.name)
+    throw invalid_argument("Invalid parameter definition: No param name "
+                           "provided");
 
+  asynStatus stat = asynSuccess;
+  paramDefState paramDef = paramDefState::NotUpdated;
   bool conflict = false;
 
-  conflict |= (updateProp(regAddr, newParam.regAddr,
-                          (uint32_t)0) != asynSuccess);
+  std::tie(stat, paramDef) = updateProp(regAddr, newParam.regAddr,
+                                        static_cast<uint32_t>(0), paramDef);
+  conflict |= (stat != asynSuccess);
 
-  conflict |= (updateProp(asynType, newParam.asynType,
-                          asynParamNotDefined) != asynSuccess);
+  std::tie(stat, paramDef) = updateProp(asynType, newParam.asynType,
+                                        asynParamNotDefined, paramDef);
+  conflict |= (stat != asynSuccess);
 
-  conflict |= (updateProp(ctlrFmt, newParam.ctlrFmt,
-                 CtlrDataFmt::NotDefined) != asynSuccess);
+  std::tie(stat, paramDef) = updateProp(ctlrFmt, newParam.ctlrFmt,
+                                        CtlrDataFmt::NotDefined, paramDef);
+  conflict |= (stat != asynSuccess);
 
   m_readOnly = LCPUtil::readOnlyAddr(regAddr);
 
-  if (!conflict)  return asynSuccess;
+  if (conflict) {
+    cout << endl << "*** " << context << ":" << name << ": "
+         "Conflicting parameter definitions ***" << endl
+         << "  cur: " << *this << endl
+         << "  new: " << newParam << endl;
+    throw invalid_argument("Invalid parameter definition");
+  }
 
-  conflictingParamDefs(context, *this, newParam);
-  return asynError;
+  return paramDef;
+
 }
 
 //----------------------------------------------------------------------------
