@@ -111,7 +111,6 @@ public:
     ASSERT_THAT(id, Eq(numDrvParams+5));  lastRegID_WA = id;
     WA_groupSize = 0x0005u;
 
-    id = addParam("sessionID  0x3000E Int32 U32");
     id = addParam("lcpRegWO_2 0x300FF Int32 U32");
     ASSERT_THAT(id, Eq(numDrvParams+6));
     WO_groupSize = 0x0100u;

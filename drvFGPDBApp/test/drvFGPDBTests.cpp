@@ -214,11 +214,11 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, createsAsynParams) {
 TEST_F(AnFGPDBDriverUsingIOSyncMock, canFindParamByName) {
   addParams();
 
-  id = testDrv->findParamByName("sessionID");
+  id = testDrv->findParamByName("upSecs");
   ASSERT_THAT(id , Ge(0));
 
   ParamInfo param = testDrv->getParamInfo(id);
-  ASSERT_THAT(param.name,  Eq("sessionID"));
+  ASSERT_THAT(param.name,  Eq("upSecs"));
 }
 
 //-----------------------------------------------------------------------------
@@ -229,8 +229,8 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, asynAndDriverIDsMatch) {
   addParams();
   int asynID = -1;
 
-  id = testDrv->findParamByName("sessionID");
-  stat = testDrv->findParam("sessionID", &asynID);
+  id = testDrv->findParamByName("upSecs");
+  stat = testDrv->findParam("upSecs", &asynID);
 
   ASSERT_THAT(id , Ge(0));
   ASSERT_THAT(stat, Eq(asynSuccess));
