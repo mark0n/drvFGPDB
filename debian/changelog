@@ -1,3 +1,26 @@
+drvfgpdb (1.2.0) unstable; urgency=medium
+
+  [ Bernal Ruiz, Enrique ]
+  * Improve param updates with new definition strings
+
+  [ Martin Konrad ]
+  * Simplify error handling in updateParamDef()
+  * Clean up white-spaces in updateParamDef()
+
+  [ Bernal Ruiz, Enrique ]
+  * Add REQ_WRITE_ACCESS cmd in charge of getting/keeping write access
+  * Add doxygen documentation to LCP Commands
+  * Add accessors to LCPCmds to avoid direct access from the driver
+  * Clean Up
+  * writeAccess and sessionID reset after ctlr restart
+  * Get reference to respBuffer before for-loop
+  * Fix broken tests which were still using the sessionID
+
+  [ Martin Konrad ]
+  * Bump up version to 1.2.0
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 06 Aug 2018 15:25:19 -0400
+
 drvfgpdb (1.1.0) unstable; urgency=medium
 
   * Improve handling of resendMode variable
