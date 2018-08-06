@@ -42,7 +42,6 @@ const std::map<ReadState, std::string> ParamInfo::readStates = {
   { ReadState::Current,   "Current"   }
 };
 
-
 static string NotDefined("<NotDefined>");
 
 //-----------------------------------------------------------------------------
