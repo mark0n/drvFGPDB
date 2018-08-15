@@ -49,6 +49,14 @@ enum class ReadState {
 };
 
 /**
+ * @brief Class to describe if a param has been updated with a new definition string
+ */
+enum class paramDefState {
+  Updated,    //!< Parameter updated with new definition string
+  NotUpdated  //!< Parameter NOT updated with new definition string
+};
+
+/**
  * Information the driver keeps about each parameter.  This list is generated
  * during IOC startup from the data in the INP/OUT fields in the EPICS records
  * that are linked to these parameters.
@@ -102,7 +110,7 @@ class ParamInfo {
      *
      * @return asynStatus of the update process.
      */
-    asynStatus updateParamDef(const std::string &context,
+    paramDefState updateParamDef(const std::string &context,
                               const ParamInfo &newParam);
 
     /**

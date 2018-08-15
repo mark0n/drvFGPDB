@@ -292,7 +292,15 @@ class drvFGPDB : public asynPortDriver {
      */
     void checkForRestart(uint32_t newUpSecs);
 
-
+    /**
+     * @brief Method that requests write access to the LCP controller
+     *
+     * @param[in] drvSessionID sessionID assigned to this driver
+     * @param[in] keepAlive    param to request keep write access (1=keepWriteAccess)
+     *
+     * @return asynStatus
+     */
+    asynStatus reqWriteAccess(uint16_t drvSessionID, bool keepAlive);
 
     /**
      * @brief Attempt to gain write access to the ctlr (by setting the sessionID reg)
@@ -302,13 +310,19 @@ class drvFGPDB : public asynPortDriver {
     asynStatus getWriteAccess(void);
 
     /**
+     * @brief Attempt to keep write access to the ctlr
+     *
+     * @return asynStatus
+     */
+    asynStatus keepWriteAccess(void);
+    /**
      * @brief Event-timer callback func to maintain write access
      *
      * @return > 0: Use returned time until next callback
      *           0: Use Default time until next callback
      *         < 0: Sleep unless/until woken up
      */
-    double keepWriteAccess(void);
+    double WriteAccessHandler(void);
 
     /**
      * @brief Event-timer callback func to update scalar readings
@@ -451,17 +465,14 @@ class drvFGPDB : public asynPortDriver {
      *        Initializes all buffers needed and checks correct content between the
      *        msg sent to the ctlr and the received response.
      *
-     * @param[in]  pComPort   UDP port to communicate with
-     * @param[in]  cmdBuf     vector that describes the action to perform in the ctlr
-     * @param[out] respBuf    vector that stores the response to the action performed in the ctlr
-     * @param[out] respStatus LCP status returned by last command send to the ctlr
+     * @param[in]     pComPort   UDP port to communicate with
+     * @param[in,out] LCPCmd     LCPCmd that describes the action to perform in the ctlr
+     * @param[out]    respStatus LCP status returned by last command send to the ctlr
      *
      */
     asynStatus sendCmdGetResp(asynUser *pComPort,
-                              std::vector<uint32_t> &cmdBuf,
-                              std::vector<uint32_t> &respBuf,
+                              LCPCmdBase &LCPCmd,
                               LCPStatus  &respStatus);
-
     /**
      * @brief Method that reads the ctlr's current values for one or more LCP registers
      *
