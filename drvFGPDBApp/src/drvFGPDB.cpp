@@ -649,7 +649,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
   for (int attempt = 0; attempt <= 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
-    if (reqWriteAccess(sessionID.get(), 0) != asynSuccess)  continue;
+    if (reqWriteAccess(sessionID.get()) != asynSuccess)  continue;
 
     if (!writeAccess)  continue;
 
@@ -669,7 +669,7 @@ asynStatus drvFGPDB::keepWriteAccess(void)
 {
   if (exitDriver or !connected)  return asynError;
 
-  if (reqWriteAccess(sessionID.get(), 1) != asynSuccess)    return asynError;
+  if (reqWriteAccess(sessionID.get()) != asynSuccess)    return asynError;
 
   if (!writeAccess) return asynError;
 
@@ -1308,7 +1308,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 //----------------------------------------------------------------------------
 // Requests write access to the LCP controller
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID, bool keepAlive)
+asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID)
 {
   asynStatus stat;
   LCPStatus  respStatus;
@@ -1319,10 +1319,10 @@ asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID, bool keepAlive)
   if (ShowRegWrites())  {
     logMsgHdr("\n");
     cout << "=== " << portName << ":" << "reqWriteAccess(" << dec << drvSessionID
-         << ", " << dec << keepAlive << ")" << endl;
+         << ")" << endl;
   }
 
-  LCPReqWriteAccess reqWriteAccessCmd(drvSessionID, keepAlive);
+  LCPReqWriteAccess reqWriteAccessCmd(drvSessionID);
 
   stat = sendCmdGetResp(pAsynUserUDP, reqWriteAccessCmd, respStatus);
 

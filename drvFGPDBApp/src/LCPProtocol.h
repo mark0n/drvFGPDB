@@ -487,11 +487,8 @@ public:
    *
    * @param[in] drvsessionID    sessionID value assigned to the driver instance.
    *
-   * @param[in] keepAlive       param to get write access for 1st time (0) or send
-   *                            keep write access requests to the controller (1)
-   *
    */
-  LCPReqWriteAccess(const uint16_t drvsessionID, bool keepAlive);
+  LCPReqWriteAccess(const uint16_t drvsessionID);
 
   uint32_t getWriterIP(){return getRespBufData(3);};
 
