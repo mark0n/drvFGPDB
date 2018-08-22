@@ -492,7 +492,7 @@ public:
 
   uint32_t getWriterIP(){return getRespBufData(3);};
 
-  uint32_t getWriterPort(){return getRespBufData(4);};
+  uint16_t getWriterPort(){return static_cast<int16_t>(getRespBufData(4));};
 };
 
 #endif // LCPPROTOCOL_H
