@@ -646,7 +646,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
 
   sessionID.generate();
 
-  for (int attempt = 0; attempt <= 5; ++attempt)  {
+  for (int attempt = 0; attempt < 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
     if (reqWriteAccess(sessionID.get(), 0) != asynSuccess)  continue;
