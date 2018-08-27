@@ -109,11 +109,9 @@ LCPWriteBlock::LCPWriteBlock(const uint chipNum, const uint32_t blockSize, const
   setBlockNum(blockNum);
 }
 
-LCPReqWriteAccess::LCPReqWriteAccess(const uint16_t drvsessionID,  bool keepAlive):
-    LCPCmdBase(2,2,4,5)
+LCPReqWriteAccess::LCPReqWriteAccess(const uint16_t drvsessionID):
+    LCPCmdBase(2,2,3,5)
 {
   setCmdBufData(1, static_cast<int32_t>(LCPCommand::REQ_WRITE_ACCESS));
   setCmdBufData(2, (static_cast<int32_t>(drvsessionID))<<16);
-  setCmdBufData(3, static_cast<int32_t>(keepAlive));
-
 }
