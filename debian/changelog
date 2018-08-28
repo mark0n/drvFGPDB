@@ -1,3 +1,15 @@
+drvfgpdb (1.3.0) unstable; urgency=medium
+
+  [ Bernal Ruiz, Enrique ]
+  * Remove keepAlive flag
+  * Get writerPort as 16-bit word
+  * Set max number of attempts to getWriteAccess to 5
+
+  [ Martin Konrad ]
+  * Bump up version to 1.3.0
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 28 Aug 2018 12:40:36 -0400
+
 drvfgpdb (1.2.0) unstable; urgency=medium
 
   [ Bernal Ruiz, Enrique ]
