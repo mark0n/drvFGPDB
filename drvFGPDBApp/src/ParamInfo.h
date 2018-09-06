@@ -8,9 +8,19 @@
 
 #include <regex>
 #include <map>
+#include <unordered_map>
 #include <iostream>
 
 #include <asynPortDriver.h>
+
+struct EnumClassHash
+{
+  template <typename T>
+  std::size_t operator()(T t) const
+  {
+    return static_cast<std::size_t>(t);
+  }
+};
 
 /**
  * @brief Data formats supported by the ctlr
@@ -321,8 +331,8 @@ class ParamInfo {
 
     static const std::map<std::string, asynParamType> asynTypes;  //!< Map w/ the asyn data formats supported by the driver
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;     //!< Map w/ the data formats supported by the ctlr
-    static const std::map<SetState, std::string> setStates;       //!< Map w/ supported write states of a ctlr/driver-only value
-    static const std::map<ReadState, std::string> readStates;     //!< Map w/ supported read states of a ctlr/driver-only value
+    static const std::unordered_map<SetState, std::string, EnumClassHash> setStates;       //!< Map w/ supported write states of a ctlr/driver-only value
+    static const std::unordered_map<ReadState, std::string, EnumClassHash> readStates;     //!< Map w/ supported read states of a ctlr/driver-only value
 };
 
 /**

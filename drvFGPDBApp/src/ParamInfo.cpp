@@ -26,7 +26,7 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "U16_16",     CtlrDataFmt::U16_16    }
 };
 
-const std::map<SetState, std::string> ParamInfo::setStates = {
+const std::unordered_map<SetState, std::string, EnumClassHash> ParamInfo::setStates = {
   { SetState::Undefined,  "Undefined"  },
   { SetState::Restored,   "Restored"   },
   { SetState::Pending,    "Pending"    },
@@ -35,7 +35,7 @@ const std::map<SetState, std::string> ParamInfo::setStates = {
   { SetState::Error,      "Error"      }
 };
 
-const std::map<ReadState, std::string> ParamInfo::readStates = {
+const std::unordered_map<ReadState, std::string, EnumClassHash> ParamInfo::readStates = {
   { ReadState::Undefined, "Undefined" },
   { ReadState::Pending,   "Pending"   },
   { ReadState::Update,    "Update"    },
