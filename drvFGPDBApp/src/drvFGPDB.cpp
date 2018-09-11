@@ -59,7 +59,7 @@ void showDateTime(const time_t dateTime)
   // Work around missing std::put_time() function (not supported by g++ <5).
   // The following statement can be replaced by 'cout << put_time(lt, "%F %T.")'
   // when we don't need to support Debian Jessie anymore.
-  cout << 1900 + lt->tm_year << "-"
+  cout << std::dec << 1900 + lt->tm_year << "-"
        << std::setw(2) << std::setfill('0') << 1 + lt->tm_mon << "-"
        << std::setw(2) << std::setfill('0') << lt->tm_mday << " "
        << std::setw(2) << std::setfill('0') << lt->tm_hour << ":"
