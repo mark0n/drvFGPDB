@@ -296,11 +296,10 @@ class drvFGPDB : public asynPortDriver {
      * @brief Method that requests write access to the LCP controller
      *
      * @param[in] drvSessionID sessionID assigned to this driver
-     * @param[in] keepAlive    param to request keep write access (1=keepWriteAccess)
      *
      * @return asynStatus
      */
-    asynStatus reqWriteAccess(uint16_t drvSessionID, bool keepAlive);
+    asynStatus reqWriteAccess(uint16_t drvSessionID);
 
     /**
      * @brief Attempt to gain write access to the ctlr (by setting the sessionID reg)

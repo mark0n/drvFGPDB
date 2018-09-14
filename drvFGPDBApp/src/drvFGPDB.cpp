@@ -59,7 +59,7 @@ void showDateTime(const time_t dateTime)
   // Work around missing std::put_time() function (not supported by g++ <5).
   // The following statement can be replaced by 'cout << put_time(lt, "%F %T.")'
   // when we don't need to support Debian Jessie anymore.
-  cout << 1900 + lt->tm_year << "-"
+  cout << std::dec << 1900 + lt->tm_year << "-"
        << std::setw(2) << std::setfill('0') << 1 + lt->tm_mon << "-"
        << std::setw(2) << std::setfill('0') << lt->tm_mday << " "
        << std::setw(2) << std::setfill('0') << lt->tm_hour << ":"
@@ -646,10 +646,10 @@ asynStatus drvFGPDB::getWriteAccess(void)
 
   sessionID.generate();
 
-  for (int attempt = 0; attempt <= 5; ++attempt)  {
+  for (int attempt = 0; attempt < 5; ++attempt)  {
     if (attempt)  this_thread::sleep_for(10ms);
 
-    if (reqWriteAccess(sessionID.get(), 0) != asynSuccess)  continue;
+    if (reqWriteAccess(sessionID.get()) != asynSuccess)  continue;
 
     if (!writeAccess)  continue;
 
@@ -669,7 +669,7 @@ asynStatus drvFGPDB::keepWriteAccess(void)
 {
   if (exitDriver or !connected)  return asynError;
 
-  if (reqWriteAccess(sessionID.get(), 1) != asynSuccess)    return asynError;
+  if (reqWriteAccess(sessionID.get()) != asynSuccess)    return asynError;
 
   if (!writeAccess) return asynError;
 
@@ -1308,7 +1308,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 //----------------------------------------------------------------------------
 // Requests write access to the LCP controller
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID, bool keepAlive)
+asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID)
 {
   asynStatus stat;
   LCPStatus  respStatus;
@@ -1319,10 +1319,10 @@ asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID, bool keepAlive)
   if (ShowRegWrites())  {
     logMsgHdr("\n");
     cout << "=== " << portName << ":" << "reqWriteAccess(" << dec << drvSessionID
-         << ", " << dec << keepAlive << ")" << endl;
+         << ")" << endl;
   }
 
-  LCPReqWriteAccess reqWriteAccessCmd(drvSessionID, keepAlive);
+  LCPReqWriteAccess reqWriteAccessCmd(drvSessionID);
 
   stat = sendCmdGetResp(pAsynUserUDP, reqWriteAccessCmd, respStatus);
 
