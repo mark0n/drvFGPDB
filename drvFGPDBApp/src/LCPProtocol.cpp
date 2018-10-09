@@ -115,3 +115,11 @@ LCPReqWriteAccess::LCPReqWriteAccess(const uint16_t drvsessionID):
   setCmdBufData(1, static_cast<int32_t>(LCPCommand::REQ_WRITE_ACCESS));
   setCmdBufData(2, (static_cast<int32_t>(drvsessionID))<<16);
 }
+
+string LCPReqWriteAccess::getWriterIP()
+{
+  uint32_t ip = getRespBufData(3);
+  struct in_addr ip_addr;
+  ip_addr.s_addr = ip;
+  return string(inet_ntoa(ip_addr));
+};

@@ -490,7 +490,7 @@ public:
    */
   LCPReqWriteAccess(const uint16_t drvsessionID);
 
-  uint32_t getWriterIP(){return getRespBufData(3);};
+  std::string getWriterIP();
 
   uint16_t getWriterPort(){return static_cast<int16_t>(getRespBufData(4));};
 };
