@@ -495,7 +495,6 @@ double drvFGPDB::checkComStatus(void)
       cout << "=== " << portName << " ctlr online ===" << endl << endl;
       connected = true;
       setStateFlags(eStateFlags::SyncConActive, true);
-      setStateFlags(eStateFlags::AllRegsConnected, true);
     }
   }
 
@@ -651,6 +650,8 @@ asynStatus drvFGPDB::getWriteAccess(void)
     if (reqWriteAccess(sessionID.get()) != asynSuccess)  continue;
 
     if (!writeAccess)  continue;
+
+    setStateFlags(eStateFlags::AllRegsConnected,true);
 
     return asynSuccess;
   }
@@ -1054,6 +1055,9 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     for (flushedPkts=0; flushedPkts<100; ++flushedPkts)  {
 
       int respLen = readResp(pComPort, LCPCmd.getRespBuf());
+
+      if (LCPCmd.getRespBuffSize()!=respLen)  setStateFlags(eStateFlags::AllRegsConnected, false);
+
       if (exitDriver)  return asynError;
       if (respLen <= 0)  break;
 
