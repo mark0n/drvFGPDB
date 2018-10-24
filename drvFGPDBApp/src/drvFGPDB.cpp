@@ -1025,7 +1025,7 @@ int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
   };
   stat = syncIO->read(pComPort, inData, &rcvd, readTimeout, &eomReason);
   if (stat != asynSuccess && stat != asynTimeout)  return -1;
-  ++syncPktsRcvd;
+  if (rcvd) ++syncPktsRcvd;
 
   return rcvd;
 }
