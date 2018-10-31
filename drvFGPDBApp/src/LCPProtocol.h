@@ -492,7 +492,8 @@ public:
 
   std::string getWriterIP();
 
-  uint16_t getWriterPort(){return static_cast<int16_t>(getRespBufData(4));};
+  uint16_t getWriterPort(){return static_cast<uint16_t>((getRespBufData(4) >> 16) & 0xFFFF);}
+
 };
 
 #endif // LCPPROTOCOL_H
