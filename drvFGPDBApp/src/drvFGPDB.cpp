@@ -1024,7 +1024,7 @@ int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
     .read_buffer_len = respBuf.size() * sizeof(respBuf[0])
   };
   stat = syncIO->read(pComPort, inData, &rcvd, readTimeout, &eomReason);
-  if (stat != asynSuccess)  return -1;
+  if (stat != asynSuccess && stat != asynTimeout)  return -1;
   ++syncPktsRcvd;
 
   return rcvd;
@@ -1057,8 +1057,6 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
       int respLen = readResp(pComPort, LCPCmd.getRespBuf());
       if (exitDriver)  return asynError;
       if (respLen <= 0)  break;
-
-      if ((uint)respLen != LCPCmd.getRespBuf().size()*sizeof(LCPCmd.getRespPktID()))  continue;
 
       lastRespTime = chrono::system_clock::now();
       // check values common to all commands
