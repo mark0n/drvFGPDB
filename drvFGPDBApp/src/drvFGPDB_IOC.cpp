@@ -35,7 +35,7 @@ void drvFGPDB_initHookFunc(initHookState state)
         }
       }
   }
-  if (state == initHookAfterInitialProcess) {
+  if (state == initHookAtIocRun) {
     if (drvFGPDBs) {
       for (auto& d : *drvFGPDBs) {
         d.second.startCommunication();

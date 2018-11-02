@@ -496,7 +496,6 @@ double drvFGPDB::checkComStatus(void)
       connected = true;
       setStateFlags(eStateFlags::SyncConActive, true);
       setStateFlags(eStateFlags::AllRegsConnected, true);
-      scalarWritesTimer.wakeUp();
     }
   }
 
