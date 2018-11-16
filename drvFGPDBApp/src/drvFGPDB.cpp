@@ -1056,7 +1056,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
 
       int respLen = readResp(pComPort, LCPCmd.getRespBuf());
 
-      if (LCPCmd.getRespBuffSize()!=respLen)  setStateFlags(eStateFlags::AllRegsConnected, false);
+      if (static_cast<int>(LCPCmd.getRespBuffSize())!=respLen)  setStateFlags(eStateFlags::AllRegsConnected, false);
 
       if (exitDriver)  return asynError;
       if (respLen <= 0)  break;

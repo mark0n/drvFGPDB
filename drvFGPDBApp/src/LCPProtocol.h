@@ -314,7 +314,7 @@ public:
    *
    * @return buffer size in bytes
    */
-   int32_t getRespBuffSize(){ return static_cast<int32_t>(respBuf.size()* sizeof(respBuf.at(0)));}
+  size_t getRespBuffSize(){ return (sizeof(respBuf.at(0))*respBuf.size());}
 
 private:
   const int CmdHdrWords;    //!< Number of uint32_t words in the request buffer
