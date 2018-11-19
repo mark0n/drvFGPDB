@@ -7,7 +7,7 @@
  */
 
 #include <cstdint>
-#include <map>
+#include <unordered_map>
 #include <random>
 #include <arpa/inet.h>
 
@@ -120,7 +120,7 @@ public:
   private:
 #endif
 
-  static const std::map<int16_t, int16_t> StatusOffset; //!< Map w/ LCP_Status cmd offset in ctlr response
+  static const std::unordered_map<int16_t, int16_t> StatusOffset; //!< Map w/ LCP_Status cmd offset in ctlr response
 };
 
 namespace LCP {
