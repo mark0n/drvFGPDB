@@ -309,6 +309,13 @@ public:
    */
   LCPStatus getRespStatus(){ return static_cast<LCPStatus>(getRespBufData(2) & 0xFFFF);}
 
+  /**
+   * @brief Method that returns the Response buffer size in bytes
+   *
+   * @return buffer size in bytes
+   */
+  size_t getRespBuffSize(){ return (sizeof(respBuf.at(0))*respBuf.size());}
+
 private:
   const int CmdHdrWords;    //!< Number of uint32_t words in the request buffer
   const int RespHdrWords;   //!< Number of uint32_t words in the response buffer
