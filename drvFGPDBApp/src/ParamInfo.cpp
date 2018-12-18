@@ -26,22 +26,6 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "U16_16",     CtlrDataFmt::U16_16    }
 };
 
-const std::unordered_map<SetState, std::string, EnumClassHash> ParamInfo::setStates = {
-  { SetState::Undefined,  "Undefined"  },
-  { SetState::Restored,   "Restored"   },
-  { SetState::Pending,    "Pending"    },
-  { SetState::Processing, "Processing" },
-  { SetState::Sent,       "Sent"       },
-  { SetState::Error,      "Error"      }
-};
-
-const std::unordered_map<ReadState, std::string, EnumClassHash> ParamInfo::readStates = {
-  { ReadState::Undefined, "Undefined" },
-  { ReadState::Pending,   "Pending"   },
-  { ReadState::Update,    "Update"    },
-  { ReadState::Current,   "Current"   }
-};
-
 static string NotDefined("<NotDefined>");
 
 //-----------------------------------------------------------------------------
@@ -264,18 +248,6 @@ const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
   for (auto& x: ctlrFmts)  if (x.second == ctlrFmt)  return x.first;
 
   return NotDefined;
-}
-
-//-----------------------------------------------------------------------------
-const string & ParamInfo::setStateToStr(void) const
-{
-  return setStates.at(setState);
-}
-
-//-----------------------------------------------------------------------------
-const string & ParamInfo::readStateToStr(void) const
-{
-  return readStates.at(readState);
 }
 
 //-----------------------------------------------------------------------------

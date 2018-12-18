@@ -8,19 +8,9 @@
 
 #include <regex>
 #include <map>
-#include <unordered_map>
 #include <iostream>
 
 #include <asynPortDriver.h>
-
-struct EnumClassHash
-{
-  template <typename T>
-  std::size_t operator()(T t) const
-  {
-    return static_cast<std::size_t>(t);
-  }
-};
 
 /**
  * @brief Data formats supported by the ctlr
@@ -158,22 +148,6 @@ class ParamInfo {
      * @return    Equivalent string
      */
     static const std::string & ctlrFmtToStr(const CtlrDataFmt ctlrFmt);
-
-    /**
-     * @brief Method to know the state of ctlrValSet param attribute
-     *        - Undefined, Pending, Processing, Sent and Error
-     *
-     * @return state of ctlrValSet
-     */
-    const std::string & setStateToStr(void) const;
-
-    /**
-     * @brief Method to know the state of ctlrValRead  param attribute
-     *        - Undefined, Pending, Update and Current
-     *
-     * @return state of ctlrValRead
-     */
-    const std::string & readStateToStr(void) const;
 
     /**
      * @brief Method to convert a value from the format used by the ctlr to a double
@@ -331,8 +305,6 @@ class ParamInfo {
 
     static const std::map<std::string, asynParamType> asynTypes;  //!< Map w/ the asyn data formats supported by the driver
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;     //!< Map w/ the data formats supported by the ctlr
-    static const std::unordered_map<SetState, std::string, EnumClassHash> setStates;       //!< Map w/ supported write states of a ctlr/driver-only value
-    static const std::unordered_map<ReadState, std::string, EnumClassHash> readStates;     //!< Map w/ supported read states of a ctlr/driver-only value
 };
 
 /**
