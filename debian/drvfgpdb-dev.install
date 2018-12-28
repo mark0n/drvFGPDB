@@ -1,4 +1,0 @@
-usr/lib/epics/dbd/drvFGPDB.dbd
-usr/lib/epics/lib/linux-*/lib*.so
-usr/lib/epics/lib/linux-*/lib*.a
-usr/lib/epics/lib/linux-x86_64/lib*.so usr/lib
