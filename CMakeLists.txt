@@ -23,6 +23,7 @@ include_directories(${EPICS_INCLUDE_DIRS} ${asyn_INCLUDE_DIRS})
 # Debian's README as well as
 # https://groups.google.com/forum/#!topic/googletestframework/Zo7_HOv1MJ0).
 find_path(GMOCK_SRC_DIR NAMES CMakeLists.txt PATHS /usr/src/googletest/googlemock /usr/src/gmock NO_DEFAULT_PATH)
+set(INSTALL_GTEST OFF)
 add_subdirectory(${GMOCK_SRC_DIR} ${CMAKE_BINARY_DIR}/gmock-build)
 
 # For some reason the above is not sufficient on Ubuntu 18.10 (gtest 1.8.0).
