@@ -7,7 +7,7 @@
  */
 
 #include <cstdint>
-#include <map>
+#include <unordered_map>
 #include <random>
 #include <arpa/inet.h>
 
@@ -120,7 +120,7 @@ public:
   private:
 #endif
 
-  static const std::map<int16_t, int16_t> StatusOffset; //!< Map w/ LCP_Status cmd offset in ctlr response
+  static const std::unordered_map<int16_t, int16_t> StatusOffset; //!< Map w/ LCP_Status cmd offset in ctlr response
 };
 
 namespace LCP {
@@ -308,6 +308,13 @@ public:
    * @return LCPStatus value
    */
   LCPStatus getRespStatus(){ return static_cast<LCPStatus>(getRespBufData(2) & 0xFFFF);}
+
+  /**
+   * @brief Method that returns the Response buffer size in bytes
+   *
+   * @return buffer size in bytes
+   */
+  size_t getRespBuffSize(){ return (sizeof(respBuf.at(0))*respBuf.size());}
 
 private:
   const int CmdHdrWords;    //!< Number of uint32_t words in the request buffer
