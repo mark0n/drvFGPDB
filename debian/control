@@ -1,0 +1,30 @@
+Source: drvfgpdb
+Priority: optional
+Maintainer: Martin Konrad <konrad@frib.msu.edu>
+Build-Depends: debhelper (>=9), epics-debhelper (>= 8.14~), epics-dev,
+               epics-asyn-dev (>=4.32), cmake (>=3), google-mock, cmake4epics,
+               lcpsimulator (>=2.3.0), libboost-filesystem-dev,
+               libboost-system-dev, libboost-thread-dev
+Standards-Version: 3.9.6
+Section: libs
+Vcs-Git: https://stash.frib.msu.edu/scm/rf/drvfgpdb.git
+Vcs-Browser: https://stash.frib.msu.edu/projects/RF/repos/drvfgpdb
+
+Package: drvfgpdb-dev
+Section: libdevel
+Architecture: any
+Depends: libdrvfgpdb1.3 (= ${binary:Version}), ${misc:Depends}
+Description: EPICS support for FRIB General Purpose Digital Board
+ Generic EPICS support for FRIB General Purpose Digital Board.
+ .
+ This package provides the files required to build IOC applications using this
+ support module.
+
+Package: libdrvfgpdb1.3
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: EPICS support for FRIB General Purpose Digital Board
+ Generic EPICS support for FRIB General Purpose Digital Board.
+ .
+ This package provides the support library required to run IOC applications
+ using this support module.
