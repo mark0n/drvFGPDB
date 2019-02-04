@@ -426,7 +426,6 @@ double drvFGPDB::postNewReadings(void)
 
   if (exitDriver)  return DontReschedule;
 
-
   //ToDo:  Efficiency improvement:
   //       Eliminate the need to scan the entire list of params each time by
   //       using a separate list of params that have new read values that need
@@ -479,6 +478,7 @@ double drvFGPDB::checkComStatus(void)
       cout << "*** " << portName << " ctlr offline ***" << endl << endl;
       resetReadStates();  connected = false;
       setStateFlags(eStateFlags::SyncConActive, false);
+      setStateFlags(eStateFlags::AllRegsConnected,false);
     }
   }
   // scan list of RO and WA regs to see if all of them are current
@@ -495,8 +495,7 @@ double drvFGPDB::checkComStatus(void)
       cout << "=== " << portName << " ctlr online ===" << endl << endl;
       connected = true;
       setStateFlags(eStateFlags::SyncConActive, true);
-      setStateFlags(eStateFlags::AllRegsConnected, true);
-      scalarWritesTimer.wakeUp();
+      setStateFlags(eStateFlags::AllRegsConnected,true);
     }
   }
 
@@ -1025,7 +1024,7 @@ int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
   };
   stat = syncIO->read(pComPort, inData, &rcvd, readTimeout, &eomReason);
   if (stat != asynSuccess && stat != asynTimeout)  return -1;
-  ++syncPktsRcvd;
+  if (rcvd) ++syncPktsRcvd;
 
   return rcvd;
 }
@@ -1055,6 +1054,11 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     for (flushedPkts=0; flushedPkts<100; ++flushedPkts)  {
 
       int respLen = readResp(pComPort, LCPCmd.getRespBuf());
+
+      if ((LCPCmd.getRespLCPCommand()==static_cast<int>(LCPCommand::READ_REGS)) and (static_cast<int>(LCPCmd.getRespBuffSize())!=respLen)){
+        setStateFlags(eStateFlags::AllRegsConnected, false);
+      }
+
       if (exitDriver)  return asynError;
       if (respLen <= 0)  break;
 

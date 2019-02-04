@@ -1,0 +1,211 @@
+drvfgpdb (1.3.4) unstable; urgency=medium
+
+  [ Martin Konrad ]
+  * Use unordered_map if ordering is not required
+
+  [ Bernal Ruiz, Enrique ]
+  * Set startCommunication call at initHookAtIocRun
+  * Add getter for LCP cmd resp buffer size
+  * set AllRegsConnected=false,if bytes read!=buffer_lenght in readResp call
+  * Avoid the update of syncPktsRcvd if controller is not connected
+  * Set return type of getRespBuffSize to size_t
+  * Set AllRegsConnected to true after connection established
+
+  [ Martin Konrad ]
+  * Work around a build issue on Ubuntu 18.10
+  * Remove unused functions
+  * Turn off installation of Google Test files
+  * Bump up version number
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 24 Jan 2019 09:27:25 -0500
+
+drvfgpdb (1.3.3) unstable; urgency=medium
+
+  * Work around gtest/gmock 1.8.0 installing files
+  * Leverage both CMake4EPICS and epics-debhelper
+  * Ensure package name and SO name match
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Fri, 28 Dec 2018 08:51:22 -0500
+
+drvfgpdb (1.3.2) unstable; urgency=medium
+
+  [ Bernal Ruiz, Enrique ]
+  * Print IP addr in dot-decimal notation
+  * Allow asynOctetSyncIO->read to return asynSuccess and asynTimeout
+  * Fix getWriterPort() without shifting writerPort value
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 01 Nov 2018 15:54:31 -0400
+
+drvfgpdb (1.3.1) unstable; urgency=medium
+
+  * Fix broken log messages
+  * Bump up version to 1.3.1
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 11 Sep 2018 16:34:00 -0400
+
+drvfgpdb (1.3.0) unstable; urgency=medium
+
+  [ Bernal Ruiz, Enrique ]
+  * Remove keepAlive flag
+  * Get writerPort as 16-bit word
+  * Set max number of attempts to getWriteAccess to 5
+
+  [ Martin Konrad ]
+  * Bump up version to 1.3.0
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 28 Aug 2018 12:40:36 -0400
+
+drvfgpdb (1.2.0) unstable; urgency=medium
+
+  [ Bernal Ruiz, Enrique ]
+  * Improve param updates with new definition strings
+
+  [ Martin Konrad ]
+  * Simplify error handling in updateParamDef()
+  * Clean up white-spaces in updateParamDef()
+
+  [ Bernal Ruiz, Enrique ]
+  * Add REQ_WRITE_ACCESS cmd in charge of getting/keeping write access
+  * Add doxygen documentation to LCP Commands
+  * Add accessors to LCPCmds to avoid direct access from the driver
+  * Clean Up
+  * writeAccess and sessionID reset after ctlr restart
+  * Get reference to respBuffer before for-loop
+  * Fix broken tests which were still using the sessionID
+
+  [ Martin Konrad ]
+  * Bump up version to 1.2.0
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 06 Aug 2018 15:25:19 -0400
+
+drvfgpdb (1.1.0) unstable; urgency=medium
+
+  * Improve handling of resendMode variable
+  * Bump up version to 1.1.0
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 02 Aug 2018 15:58:59 -0400
+
+drvfgpdb (1.0.3) unstable; urgency=medium
+
+  [ Mark Davis ]
+  * Support separate Read and Write statuses for PMEM/array params
+
+  [ Bernal Ruiz, Enrique ]
+  * Init param's status param after setting param's SetState to pending
+
+  [ Martin Konrad ]
+  * Remove unneeded typedef
+
+  [ Bernal Ruiz, Enrique ]
+  * Fix wrong if-else statement in setArrayOperStatus()
+
+  [ Martin Konrad ]
+  * Clearify comment about lazy initialization of statusParamID
+  * Fix broken tests
+  * Simplify getParamInfo() method
+  * Get rid of default constructor for ParamInfo class
+  * Improve performance of ParamInfo constructor
+  * Simplify ParamInfo constructor
+  * More tests for ParamInfo constructor
+  * Test sendMsg() method
+  * Test readResp() method
+
+  [ Bernal Ruiz, Enrique ]
+  * Fix setArrayOperStatus to print error message if statusParamID is wrong
+  * Complete initialization of arrayParams after init database
+  * Fix completeArrayParamInit w/ Mark's comments in commit e318784ab9c
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 18 Jun 2018 18:10:41 -0400
+
+drvfgpdb (1.0.2) unstable; urgency=medium
+
+  * Clear old bits before transmitting WO registers
+  * Fix some compiler warnings
+  * Update version number in CMakeLists.txt to 1.0.2
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 29 May 2018 15:00:39 -0400
+
+drvfgpdb (1.0.1) unstable; urgency=medium
+
+  * Update version number in CMakeLists.txt to 1.0.1
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Wed, 23 May 2018 18:16:38 -0400
+
+drvfgpdb (1.0.0) unstable; urgency=medium
+
+  First release for production use.
+
+  [ Bernal Ruiz, Enrique ]
+  * Add one LCP Simulator instance as member of the integration test Class
+
+  [ Martin Konrad ]
+  * Remove test mode from driver code
+
+  [ Mark Davis ]
+  * Initial changes for event-driven model
+  * Minor tweaks and updated overview
+  * Proper cleanup of eventTimer's and associated timerQueue
+
+  [ Martin Konrad ]
+  * Remove some obsolete code
+  * Remove all integration tests
+  * Leverage std::function and std::bind
+  * Clean up includes, remove unneeded destructor
+  * Move definition of required parameter where used
+  * Purge params that aren't required by the driver from required list
+  * Improve type safety for drvVal (no void* anymore)
+  * Required param list: replace pointer by reference
+  * Start making members of ParamInfo class private
+  * Make more members of ParamInfo class private
+
+  [ Bernal Ruiz, Enrique ]
+  * Fix return value in keepWriteAccess() when exitDriver or !connected
+  * Add support to set stateFlags, writeAccess flag set when appropriate
+
+  [ Martin Konrad ]
+  * Fix broken read-only state
+  * Update read-only flag of param when it gets updated
+
+  [ Mark Davis ]
+  * Set/Clear remaining bits in stateFlags param
+
+  [ Bernal Ruiz, Enrique ]
+  * Apply changes related w/ redef of UndefRegs and DisconRegs records
+  * Remove RegsDefined flag & update RegsConnected to AllRegsConnected
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Wed, 23 May 2018 15:05:17 -0400
+
+drvfgpdb (0.2.0) unstable; urgency=medium
+
+  [ Mark Davis ]
+  * Automatically maintain write access
+  * Automatically resync ctlr to IOC after a com problem Logic to detect and recover from com errors.
+
+  [ Martin Konrad ]
+  * Mark verifyReqParams() as const
+  * Keep write access using empty write packages
+  * Read response to keep-alive package
+
+  [ Mark Davis ]
+  * Smarter resend settings and com problem recovery logic
+  * Resend settings only if controller restarted
+  * Rebased on master
+  * Update Overview/main_page
+  * Minor corrections.
+  * Merge and eliminate duplicate files
+  * Add missing item in state-to-string map.
+  * Configurable mode for ctlr and IOC restarts
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 03 Apr 2018 08:54:56 -0400
+
+drvfgpdb (0.1.0) unstable; urgency=medium
+
+  First potentially useful release.
+
+ -- Konrad Martin <konrad@frib.msu.edu>  Tue, 27 Mar 2018 12:30:47 -0400
+
+drvfgpdb (0.0.1) unstable; urgency=medium
+
+  * Initial Release.
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 23 Jan 2017 13:49:15 -0500

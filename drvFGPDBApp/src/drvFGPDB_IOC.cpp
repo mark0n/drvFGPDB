@@ -4,6 +4,8 @@
  */
 
 #include <memory>
+#include <map>
+#include <unordered_map>
 
 #include <initHooks.h>
 #include <iocsh.h>
@@ -35,7 +37,7 @@ void drvFGPDB_initHookFunc(initHookState state)
         }
       }
   }
-  if (state == initHookAfterInitialProcess) {
+  if (state == initHookAtIocRun) {
     if (drvFGPDBs) {
       for (auto& d : *drvFGPDBs) {
         d.second.startCommunication();
@@ -72,7 +74,7 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_,
   }
   try{
     string portName = string(drvPortName);
-    const std::map<std::string, ResendMode> resendModeMap {
+    const std::unordered_map<std::string, ResendMode> resendModeMap {
       { "AfterCtlrRestart", ResendMode::AfterCtlrRestart },
       { "AfterIOCRestart",  ResendMode::AfterIOCRestart  },
       { "Never",            ResendMode::Never            }
