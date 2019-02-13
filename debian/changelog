@@ -1,3 +1,9 @@
+drvfgpdb (1.3.5) unstable; urgency=medium
+
+  * Build with debugging symbols
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 04 Feb 2019 10:57:48 -0500
+
 drvfgpdb (1.3.4) unstable; urgency=medium
 
   [ Martin Konrad ]
