@@ -78,7 +78,7 @@ std::string logMsgHdr()
   auto now_c = chrono::system_clock::to_time_t(now);
   auto msec = chrono::duration_cast<ms>(now.time_since_epoch()).count() % 1000;
 
-  std::ostringstream oss(showDateTime(now_c));
+  std::ostringstream oss(showDateTime(now_c), ios_base::ate);
 
   oss << "." << std::setw(3) << std::setfill('0') << msec << " "
        << epicsThreadGetNameSelf() << "[" << this_thread::get_id() << "]:";
