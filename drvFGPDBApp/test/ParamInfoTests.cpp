@@ -94,20 +94,6 @@ TEST(conversions, convertsStringToAsynType)  {
 }
 
 //-----------------------------------------------------------------------------
-TEST(conversions, convertsSetStateToString)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32");
-  param.setState = SetState::Pending;
-  ASSERT_THAT(param.setStateToStr(), Eq("Pending"));
-}
-
-//-----------------------------------------------------------------------------
-TEST(conversions, convertsReadStateToString)  {
-  ParamInfo param("lcpRegRO_1 0x10002 Int32 U32");
-  param.readState = ReadState::Current;
-  ASSERT_THAT(param.readStateToStr(), Eq("Current"));
-}
-
-//-----------------------------------------------------------------------------
 TEST(conversions, failsOnConflictingUpdate)  {
   ParamInfo param1("lcpRegRO_1 0x10002 Int32 U32");
   ParamInfo param2("lcpRegRO_1 0x10002 Float64 U32");

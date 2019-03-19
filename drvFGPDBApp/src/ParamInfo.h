@@ -150,22 +150,6 @@ class ParamInfo {
     static const std::string & ctlrFmtToStr(const CtlrDataFmt ctlrFmt);
 
     /**
-     * @brief Method to know the state of ctlrValSet param attribute
-     *        - Undefined, Pending, Processing, Sent and Error
-     *
-     * @return state of ctlrValSet
-     */
-    const std::string & setStateToStr(void) const;
-
-    /**
-     * @brief Method to know the state of ctlrValRead  param attribute
-     *        - Undefined, Pending, Update and Current
-     *
-     * @return state of ctlrValRead
-     */
-    const std::string & readStateToStr(void) const;
-
-    /**
      * @brief Method to convert a value from the format used by the ctlr to a double
      *
      * @param[in] ctlrVal  value to be converted
@@ -321,8 +305,6 @@ class ParamInfo {
 
     static const std::map<std::string, asynParamType> asynTypes;  //!< Map w/ the asyn data formats supported by the driver
     static const std::map<std::string, CtlrDataFmt> ctlrFmts;     //!< Map w/ the data formats supported by the ctlr
-    static const std::map<SetState, std::string> setStates;       //!< Map w/ supported write states of a ctlr/driver-only value
-    static const std::map<ReadState, std::string> readStates;     //!< Map w/ supported read states of a ctlr/driver-only value
 };
 
 /**

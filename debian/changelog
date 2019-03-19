@@ -1,3 +1,54 @@
+drvfgpdb (1.3.6) unstable; urgency=medium
+
+  [ bernalru ]
+  * Replace std::cout by errlogSevPrintf()
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Fri, 01 Mar 2019 16:44:58 -0500
+
+drvfgpdb (1.3.5) unstable; urgency=medium
+
+  * Build with debugging symbols
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Mon, 04 Feb 2019 10:57:48 -0500
+
+drvfgpdb (1.3.4) unstable; urgency=medium
+
+  [ Martin Konrad ]
+  * Use unordered_map if ordering is not required
+
+  [ Bernal Ruiz, Enrique ]
+  * Set startCommunication call at initHookAtIocRun
+  * Add getter for LCP cmd resp buffer size
+  * set AllRegsConnected=false,if bytes read!=buffer_lenght in readResp call
+  * Avoid the update of syncPktsRcvd if controller is not connected
+  * Set return type of getRespBuffSize to size_t
+  * Set AllRegsConnected to true after connection established
+
+  [ Martin Konrad ]
+  * Work around a build issue on Ubuntu 18.10
+  * Remove unused functions
+  * Turn off installation of Google Test files
+  * Bump up version number
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 24 Jan 2019 09:27:25 -0500
+
+drvfgpdb (1.3.3) unstable; urgency=medium
+
+  * Work around gtest/gmock 1.8.0 installing files
+  * Leverage both CMake4EPICS and epics-debhelper
+  * Ensure package name and SO name match
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Fri, 28 Dec 2018 08:51:22 -0500
+
+drvfgpdb (1.3.2) unstable; urgency=medium
+
+  [ Bernal Ruiz, Enrique ]
+  * Print IP addr in dot-decimal notation
+  * Allow asynOctetSyncIO->read to return asynSuccess and asynTimeout
+  * Fix getWriterPort() without shifting writerPort value
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 01 Nov 2018 15:54:31 -0400
+
 drvfgpdb (1.3.1) unstable; urgency=medium
 
   * Fix broken log messages

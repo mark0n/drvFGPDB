@@ -13,14 +13,14 @@ Vcs-Browser: https://stash.frib.msu.edu/projects/RF/repos/drvfgpdb
 Package: drvfgpdb-dev
 Section: libdevel
 Architecture: any
-Depends: libdrvfgpdb (= ${binary:Version}), ${misc:Depends}
+Depends: libdrvfgpdb1.3 (= ${binary:Version}), ${misc:Depends}
 Description: EPICS support for FRIB General Purpose Digital Board
  Generic EPICS support for FRIB General Purpose Digital Board.
  .
  This package provides the files required to build IOC applications using this
  support module.
 
-Package: libdrvfgpdb
+Package: libdrvfgpdb1.3
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: EPICS support for FRIB General Purpose Digital Board

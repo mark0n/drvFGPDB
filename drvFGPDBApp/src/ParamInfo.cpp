@@ -1,9 +1,9 @@
 #include <iostream>
 
 #include <asynPortDriver.h>
+#include <errlog.h>
 
 #include "LCPProtocol.h"
-
 #include "ParamInfo.h"
 
 using namespace std;
@@ -24,22 +24,6 @@ const std::map<std::string, CtlrDataFmt> ParamInfo::ctlrFmts = {
   { "U32",        CtlrDataFmt::U32       },
   { "F32",        CtlrDataFmt::F32       },
   { "U16_16",     CtlrDataFmt::U16_16    }
-};
-
-const std::map<SetState, std::string> ParamInfo::setStates = {
-  { SetState::Undefined,  "Undefined"  },
-  { SetState::Restored,   "Restored"   },
-  { SetState::Pending,    "Pending"    },
-  { SetState::Processing, "Processing" },
-  { SetState::Sent,       "Sent"       },
-  { SetState::Error,      "Error"      }
-};
-
-const std::map<ReadState, std::string> ParamInfo::readStates = {
-  { ReadState::Undefined, "Undefined" },
-  { ReadState::Pending,   "Pending"   },
-  { ReadState::Update,    "Update"    },
-  { ReadState::Current,   "Current"   }
 };
 
 static string NotDefined("<NotDefined>");
@@ -267,18 +251,6 @@ const string & ParamInfo::ctlrFmtToStr(const CtlrDataFmt ctlrFmt)
 }
 
 //-----------------------------------------------------------------------------
-const string & ParamInfo::setStateToStr(void) const
-{
-  return setStates.at(setState);
-}
-
-//-----------------------------------------------------------------------------
-const string & ParamInfo::readStateToStr(void) const
-{
-  return readStates.at(readState);
-}
-
-//-----------------------------------------------------------------------------
 template <typename T>
 std::pair<asynStatus,paramDefState> updateProp(T &curVal, const T &newVal, T notDefined, const paramDefState paramDefSt)
 {
@@ -333,10 +305,11 @@ paramDefState ParamInfo::updateParamDef(const string &context,
   m_readOnly = LCPUtil::readOnlyAddr(regAddr);
 
   if (conflict) {
-    cout << endl << "*** " << context << ":" << name << ": "
-         "Conflicting parameter definitions ***" << endl
-         << "  cur: " << *this << endl
-         << "  new: " << newParam << endl;
+    ostringstream oss1, oss2;
+    oss1 << *this;
+    oss2 << newParam;
+    errlogSevPrintf(errlogMajor,"*** %s:%s: Conflicting parameter definitions ***\n\tcur: %s\n\tnew: %s\n\n",
+                    context.c_str(), name.c_str(), oss1.str().c_str(), oss2.str().c_str());
     throw invalid_argument("Invalid parameter definition");
   }
 

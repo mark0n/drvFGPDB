@@ -7,7 +7,7 @@
  */
 
 #include <cstdint>
-#include <map>
+#include <unordered_map>
 #include <random>
 #include <arpa/inet.h>
 
@@ -120,7 +120,7 @@ public:
   private:
 #endif
 
-  static const std::map<int16_t, int16_t> StatusOffset; //!< Map w/ LCP_Status cmd offset in ctlr response
+  static const std::unordered_map<int16_t, int16_t> StatusOffset; //!< Map w/ LCP_Status cmd offset in ctlr response
 };
 
 namespace LCP {
@@ -309,6 +309,13 @@ public:
    */
   LCPStatus getRespStatus(){ return static_cast<LCPStatus>(getRespBufData(2) & 0xFFFF);}
 
+  /**
+   * @brief Method that returns the Response buffer size in bytes
+   *
+   * @return buffer size in bytes
+   */
+  size_t getRespBuffSize(){ return (sizeof(respBuf.at(0))*respBuf.size());}
+
 private:
   const int CmdHdrWords;    //!< Number of uint32_t words in the request buffer
   const int RespHdrWords;   //!< Number of uint32_t words in the response buffer
@@ -490,9 +497,10 @@ public:
    */
   LCPReqWriteAccess(const uint16_t drvsessionID);
 
-  uint32_t getWriterIP(){return getRespBufData(3);};
+  std::string getWriterIP();
 
-  uint16_t getWriterPort(){return static_cast<int16_t>(getRespBufData(4));};
+  uint16_t getWriterPort(){return static_cast<uint16_t>((getRespBufData(4) >> 16) & 0xFFFF);}
+
 };
 
 #endif // LCPPROTOCOL_H
