@@ -14,7 +14,6 @@
 
 #include <string>
 #include <vector>
-#include <list>
 #include <memory>
 #include <thread>
 #include <atomic>
