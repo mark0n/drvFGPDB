@@ -27,6 +27,7 @@
 
 #include "drvFGPDB.h"
 #include "LCPProtocol.h"
+#include "logger.h"
 
 #include <epicsThread.h>
 #include <errlog.h>
@@ -49,42 +50,6 @@ typedef  epicsUInt32    U32;
 
 typedef  epicsFloat32   F32;
 typedef  epicsFloat64   F64;
-
-//-----------------------------------------------------------------------------
-//  print the specified date/time in YYY-MM-DD HH:MM:SS format
-//-----------------------------------------------------------------------------
-std::string showDateTime(const time_t dateTime)
-{
-  std::ostringstream oss;
-  std::tm *lt = localtime(&dateTime);
-  // Work around missing std::put_time() function (not supported by g++ <5).
-  // The following statement can be replaced by 'oss << put_time(lt, "%F %T.")'
-  // when we don't need to support Debian Jessie anymore.
-  oss << std::dec << 1900 + lt->tm_year << "-"
-      << std::setw(2) << std::setfill('0') << 1 + lt->tm_mon << "-"
-      << std::setw(2) << std::setfill('0') << lt->tm_mday << " "
-      << std::setw(2) << std::setfill('0') << lt->tm_hour << ":"
-      << std::setw(2) << std::setfill('0') << lt->tm_min << ":"
-      << std::setw(2) << std::setfill('0') << lt->tm_sec;
-  return oss.str();
-}
-
-//-----------------------------------------------------------------------------
-//  print the current date/time incl milliseconds
-//-----------------------------------------------------------------------------
-std::string logMsgHdr()
-{
-  auto now = chrono::system_clock::now();
-  auto now_c = chrono::system_clock::to_time_t(now);
-  auto msec = chrono::duration_cast<ms>(now.time_since_epoch()).count() % 1000;
-
-  std::ostringstream oss(showDateTime(now_c), ios_base::ate);
-
-  oss << "." << std::setw(3) << std::setfill('0') << msec << " "
-       << epicsThreadGetNameSelf() << "[" << this_thread::get_id() << "]:";
-
-  return oss.str();
-}
 
 //-----------------------------------------------------------------------------
 drvFGPDB::drvFGPDB(const string &drvPortName,
@@ -143,8 +108,7 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
     diagFlags(startupDiagFlags)
 {
   if (addRequiredParams() != asynSuccess)  {
-    errlogSevPrintf(errlogFatal,"%s *** %s: Req Params Config error ***\n\n",
-                    logMsgHdr().c_str(), portName);
+    log.fatal(" *** %s: Req Params Config error ***\n\n", portName);
     //Exit thread body safely
     exitDriver = true;
     //ToDo: destroy() for all the eventTimers (?)
@@ -156,8 +120,8 @@ drvFGPDB::drvFGPDB(const string &drvPortName,
   auto stat = syncIO->connect(udpPortName.c_str(), 0, &pAsynUserUDP, nullptr);
 
   if (stat) {
-    errlogSevPrintf(errlogFatal,"%s *** %s: Unable to connect to asyn UDP port: %s ***\n\n",
-                    logMsgHdr().c_str(), portName, udpPortName.c_str());
+    log.fatal(" *** %s: Unable to connect to asyn UDP port: %s ***\n\n",
+              portName, udpPortName.c_str());
     throw invalid_argument("Invalid asyn UDP port name");
   }
 }
@@ -190,8 +154,8 @@ void drvFGPDB::completeArrayParamInit (){
     param.wrStatusParamID = findParamByName(param.wrStatusParamName);
 
     if((param.rdStatusParamID < 0) or (param.wrStatusParamID < 0)){
-      errlogSevPrintf(errlogMajor,"%s *** %s: Invalid read/write status parameters for :%s *** \n\n",
-                    logMsgHdr().c_str(), portName,param.name.c_str());
+      log.major(" *** %s: Invalid read/write status parameters for :%s *** \n\n",
+                portName, param.name.c_str());
     }
   }
 }
@@ -200,8 +164,8 @@ void drvFGPDB::completeArrayParamInit (){
 void drvFGPDB::startCommunication()
 {
   if (verifyReqParams() != asynSuccess)  {
-    errlogSevPrintf(errlogMajor,"%s *** %s: Missing or invalid defs for req params *** \n\n",
-                    logMsgHdr().c_str(), portName);
+    log.major(" *** %s: Missing or invalid defs for req params *** \n\n",
+              portName);
     return;
   }
 
@@ -211,8 +175,7 @@ void drvFGPDB::startCommunication()
   postNewReadingsTimer.start();
   comStatusTimer.start();
 
-  errlogSevPrintf(errlogInfo,"%s === %s: Initialization complete === \n\n",
-                  logMsgHdr().c_str(), portName);
+  log.info(" === %s: Initialization complete === \n\n", portName);
   initComplete = true;
 }
 
@@ -226,12 +189,11 @@ void drvFGPDB::checkCallbackThread(const string &funcName)
   if (callback_thread_id == (thread::id)0)  callback_thread_id = thisThread;
 
   if (ShowCallbacks() or (thisThread != callback_thread_id))  {
-    errlogSevPrintf(errlogInfo,"%s === %s: [%s]===\n",
-                    logMsgHdr().c_str(), portName, funcName.c_str());
+    log.info(" === %s: [%s]===\n", portName, funcName.c_str());
   }
   if (thisThread != callback_thread_id)  {
-    errlogSevPrintf(errlogInfo,"%s *** %s: Timer callback from multiple threads!!! ***\n\n",
-                    logMsgHdr().c_str(), portName);
+    log.info(" *** %s: Timer callback from multiple threads!!! ***\n\n",
+             portName);
   }
 }
 
@@ -391,8 +353,8 @@ double drvFGPDB::processArrayWrites(void)
     if (!connected or !writeAccess)  continue;
 
     if (writeNextBlock(param) != asynSuccess)  {
-      errlogSevPrintf(errlogMajor,"%s *** %s:%s: Unable to write new array value ***\n\n",
-                      logMsgHdr().c_str(), portName, param.name.c_str());
+      log.major(" *** %s:%s: Unable to write new array value ***\n\n",
+                portName, param.name.c_str());
       lock_guard<drvFGPDB> asynLock(*this);
       param.setState = SetState::Error;
       setParamStatus(ParamID(param), asynError);
@@ -472,8 +434,7 @@ double drvFGPDB::checkComStatus(void)
 
   if (connected)  {
     if (chrono::system_clock::now() - lastRespTime >= 5s)  {
-      errlogSevPrintf(errlogInfo,"%s *** %s: Controller offline ***\n\n",
-                      logMsgHdr().c_str(), portName);
+      log.info(" *** %s: Controller offline ***\n\n", portName);
       resetReadStates();  connected = false;
       setStateFlags(eStateFlags::SyncConActive, false);
       setStateFlags(eStateFlags::AllRegsConnected,false);
@@ -489,8 +450,7 @@ double drvFGPDB::checkComStatus(void)
           unreadValues = true;  break; }
     }
     if (!unreadValues)  {
-      errlogSevPrintf(errlogInfo,"%s === %s: Controller online ===\n\n",
-                      logMsgHdr().c_str(), portName);
+      log.info(" === %s: Controller online ===\n\n", portName);
       connected = true;
       setStateFlags(eStateFlags::SyncConActive, true);
       setStateFlags(eStateFlags::AllRegsConnected,true);
@@ -584,8 +544,8 @@ void drvFGPDB::cancelArrayWrites(void)
       setParamStatus(ParamID(param), asynError);
     }
 
-    errlogSevPrintf(errlogInfo,"%s *** %s:%s: Write canceled ***\n\n",
-                    logMsgHdr().c_str(), portName, param.name.c_str());
+    log.info(" *** %s:%s: Write canceled ***\n\n", portName,
+             param.name.c_str());
 
   }
 
@@ -611,8 +571,7 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
   // If ctlr restarted, resend all the scalar settings (if configured to do so)
   // and cancel all array writes
   if ((int32_t)(newUpSince - prevUpSince) > 3)  {
-    errlogSevPrintf(errlogInfo,"%s *** %s: Controller restarted ***\n\n",
-                    logMsgHdr().c_str(), portName);
+    log.info(" *** %s: Controller restarted ***\n\n", portName);
     writeAccess=false;
     if (resendMode == ResendMode::AfterCtlrRestart)  resetSetStates();
     cancelArrayWrites();  resetReadStates();
@@ -621,8 +580,8 @@ void drvFGPDB::checkForRestart(uint32_t newUpSecs)
   else {
     // ctlr did not restart, so clear set state for all Restored settings
     if (firstRestartCheck)  {
-      errlogSevPrintf(errlogInfo,"%s === %s: Controller up since: %s ===\n\n",
-                      logMsgHdr().c_str(), portName, showDateTime(upSince).c_str());
+      log.info(" === %s: Controller up since: %s ===\n\n", portName,
+               logger::dateTimeToStr(upSince).c_str());
       clearSetStates();
     }
   }
@@ -651,8 +610,7 @@ asynStatus drvFGPDB::getWriteAccess(void)
     return asynSuccess;
   }
 
-  errlogSevPrintf(errlogInfo,"%s *** %s: Failed to get write access ***\n\n",
-                  logMsgHdr().c_str(), portName);
+  log.info(" *** %s: Failed to get write access ***\n\n", portName);
   return asynError;
 }
 
@@ -690,8 +648,7 @@ double drvFGPDB::WriteAccessHandler(void)
 
   if (!writeAccess) {
     if (ShowRegWrites())  {
-      errlogSevPrintf(errlogInfo,"%s === %s: Getting write access ===\n",
-                      logMsgHdr().c_str(), portName);
+      log.info(" === %s: Getting write access ===\n", portName);
     }
     if (getWriteAccess() != asynSuccess)  return 1.0;
     scalarWritesTimer.wakeUp();
@@ -699,8 +656,7 @@ double drvFGPDB::WriteAccessHandler(void)
   }
   else{
     if (ShowRegWrites())  {
-      errlogSevPrintf(errlogInfo,"%s === %s: Keeping write access ===\n",
-                      logMsgHdr().c_str(), portName);
+      log.info(" === %s: Keeping write access ===\n", portName);
     }
     if (keepWriteAccess() != asynSuccess)  return 1.0;
     return DefaultInterval;
@@ -792,8 +748,8 @@ asynStatus drvFGPDB::verifyReqParams(void) const
     if (param.getRegAddr() < 1)  {
       ostringstream oss;
       oss << param;
-      errlogSevPrintf(errlogMajor,"%s *** %s: Incomplete param def [%s] ***\n\n",
-                      logMsgHdr().c_str(), portName, oss.str().c_str());
+      log.major(" *** %s: Incomplete param def [%s] ***\n\n", portName,
+                oss.str().c_str());
       ++errCount;  continue;
     }
   }
@@ -841,8 +797,8 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
   if (newParam.getAsynType() == asynParamNotDefined)  {
 	stringstream oss;
 	oss << newParam;
-    errlogSevPrintf(errlogMajor,"%s *** %s: No asyn type specified [%s] ***\n\n",
-                    logMsgHdr().c_str(), portName, oss.str().c_str());
+    log.major(" *** %s: No asyn type specified [%s] ***\n\n", portName,
+              oss.str().c_str());
     return -1;
   }
   stat = createParam(newParam.name.c_str(), newParam.getAsynType(), &paramID);
@@ -853,15 +809,15 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
   if (ShowInit())  {
     ostringstream oss;
     oss << newParam;
-    errlogSevPrintf(errlogInfo,"%s === %s: Creating param [%d] with string def: %s ===\n",
-                    logMsgHdr().c_str(), portName,paramID, oss.str().c_str());
+    log.info(" === %s: Creating param [%d] with string def: %s ===\n",
+             portName, paramID, oss.str().c_str());
   }
 
   params.push_back(newParam);
 
   if ((unsigned int)paramID != params.size() - 1)  {
-    errlogSevPrintf(errlogFatal,"%s *** %s: param %s -> asyn paramID != driver paramID ***\n",
-                    logMsgHdr().c_str(),portName,  newParam.name.c_str());
+    log.fatal(" *** %s: param %s -> asyn paramID != driver paramID ***\n",
+              portName,  newParam.name.c_str());
     throw runtime_error("mismatching paramIDs");
   }
 
@@ -892,8 +848,8 @@ int drvFGPDB::processParamDef(const string &paramDef)
   if (paramDefSt == paramDefState::Updated and ShowInit()){
 	  ostringstream oss;
 	  oss << curParam;
-      errlogSevPrintf(errlogInfo,"%s *** %s: Updating param [%d] %s with string def: [%s] ***\n",
-                      logMsgHdr().c_str(),portName,paramID, newParam.name.c_str(), oss.str().c_str());
+      log.info(" *** %s: Updating param [%d] %s with string def: [%s] ***\n",
+               portName, paramID, newParam.name.c_str(), oss.str().c_str());
   }
   if (newParam.getRegAddr())
     if ((stat = updateRegMap(paramID)) != asynSuccess)  return -1;
@@ -917,8 +873,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
     pasynUser->reason = processParamDef(string(drvInfo));
     return (pasynUser->reason < 0) ? asynError : asynSuccess;
   } catch(invalid_argument& e) {
-    errlogSevPrintf(errlogMajor,"%s *** %s: ERROR %s***\n\n",
-                    logMsgHdr().c_str(),portName,e.what());
+    log.major(" *** %s: ERROR %s***\n\n", portName, e.what());
     return asynError;
   }
 }
@@ -974,8 +929,8 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
     stringstream oss1, oss2;
     oss1 << params.at(paramIDs.at(offset));
     oss2 << params.at(paramID);
-    errlogSevPrintf(errlogMajor,"%s *** %s: Multiple params with same LCP reg addr [%s] and [%s] ***\n\n",
-                    logMsgHdr().c_str(),portName,oss1.str().c_str(),oss2.str().c_str());
+    log.major(" *** %s: Multiple params with same LCP reg addr [%s] and [%s] ***\n\n",
+              portName, oss1.str().c_str(), oss2.str().c_str());
 
     return asynError;
   }
@@ -986,8 +941,8 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
     return asynSuccess;
   }
 
-  errlogSevPrintf(errlogMajor,"%s *** %s: Invalid addr/group ID for parameter:%s ***\n\n",
-                  logMsgHdr().c_str(),portName,param.name.c_str());
+  log.major(" *** %s: Invalid addr/group ID for parameter:%s ***\n\n",
+            portName, param.name.c_str());
 
   return asynError;
 }
@@ -1072,8 +1027,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     }
 
     if (flushedPkts)  {
-      errlogSevPrintf(errlogInfo,"%s *** %s: Flushed %d old packets ***\n",
-                      logMsgHdr().c_str(),portName,flushedPkts);
+      log.info(" *** %s: Flushed %d old packets ***\n", portName, flushedPkts);
     }
 
     // try sending the cmd again if we did't get a valid resp
@@ -1089,11 +1043,9 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
     if (prevWriteAccess != writeAccess)  {
       setStateFlags(eStateFlags::WriteAccess, writeAccess);
       if (writeAccess)
-        errlogSevPrintf(errlogInfo,"%s === %s: Now has write access ===\n\n",
-                        logMsgHdr().c_str(),portName);
+        log.info(" === %s: Now has write access ===\n\n", portName);
       else
-        errlogSevPrintf(errlogInfo,"%s *** %s: Lost write access ***\n\n",
-                        logMsgHdr().c_str(),portName);
+        log.info(" *** %s: Lost write access ***\n\n", portName);
     }
     return asynSuccess;
   }
@@ -1185,8 +1137,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, unsigned int numRegs)
   if (exitDriver)  return asynError;
 
   if (ShowRegReads())  {
-    errlogSevPrintf(errlogInfo,"%s === %s: readRegs(0x%.8X, %d) ===\n",
-                    logMsgHdr().c_str(),portName, firstReg, numRegs);
+    log.info(" === %s: readRegs(0x%.8X, %d) ===\n", portName, firstReg,
+             numRegs);
   }
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
@@ -1241,8 +1193,8 @@ asynStatus drvFGPDB::writeRegs(unsigned int firstReg, unsigned int numRegs)
   if (exitDriver)  return asynError;
 
   if (ShowRegWrites())  {
-    errlogSevPrintf(errlogInfo,"%s === %s: writeRegs(0x%.8X, %d) ===\n",
-                    logMsgHdr().c_str(),portName, firstReg, numRegs);
+    log.info(" === %s: writeRegs(0x%.8X, %d) ===\n", portName, firstReg,
+             numRegs);
   }
 
   if (!inDefinedRegRange(firstReg, numRegs))  return asynError;
@@ -1317,8 +1269,7 @@ asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID)
   if (exitDriver)  return asynError;
 
   if (ShowRegWrites())  {
-    errlogSevPrintf(errlogInfo,"%s === %s: reqWriteAccess(%d) ===\n",
-                    logMsgHdr().c_str(),portName, drvSessionID);
+    log.info(" === %s: reqWriteAccess(%d) ===\n", portName, drvSessionID);
   }
 
   LCPReqWriteAccess reqWriteAccessCmd(drvSessionID);
@@ -1329,8 +1280,9 @@ asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID)
   if (stat != asynSuccess)  return stat;
 
   if (respStatus == LCPStatus::ACCESS_DENIED){
-    errlogSevPrintf(errlogInfo,"%s === %s: WRITE ACCESS DENIED! ctlr with write access is: ===\n writerIP = %s and writerPort = %d\n\n",
-                    logMsgHdr().c_str(),portName,reqWriteAccessCmd.getWriterIP().c_str(),reqWriteAccessCmd.getWriterPort());
+    log.info(" === %s: WRITE ACCESS DENIED! ctlr with write access is: ===\n writerIP = %s and writerPort = %d\n\n",
+             portName, reqWriteAccessCmd.getWriterIP().c_str(),
+             reqWriteAccessCmd.getWriterPort());
   }
 
   if (respStatus != LCPStatus::SUCCESS)  return asynError;
@@ -1349,11 +1301,12 @@ asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
 {
   if (ShowInit())  {
     if (validParamID(index))  {
-      errlogSevPrintf(errlogInfo,"%s === %s: %s::%s(), list:%d, %s, index:%d/%lu===\n",
-                      logMsgHdr().c_str(),portName,typeid(this).name(), __func__,list, params.at(index).name.c_str(),index,params.size());
+      log.info(" === %s: %s::%s(), list:%d, %s, index:%d/%lu===\n", portName,
+               typeid(this).name(), __func__, list,
+               params.at(index).name.c_str(), index,params.size());
     }else{
-      errlogSevPrintf(errlogInfo,"%s === %s: %s::%s(), list:%d, index:%d/%lu ===\n",
-                      logMsgHdr().c_str(),portName,typeid(this).name(), __func__,list,index,params.size());
+      log.info(" === %s: %s::%s(), list:%d, index:%d/%lu ===\n", portName,
+               typeid(this).name(), __func__, list, index, params.size());
     }
   }
   return asynPortDriver::getIntegerParam(list, index, value);
@@ -1364,11 +1317,12 @@ asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
 {
   if (ShowInit())  {
 	if (validParamID(index))  {
-	  errlogSevPrintf(errlogInfo,"%s === %s: %s::%s(), list:%d, %s, index:%d/%lu===\n",
-                      logMsgHdr().c_str(),portName,typeid(this).name(), __func__,list, params.at(index).name.c_str(),index,params.size());
+	  log.info(" === %s: %s::%s(), list:%d, %s, index:%d/%lu===\n", portName,
+               typeid(this).name(), __func__, list,
+               params.at(index).name.c_str(), index,params.size());
 	}else{
-	  errlogSevPrintf(errlogInfo,"%s === %s: %s::%s(), list:%d, index:%d/%lu ===\n",
-                      logMsgHdr().c_str(),portName,typeid(this).name(), __func__,list,index,params.size());
+	  log.info(" === %s: %s::%s(), list:%d, index:%d/%lu ===\n", portName,
+               typeid(this).name(), __func__, list, index, params.size());
 	}
   }
   return asynPortDriver::getDoubleParam(list, index, value);
@@ -1380,11 +1334,12 @@ asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
 {
   if (ShowInit())  {
 	if (validParamID(index))  {
-	  errlogSevPrintf(errlogInfo,"%s === %s: %s::%s(), list:%d, %s, index:%d/%lu===\n",
-                      logMsgHdr().c_str(),portName,typeid(this).name(), __func__,list, params.at(index).name.c_str(),index,params.size());
+	  log.info(" === %s: %s::%s(), list:%d, %s, index:%d/%lu===\n", portName,
+               typeid(this).name(), __func__, list,
+               params.at(index).name.c_str(), index, params.size());
 	}else{
-	  errlogSevPrintf(errlogInfo,"%s === %s: %s::%s(), list:%d, index:%d/%lu ===\n",
-                      logMsgHdr().c_str(),portName,typeid(this).name(), __func__,list,index,params.size());
+	  log.info(" === %s: %s::%s(), list:%d, index:%d/%lu ===\n", portName,
+               typeid(this).name(), __func__, list, index, params.size());
 	}
   }
   return asynPortDriver::getUIntDigitalParam(list, index, value, mask);
@@ -1448,8 +1403,8 @@ asynStatus drvFGPDB::eraseBlock(unsigned int chipNum, U32 blockSize,
   LCPStatus  respStatus;
 
   if (ShowBlkErase())  {
-	  errlogSevPrintf(errlogInfo,"%s === %s: eraseBlock(%d,%d,%d) ===\n",
-                      logMsgHdr().c_str(),portName,chipNum, blockSize, blockNum);
+    log.info(" === %s: eraseBlock(%d,%d,%d) ===\n", portName, chipNum,
+             blockSize, blockNum);
   }
 
   LCPEraseBlock eraseBlockCmd(chipNum,blockSize, blockNum);
@@ -1484,8 +1439,8 @@ asynStatus drvFGPDB::readBlock(unsigned int chipNum, U32 blockSize, U32 blockNum
 
 
   if (ShowBlkReads())  {
-	errlogSevPrintf(errlogInfo,"%s === %s: readBlock(%d,%d,%d, buf[%lu]) ===\n",
-                    logMsgHdr().c_str(),portName,chipNum, blockSize, blockNum, buf.size());
+	log.info(" === %s: readBlock(%d,%d,%d, buf[%lu]) ===\n", portName, chipNum,
+             blockSize, blockNum, buf.size());
   }
 
   if (blockSize > buf.size())  return asynError;
@@ -1544,8 +1499,8 @@ asynStatus drvFGPDB::writeBlock(unsigned int chipNum, U32 blockSize,
   uint8_t  *blockData;
 
   if (ShowBlkWrites())  {
-	errlogSevPrintf(errlogInfo,"%s === %s: writeBlock(%d,%d,%d, buf[%lu]) ===\n",
-                    logMsgHdr().c_str(),portName,chipNum, blockSize, blockNum, buf.size());
+	log.info(" === %s: writeBlock(%d,%d,%d, buf[%lu]) ===\n", portName, chipNum,
+             blockSize, blockNum, buf.size());
   }
 
   if (buf.size() < blockSize)  return asynError;
@@ -1615,8 +1570,8 @@ asynStatus drvFGPDB::readNextBlock(ParamInfo &param)
 
   // read the next block of bytes
   if (readBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum(), param.rwBuf))  {
-	errlogSevPrintf(errlogMajor,"%s *** %s: Error reading block %u ***\n\n",
-                    logMsgHdr().c_str(),portName,param.getBlockNum());
+	log.major(" *** %s: Error reading block %u ***\n\n", portName,
+              param.getBlockNum());
     return asynError;
   }
 
@@ -1670,16 +1625,16 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
   // contents of the block to be modified.
   if (param.getRWCount() != param.getBlockSize())
     if (readBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum(), param.rwBuf))  {
-      errlogSevPrintf(errlogMajor,"%s *** %s:[%s] Error reading block %u ***\n\n",
-                      logMsgHdr().c_str(),portName, __func__,param.getBlockNum());
+      log.major(" *** %s:[%s] Error reading block %u ***\n\n", portName,
+                __func__, param.getBlockNum());
       return asynError;
     }
 
   // If required, 1st erase the next block to be written to
   if (param.getEraseReq())
     if (eraseBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum()))  {
-      errlogSevPrintf(errlogMajor,"%s *** %s:[%s] Error erasing block %u ***\n\n",
-                      logMsgHdr().c_str(),portName, __func__,param.getBlockNum());
+      log.major(" *** %s:[%s] Error erasing block %u ***\n\n", portName,
+                __func__, param.getBlockNum());
       return asynError;
     }
 
@@ -1690,8 +1645,8 @@ asynStatus drvFGPDB::writeNextBlock(ParamInfo &param)
 
   // write the next block of bytes
   if (writeBlock(param.getChipNum(), param.getBlockSize(), param.getBlockNum(), param.rwBuf)) {
-    errlogSevPrintf(errlogMajor,"%s *** %s:[%s] Error writing block %u ***\n\n",
-                    logMsgHdr().c_str(),portName, __func__,param.getBlockNum());
+    log.major(" *** %s:[%s] Error writing block %u ***\n\n", portName, __func__,
+              param.getBlockNum());
     return asynError;
   }
 
@@ -1732,8 +1687,8 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
   applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())  {
-	errlogSevPrintf(errlogInfo,"%s === %s:%s():%d (0x%.8X) to %s ===\n",
-                    logMsgHdr().c_str(),portName, __func__,newVal, setVal, param.name.c_str());
+	log.info(" === %s:%s():%d (0x%.8X) to %s ===\n", portName, __func__, newVal,
+             setVal, param.name.c_str());
   }
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
@@ -1774,8 +1729,9 @@ asynStatus drvFGPDB::writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal,
   applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())  {
-	errlogSevPrintf(errlogInfo,"%s === %s:%s(): 0x%.8X  (prev:0x%.8X, new:0x%.8X, mask:0x%.8X) to %s ===\n",
-                    logMsgHdr().c_str(),portName, __func__, setVal, prevVal, newVal, mask, param.name.c_str());
+    log.info(" === %s:%s(): 0x%.8X  (prev:0x%.8X, new:0x%.8X, mask:0x%.8X) to %s ===\n",
+             portName, __func__, setVal, prevVal, newVal, mask,
+             param.name.c_str());
   }
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
@@ -1804,8 +1760,8 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
   applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())  {
-	errlogSevPrintf(errlogInfo,"%s === %s:%s():%f (0x%.8X) to %s ===\n",
-                    logMsgHdr().c_str(),portName, __func__,newVal, setVal, param.name.c_str());
+    log.info(" === %s:%s():%f (0x%.8X) to %s ===\n", portName, __func__, newVal,
+             setVal, param.name.c_str());
   }
 
   asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
@@ -1854,8 +1810,8 @@ asynStatus drvFGPDB::readInt8Array(asynUser *pasynUser, epicsInt8 *value,
   if (ShowBlkReads())  {
     ostringstream oss;
     oss << param;
-	errlogSevPrintf(errlogInfo,"%s === %s:%s(): read %lu elements from: %s ===\n",
-                    logMsgHdr().c_str(),portName, __func__,nElements, oss.str().c_str());
+    log.info(" === %s:%s(): read %lu elements from: %s ===\n", portName,
+             __func__, nElements, oss.str().c_str());
   }
 
   size_t count = nElements;
@@ -1885,8 +1841,8 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
   if (ShowBlkWrites())  {
 	    ostringstream oss;
 	    oss << param;
-		errlogSevPrintf(errlogInfo,"%s === %s:%s(): write %lu elements from: %s ===\n",
-                        logMsgHdr().c_str(),portName, __func__,nElements, oss.str().c_str());
+		log.info(" === %s:%s(): write %lu elements from: %s ===\n", portName,
+                 __func__, nElements, oss.str().c_str());
   }
 
   if (!param.isArrayParam() or param.activePMEMwrite())  return asynError;

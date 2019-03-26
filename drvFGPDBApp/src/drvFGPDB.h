@@ -25,6 +25,7 @@
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
 #include "LCPProtocol.h"
+#include "logger.h"
 #include "eventTimer.h"
 
 
@@ -798,6 +799,8 @@ class drvFGPDB : public asynPortDriver {
 //                                                 or readOnlyMode; }
 
     bool ShowCallbacks() const   { return diagFlags & ShowCallbacks_;  } //!< true if ShowCallbacks_ enabled
+
+    logger log;
 };
 
 //-----------------------------------------------------------------------------
