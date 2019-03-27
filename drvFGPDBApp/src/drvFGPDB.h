@@ -800,7 +800,7 @@ class drvFGPDB : public asynPortDriver {
 
     bool ShowCallbacks() const   { return diagFlags & ShowCallbacks_;  } //!< true if ShowCallbacks_ enabled
 
-    logger log;
+    epicsLogger log;
 };
 
 //-----------------------------------------------------------------------------

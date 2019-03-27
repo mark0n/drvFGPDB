@@ -29,18 +29,21 @@ string logger::dateTimeToStr(const time_t dateTime) {
   return oss.str();
 }
 
-//-----------------------------------------------------------------------------
-//  print the current date/time incl milliseconds
-//-----------------------------------------------------------------------------
-string logger::logMsgHdr() const {
+int timeDateDecorator::write(const errlogSevEnum sev, const std::string& msg) const {
   auto now = chrono::system_clock::now();
   auto now_c = chrono::system_clock::to_time_t(now);
   auto msec = chrono::duration_cast<ms>(now.time_since_epoch()).count() % 1000;
 
   ostringstream oss(dateTimeToStr(now_c), ios_base::ate);
+  oss << "." << setw(3) << setfill('0') << msec << " " << msg;
 
-  oss << "." << setw(3) << setfill('0') << msec << " "
-      << epicsThreadGetNameSelf() << "[" << this_thread::get_id() << "]:";
+  return loggerDecorator::write(sev, oss.str());
+}
 
-  return oss.str();
+int threadIDDecorator::write(const errlogSevEnum sev, const std::string& msg) const {
+  ostringstream oss;
+  oss << epicsThreadGetNameSelf() << "[" << epicsThreadGetIdSelf() << "]: "
+      << msg;
+
+  return loggerDecorator::write(sev, oss.str());
 }

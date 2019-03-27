@@ -30,6 +30,12 @@ set(LCPPROTOCOLTEST_COMPONENTS
 add_executable(LCPProtocolTests ${LCPPROTOCOLTEST_COMPONENTS})
 target_link_libraries(LCPProtocolTests drvFGPDBShared gmock_main)
 
+set(LOGGERTEST_COMPONENTS
+  loggerTests.cpp
+)
+add_executable(loggerTests ${LOGGERTEST_COMPONENTS})
+target_link_libraries(loggerTests drvFGPDBShared gmock_main)
+
 function(add_unit_tests target)
   get_target_property(sourceFiles ${target} SOURCES)
   set(tests "")
@@ -47,10 +53,12 @@ endfunction()
 add_unit_tests(drvFGPDBTests)
 add_unit_tests(ParamInfoTests)
 add_unit_tests(LCPProtocolTests)
+add_unit_tests(loggerTests)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   setup_target_for_coverage(drvFGPDBTests_coverage drvFGPDBTests drvFGPDBCoverage '*Tests.cpp')
   setup_target_for_coverage(drvFGPDBIntegrationTests_coverage drvFGPDBIntegrationTests drvFGPDBIntegrationCoverage '*Tests.cpp')
   setup_target_for_coverage(ParamInfoTests_coverage ParamInfoTests ParamInfoCoverage '*Tests.cpp')
   setup_target_for_coverage(LCPProtocolTests_coverage LCPProtocolTests LCPProtocolCoverage '*Tests.cpp')
+  setup_target_for_coverage(loggerTests_coverage loggerTests loggerCoverage '*Tests.cpp')
 endif(CMAKE_BUILD_TYPE MATCHES Debug)

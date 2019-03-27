@@ -2,6 +2,7 @@
 #define DRVFGPDB_LOGGER_H
 
 #include <string>
+#include <memory>
 
 #include <errlog.h>
 
@@ -18,26 +19,47 @@ class logger {
 
 public:
   //-----------------------------------------------------------------------------
-  //  print the specified date/time in YYY-MM-DD HH:MM:SS format
+  //  print the specified date/time in YYYY-MM-DD HH:MM:SS format
   //-----------------------------------------------------------------------------
   static std::string dateTimeToStr(const time_t dateTime);
 
-  template<typename... Args> void fatal(const char * format, Args... args) const {
-    std::string fullFormat = logMsgHdr() + format;
-    errlogSevPrintf(errlogFatal, fullFormat.c_str(), args...);
-  };
-  template<typename... Args> void major(const char * format, Args... args) const {
-    std::string fullFormat = logMsgHdr() + format;
-    errlogSevPrintf(errlogMajor, fullFormat.c_str(), args...);
-  };
-  template<typename... Args> void minor(const char * format, Args... args) const {
-    std::string fullFormat = logMsgHdr() + format;
-    errlogSevPrintf(errlogMinor, fullFormat.c_str(), args...);
-  };
-  template<typename... Args> void info(const char * format, Args... args) const {
-    std::string fullFormat = logMsgHdr() + format;
-    errlogSevPrintf(errlogInfo, fullFormat.c_str(), args...);
+  virtual int write(const errlogSevEnum sev, const std::string& msg) const = 0;
+
+  int fatal(const std::string& msg) const { return write(errlogFatal, msg); };
+  int major(const std::string& msg) const { return write(errlogMajor, msg); };
+  int minor(const std::string& msg) const { return write(errlogMinor, msg); };
+  int info (const std::string& msg) const { return write(errlogInfo,  msg); };
+};
+
+class epicsLogger : public logger {
+public:
+  epicsLogger() {};
+  ~epicsLogger() { errlogFlush(); }
+  int write(const errlogSevEnum sev, const std::string& msg) const override
+  {
+    return errlogSevPrintf(sev, "%s\n", msg.c_str());
   };
 };
+
+class loggerDecorator : public logger {
+private:
+  std::shared_ptr<logger> wrapped;
+public:
+  loggerDecorator(std::shared_ptr<logger> log) : wrapped(log) {}
+  virtual int write(const errlogSevEnum sev, const std::string& msg) const override { return wrapped->write(sev, msg); }
+};
+
+class timeDateDecorator : public loggerDecorator {
+public:
+  timeDateDecorator(std::shared_ptr<logger> log) : loggerDecorator(log) {}
+  virtual int write(const errlogSevEnum sev, const std::string& msg) const override;
+};
+
+class threadIDDecorator : public loggerDecorator {
+public:
+  threadIDDecorator(std::shared_ptr<logger> log) : loggerDecorator(log) {}
+  virtual int write(const errlogSevEnum sev, const std::string& msg) const override;
+};
+
 
 #endif // DRVFGPDB_LOGGER_H
