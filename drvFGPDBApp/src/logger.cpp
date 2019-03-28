@@ -16,8 +16,9 @@ typedef chrono::milliseconds ms;
 //-----------------------------------------------------------------------------
 string logger::dateTimeToStr(const time_t dateTime) {
   ostringstream oss;
-  tm *lt = localtime(&dateTime);
-  oss << put_time(lt, "%F %T");
+  tm tmRes;
+  localtime_r(&dateTime, &tmRes);
+  oss << put_time(&tmRes, "%F %T");
   return oss.str();
 }
 
