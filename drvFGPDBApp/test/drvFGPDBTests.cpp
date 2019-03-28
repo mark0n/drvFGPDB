@@ -12,6 +12,7 @@
 #include "drvAsynIPPort.h"
 #include "asynOctetSyncIOInterface.h"
 #include "drvFGPDBTestCommon.h"
+#include "streamLogger.h"
 
 class asynOctetSyncIOWrapperMock: public asynOctetSyncIOInterface {
 public:
@@ -77,7 +78,7 @@ public:
                 disconnect(_)).WillOnce(Return(asynSuccess));
     testDrv = make_unique<drvFGPDB>(drvName, syncIO, UDPPortName,
                                     startupDiagFlags,
-                                    ResendMode::AfterCtlrRestart);
+                                    ResendMode::AfterCtlrRestart, pLog);
 
     if (udpPortStat)
       cout << drvName << " unable to create asyn UDP port: " << UDPPortName

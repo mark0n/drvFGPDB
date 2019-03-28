@@ -97,11 +97,12 @@ class drvFGPDB : public asynPortDriver {
      * @param[in] udpPortName       name of the UPD port to communicate with
      * @param[in] startupDiagFlags  diagnostics flag
      * @param[in] resendMode        mode to handle ctlr and IOC restarts
+     * @param[in] pLog              class to use to emit log messages
      */
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
              const std::string &udpPortName, uint32_t startupDiagFlags,
-             ResendMode resendMode);
+             ResendMode resendMode, std::shared_ptr<logger> pLog);
 
     /**
      * @brief Destructor of the driver instance
@@ -800,7 +801,7 @@ class drvFGPDB : public asynPortDriver {
 
     bool ShowCallbacks() const   { return diagFlags & ShowCallbacks_;  } //!< true if ShowCallbacks_ enabled
 
-    epicsLogger log;
+    std::shared_ptr<logger> log;
 };
 
 //-----------------------------------------------------------------------------

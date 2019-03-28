@@ -18,6 +18,13 @@
 using namespace std;
 
 static shared_ptr<asynOctetSyncIOWrapper> syncIOWrapper;  //!< shared_ptr to the asynOctetSyncIOWrapper
+static shared_ptr<logger> pLog {
+  make_shared<timeDateDecorator>(
+    make_shared<threadIDDecorator>(
+      make_shared<epicsLogger>()
+    )
+  )
+}; //!< shared_ptr to a logging class using the EPICS IOC log facilities. We want all log messages to include a timestamp and the thread ID.
 static unique_ptr<map<string, drvFGPDB>> drvFGPDBs;       //!< unique_ptr to the map with all FGPDB driver instances created
 
 extern "C" {
@@ -64,6 +71,9 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_,
   if (!syncIOWrapper) {
     syncIOWrapper = make_shared<asynOctetSyncIOWrapper>();
   }
+  if (!pLog) {
+    pLog = make_shared<epicsLogger>();
+  }
   if (!drvFGPDBs) {
     drvFGPDBs = make_unique<map<string, drvFGPDB>>();
   }
@@ -82,7 +92,7 @@ int drvFGPDB_Config(char *drvPortName, char *udpPortName, int startupDiagFlags_,
     drvFGPDBs->emplace(piecewise_construct, forward_as_tuple(portName),
                        forward_as_tuple(portName, syncIOWrapper,
                                         string(udpPortName), startupDiagFlags_,
-                                        resendModeMap.at(resendMode)));
+                                        resendModeMap.at(resendMode), pLog));
   } catch(const std::out_of_range& e) {
     cerr << "ERROR: invalid resend mode \"" << resendMode << "\" for port \""
          << drvPortName << "\"" << endl;

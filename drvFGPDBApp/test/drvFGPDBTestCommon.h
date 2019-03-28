@@ -8,6 +8,8 @@
 
 #include <memory>
 
+#include "streamLogger.h"
+
 using namespace testing;
 using namespace std;
 
@@ -51,6 +53,7 @@ public:
     pasynUser(pasynManager->createAsynUser(nullptr, nullptr)),
     stat(asynError),
     syncIO(syncIOIn),
+    pLog(make_shared<streamLogger>()),
     drvName("testDriver" + std::to_string(++testNum)),
     udpPortStat(createPortUDP()),  // Must be created before drvFGPDB object
     id(-1),
@@ -125,6 +128,7 @@ public:
   asynUser  *pasynUser;          //!< structure that encodes the reason and address
   asynStatus  stat;              //!< asynStatus
   shared_ptr<asynOctetSyncIOInterface>  syncIO; //!< interface to perform "synchronous" I/O operations
+  shared_ptr<logger> pLog;       //!< logging class
   std::string  drvName;          //!< name of the driver instance
   int  udpPortStat;              //!< status of the UDP port creation
   unique_ptr<drvFGPDB> testDrv;  //!< driver instance
