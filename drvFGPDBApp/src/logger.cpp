@@ -17,15 +17,7 @@ typedef chrono::milliseconds ms;
 string logger::dateTimeToStr(const time_t dateTime) {
   ostringstream oss;
   tm *lt = localtime(&dateTime);
-  // Work around missing std::put_time() function (not supported by g++ <5).
-  // The following statement can be replaced by 'oss << put_time(lt, "%F %T.")'
-  // when we don't need to support Debian Jessie anymore.
-  oss << dec << 1900 + lt->tm_year << "-"
-      << setw(2) << setfill('0') << 1 + lt->tm_mon << "-"
-      << setw(2) << setfill('0') << lt->tm_mday << " "
-      << setw(2) << setfill('0') << lt->tm_hour << ":"
-      << setw(2) << setfill('0') << lt->tm_min << ":"
-      << setw(2) << setfill('0') << lt->tm_sec;
+  oss << put_time(lt, "%F %T");
   return oss.str();
 }
 
