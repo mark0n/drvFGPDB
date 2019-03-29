@@ -21,6 +21,9 @@
 #include <utility>
 #include <iomanip>
 #include <mutex>
+#include <stdexcept>
+#include <list>
+#include <ctime>
 
 #include "drvFGPDB.h"
 #include "LCPProtocol.h"
@@ -46,9 +49,6 @@ typedef  epicsUInt32    U32;
 
 typedef  epicsFloat32   F32;
 typedef  epicsFloat64   F64;
-
-typedef  unsigned int   uint;
-typedef  unsigned char  uchar;
 
 //-----------------------------------------------------------------------------
 //  print the specified date/time in YYY-MM-DD HH:MM:SS format
@@ -431,7 +431,7 @@ double drvFGPDB::postNewReadings(void)
 
   lock_guard<drvFGPDB> asynLock(*this);
 
-  for (int paramID=0; (uint)paramID<params.size(); ++paramID)  {
+  for (int paramID=0; (unsigned int)paramID<params.size(); ++paramID)  {
     ParamInfo &param = params.at(paramID);
 
     if (param.readState != ReadState::Pending)  continue;
@@ -508,7 +508,7 @@ void drvFGPDB::resetReadStates(void)
 {
   lock_guard<drvFGPDB> asynLock(*this);
 
-  for (int paramID=0; (uint)paramID<params.size(); ++paramID)  {
+  for (int paramID=0; (unsigned int)paramID<params.size(); ++paramID) {
     ParamInfo &param = params.at(paramID);
 
     if (param.isScalarParam())
@@ -786,7 +786,7 @@ asynStatus drvFGPDB::addRequiredParams(void)
 //-----------------------------------------------------------------------------
 asynStatus drvFGPDB::verifyReqParams(void) const
 {
-  uint  errCount = 0;
+  int errCount = 0;
 
   for (auto &param : params)  {
     if (param.getRegAddr() < 1)  {
@@ -859,7 +859,7 @@ int drvFGPDB::addNewParam(const ParamInfo &newParam)
 
   params.push_back(newParam);
 
-  if ((uint)paramID != params.size() - 1)  {
+  if ((unsigned int)paramID != params.size() - 1)  {
     errlogSevPrintf(errlogFatal,"%s *** %s: param %s -> asyn paramID != driver paramID ***\n",
                     logMsgHdr().c_str(),portName,  newParam.name.c_str());
     throw runtime_error("mismatching paramIDs");
@@ -926,7 +926,7 @@ asynStatus drvFGPDB::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
 //-----------------------------------------------------------------------------
 // Returns a reference to a ProcGroup object for the specified groupID.
 //-----------------------------------------------------------------------------
-ProcGroup & drvFGPDB::getProcGroup(uint groupID)
+ProcGroup & drvFGPDB::getProcGroup(unsigned int groupID)
 {
   if (groupID >= procGroup.size())
     throw out_of_range("Invalid LCP register group ID");
@@ -937,12 +937,12 @@ ProcGroup & drvFGPDB::getProcGroup(uint groupID)
 //-----------------------------------------------------------------------------
 // Returns true if the range of LCP addrs is within the defined ranges
 //-----------------------------------------------------------------------------
-bool drvFGPDB::inDefinedRegRange(uint firstReg, uint numRegs)
+bool drvFGPDB::inDefinedRegRange(unsigned int firstReg, unsigned int numRegs)
 {
   if (!LCPUtil::isLCPRegParam(firstReg))  return false;
 
-  uint groupID = LCPUtil::addrGroupID(firstReg);
-  uint offset = LCPUtil::addrOffset(firstReg);
+  unsigned int groupID = LCPUtil::addrGroupID(firstReg);
+  unsigned int offset = LCPUtil::addrOffset(firstReg);
   const ProcGroup &group = getProcGroup(groupID);
 
   return ((offset + numRegs) <= group.paramIDs.size());
@@ -958,8 +958,8 @@ asynStatus drvFGPDB::updateRegMap(int paramID)
   ParamInfo &param = params.at(paramID);
 
   auto addr = param.getRegAddr();
-  uint groupID = LCPUtil::addrGroupID(addr);
-  uint offset = LCPUtil::addrOffset(addr);
+  unsigned int groupID = LCPUtil::addrGroupID(addr);
+  unsigned int offset = LCPUtil::addrOffset(addr);
 
   if (LCPUtil::isLCPRegParam(addr))  { // ref to LCP register value
     vector<int> &paramIDs = getProcGroup(groupID).paramIDs;
@@ -1177,7 +1177,7 @@ asynStatus drvFGPDB::setAsynParamVal(int paramID)
 //----------------------------------------------------------------------------
 // Read the controller's current values for one or more LCP registers
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
+asynStatus drvFGPDB::readRegs(U32 firstReg, unsigned int numRegs)
 {
   asynStatus stat;
   LCPStatus  respStatus;
@@ -1199,8 +1199,8 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   //todo:  Check cmd-specific header values in returned packet
 
-  uint groupID = LCPUtil::addrGroupID(firstReg);
-  uint offset = LCPUtil::addrOffset(firstReg);
+  unsigned int groupID = LCPUtil::addrGroupID(firstReg);
+  unsigned int offset = LCPUtil::addrOffset(firstReg);
 
   ProcGroup &group = getProcGroup(groupID);
 
@@ -1208,7 +1208,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 
   std::vector<uint32_t>& respBuff = readCmd.getRespBuf();
   int RespHdrWords = readCmd.getRespHdrWords();
-  for (uint u=0; u<numRegs; ++u,++offset)  {
+  for (unsigned int u=0; u<numRegs; ++u,++offset)  {
     U32 justReadVal;
     justReadVal = ntohl(respBuff.at(RespHdrWords +u));
     int paramID = group.paramIDs.at(offset);
@@ -1232,7 +1232,7 @@ asynStatus drvFGPDB::readRegs(U32 firstReg, uint numRegs)
 // Send the driver's current value for one or more writeable LCP registers to
 // the LCP controller
 //----------------------------------------------------------------------------
-asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
+asynStatus drvFGPDB::writeRegs(unsigned int firstReg, unsigned int numRegs)
 {
   asynStatus stat;
   LCPStatus  respStatus;
@@ -1250,15 +1250,15 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
 
   LCPWriteRegs writeCmd(firstReg, numRegs);
 
-  uint groupID = LCPUtil::addrGroupID(firstReg);
-  uint offset = LCPUtil::addrOffset(firstReg);
+  unsigned int groupID = LCPUtil::addrGroupID(firstReg);
+  unsigned int offset = LCPUtil::addrOffset(firstReg);
 
   ProcGroup &group = getProcGroup(groupID);
 
   uint16_t idx = writeCmd.getCmdHdrWords();
   {
     lock_guard<drvFGPDB> asynLock(*this);
-    for (uint u=0; u<numRegs; ++u,++offset,++idx)  {
+    for (unsigned int u=0; u<numRegs; ++u,++offset,++idx)  {
       int paramID = group.paramIDs.at(offset);
       if (!validParamID(paramID))  { return asynError; }
       ParamInfo &param = params.at(paramID);
@@ -1290,7 +1290,7 @@ asynStatus drvFGPDB::writeRegs(uint firstReg, uint numRegs)
   offset = LCPUtil::addrOffset(firstReg);
 
   lock_guard<drvFGPDB> asynLock(*this);
-  for (uint u=0; u<numRegs; ++u,++offset)  {
+  for (unsigned int u=0; u<numRegs; ++u,++offset)  {
     int paramID = group.paramIDs.at(offset);
     if (!validParamID(paramID))  continue;
     ParamInfo &param = params.at(paramID);
@@ -1441,7 +1441,8 @@ void drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
 //    - blockNum is relative to blockSize (i.e. the first byte read is at
 //      offset blockSize * blockNum)
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::eraseBlock(uint chipNum, U32 blockSize, U32 blockNum)
+asynStatus drvFGPDB::eraseBlock(unsigned int chipNum, U32 blockSize,
+                                U32 blockNum)
 {
   asynStatus  stat = asynError;
   LCPStatus  respStatus;
@@ -1472,12 +1473,12 @@ asynStatus drvFGPDB::eraseBlock(uint chipNum, U32 blockSize, U32 blockNum)
 //    - blockNum is relative to blockSize (i.e. the first byte read is at
 //      offset blockSize * blockNum)
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::readBlock(uint chipNum, U32 blockSize, U32 blockNum,
+asynStatus drvFGPDB::readBlock(unsigned int chipNum, U32 blockSize, U32 blockNum,
                                vector<uint8_t> &buf)
 {
   asynStatus  stat;
   LCPStatus  respStatus;
-  uint  subBlocks;
+  unsigned int subBlocks;
   U32  useBlockSize, useBlockNum, etherMTU;
   uint8_t *blockData;
 
@@ -1533,12 +1534,12 @@ asynStatus drvFGPDB::readBlock(uint chipNum, U32 blockSize, U32 blockNum,
 //    - blockNum is relative to blockSize (i.e. the first byte written is at
 //      offset blockSize * blockNum)
 //-----------------------------------------------------------------------------
-asynStatus drvFGPDB::writeBlock(uint chipNum, U32 blockSize, U32 blockNum,
-                                vector<uint8_t> &buf)
+asynStatus drvFGPDB::writeBlock(unsigned int chipNum, U32 blockSize,
+                                U32 blockNum, vector<uint8_t> &buf)
 {
   asynStatus  stat = asynError;
   LCPStatus  respStatus;
-  uint  subBlocks;
+  unsigned int subBlocks;
   U32  useBlockSize, useBlockNum, etherMTU;
   uint8_t  *blockData;
 
