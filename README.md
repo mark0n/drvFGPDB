@@ -40,6 +40,12 @@ You can use a specific Asyn version by pointing CMake to it:
 cmake -DCMAKE_INSTALL_PREFIX=.. -DEPICS_MODULE_PATH=/home/marko/support/asyn ..
 ```
 
+### Build Against a Specific LCPSimulator Version
+You can use a specific LCPSimulator version by pointing CMake to it:
+```
+cmake -DCMAKE_INSTALL_PREFIX=.. -DLCPSimulator_PATH=/home/marko/support/LCPSim ..
+```
+
 ### Code Coverage
 To extract useful code coverage information the tool needs to be build without optimization:
 ```
