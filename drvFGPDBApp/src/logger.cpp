@@ -22,6 +22,15 @@ string logger::dateTimeToStr(const time_t dateTime) {
   return oss.str();
 }
 
+
+epicsLogger::~epicsLogger() {
+  errlogFlush();
+}
+
+int epicsLogger::write(const errlogSevEnum sev, const std::string& msg) const {
+  return errlogSevPrintf(sev, "%s\n", msg.c_str());
+};
+
 int timeDateDecorator::write(const errlogSevEnum sev, const std::string& msg) const {
   auto now = chrono::system_clock::now();
   auto now_c = chrono::system_clock::to_time_t(now);

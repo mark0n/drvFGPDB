@@ -29,11 +29,8 @@ public:
 class epicsLogger : public logger {
 public:
   epicsLogger() {};
-  ~epicsLogger() { errlogFlush(); }
-  int write(const errlogSevEnum sev, const std::string& msg) const override
-  {
-    return errlogSevPrintf(sev, "%s\n", msg.c_str());
-  };
+  ~epicsLogger();
+  int write(const errlogSevEnum sev, const std::string& msg) const override;
 };
 
 class loggerDecorator : public logger {
