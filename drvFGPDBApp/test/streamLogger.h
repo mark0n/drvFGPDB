@@ -15,12 +15,12 @@ class streamLogger : public logger {
   mutable std::stringstream msgs; // mutable since we don't want streamLogger to break constness of all methods that use a logger
   mutable std::mutex msgsMu;
 public:
-  int write(const errlogSevEnum sev, const std::string& msg) const override
+  int write(const severity sev, const std::string& msg) const override
   {
-    std::string sevStr = std::string("sevr=") + errlogSevEnumString[sev] + " ";
+    std::string prefix = std::string("sevr=") + sevStr.at(sev) + " ";
     std::lock_guard<std::mutex> lock(msgsMu);
-    msgs << sevStr << msg << "\n";
-    return sevStr.size() + msg.size() + sizeof("\n");
+    msgs << prefix << msg << "\n";
+    return prefix.size() + msg.size() + sizeof("\n");
   };
 
   std::string getMsgs() const {

@@ -32,7 +32,6 @@
 #include "logger.h"
 
 #include <epicsThread.h>
-#include <errlog.h>
 
 using namespace std;
 using boost::format;
