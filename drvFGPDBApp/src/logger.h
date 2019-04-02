@@ -12,11 +12,6 @@
  */
 
 class logger {
-  //-----------------------------------------------------------------------------
-  //  print the current date/time incl milliseconds
-  //-----------------------------------------------------------------------------
-  std::string logMsgHdr() const;
-
 public:
   //-----------------------------------------------------------------------------
   //  print the specified date/time in YYYY-MM-DD HH:MM:SS format
