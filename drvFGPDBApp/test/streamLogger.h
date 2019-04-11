@@ -3,7 +3,10 @@
 
 #include "logger.h"
 
+#include <string>
 #include <mutex>
+
+using namespace std::literals::string_literals;
 
 /**
  * @file  streamLogger.h
@@ -17,7 +20,7 @@ class streamLogger : public logger {
 public:
   int write(const severity sev, const std::string& msg) const override
   {
-    std::string prefix = std::string("sevr=") + sevStr.at(sev) + " ";
+    std::string prefix = "sevr="s + sevStr.at(sev) + " ";
     std::lock_guard<std::mutex> lock(msgsMu);
     msgs << prefix << msg << "\n";
     return prefix.size() + msg.size() + sizeof("\n");

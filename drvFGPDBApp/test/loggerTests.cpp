@@ -76,7 +76,7 @@ TEST(AThreadIDLogger, includesTheThreadIDInEachMessage) {
 
   const string reID = "0x[0-9a-fA-F]+";
   const string reNameID = threadName + "\\[" + reID + "\\]";
-  const string reFull = string(".*") + reNameID + ": " + msg + "\n";
+  const string reFull = ".*"s + reNameID + ": " + msg + "\n";
   EXPECT_THAT(baseLog->getMsgs(), MatchesRegex(reFull));
 }
 
