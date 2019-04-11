@@ -1302,8 +1302,7 @@ asynStatus drvFGPDB::reqWriteAccess(uint16_t drvSessionID)
   return asynSuccess;
 }
 
-//=============================================================================
-asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
+void drvFGPDB::logScalarParam(const int list, const int index) const
 {
   if (ShowInit())  {
     if (validParamID(index))  {
@@ -1317,24 +1316,19 @@ asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
                 to_string(index) + "/" + to_string(params.size()) + " ===\n");
     }
   }
+}
+
+//=============================================================================
+asynStatus drvFGPDB::getIntegerParam(int list, int index, int *value)
+{
+  logScalarParam(list, index);
   return asynPortDriver::getIntegerParam(list, index, value);
 }
 
 //----------------------------------------------------------------------------
 asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
 {
-  if (ShowInit())  {
-	if (validParamID(index))  {
-	  log->info(" === "s + portName + ": " + typeid(this).name() + "::" +
-                __func__ + "(), list:" + to_string(list) + ", " +
-                params.at(index).name + ", index:" + to_string(index) + "/" +
-                to_string(params.size()) + "===\n");
-	}else{
-	  log->info(" === "s + portName + ": " + typeid(this).name() + "::" +
-                __func__ + "(), list:" + to_string(list) + ", index:" +
-                to_string(index) + "/" + to_string(params.size()) + " ===\n");
-	}
-  }
+  logScalarParam(list, index);
   return asynPortDriver::getDoubleParam(list, index, value);
 };
 
@@ -1342,18 +1336,7 @@ asynStatus drvFGPDB::getDoubleParam(int list, int index, double * value)
 asynStatus drvFGPDB::getUIntDigitalParam(int list, int index,
                                          epicsUInt32 *value, epicsUInt32 mask)
 {
-  if (ShowInit())  {
-	if (validParamID(index))  {
-	  log->info(" === "s + portName + ": " + typeid(this).name() + "::" +
-                __func__ + "(), list:" + to_string(list) + ", " +
-                params.at(index).name + ", index:" + to_string(index) + "/" +
-               to_string(params.size()) + "===\n");
-	}else{
-	  log->info(" === "s + portName + ": " + typeid(this).name() + "::" +
-                __func__ + "(), list:" + to_string(list) + ", index:" +
-                to_string(index) + "/" + to_string(params.size()) + " ===\n");
-	}
-  }
+  logScalarParam(list, index);
   return asynPortDriver::getUIntDigitalParam(list, index, value, mask);
 };
 
