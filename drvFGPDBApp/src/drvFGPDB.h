@@ -266,6 +266,8 @@ class drvFGPDB : public asynPortDriver {
 #ifndef TEST_DRVFGPDB
   private:
 #endif
+    void logScalarParam(const int list, const int index) const;
+
     /**
      * @brief Method to reset read state of all param values
      *        - @b ReadStates set to @b Undefined
