@@ -332,7 +332,7 @@ double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
       dval = ctlrVal;
       break;
     case CtlrDataFmt::F32:
-      dval = *((epicsFloat32 *)&ctlrVal);
+      std::memcpy(&dval, &ctlrVal, sizeof(dval));
       break;
     case CtlrDataFmt::U16_16:
       dval = (float)((double)ctlrVal / 65536.0);
@@ -361,7 +361,7 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
       break;
     case CtlrDataFmt::F32:
       f32val = dval;
-      ctlrVal = *((uint32_t *)&f32val);
+      std::memcpy(&ctlrVal, &f32val, sizeof(ctlrVal));
       break;
     case CtlrDataFmt::U16_16:
       ctlrVal = (uint32_t) (dval * 65536.0);
@@ -390,7 +390,7 @@ uint32_t ParamInfo::int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt)
       break;
     case CtlrDataFmt::F32:
       f32val = (float)ival;
-      ctlrVal = *((uint32_t *)&f32val);
+      std::memcpy(&ctlrVal, &f32val, sizeof(ctlrVal));
       break;
     case CtlrDataFmt::U16_16:
       ctlrVal = (uint32_t) ((double)ival * 65536.0);
