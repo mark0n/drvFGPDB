@@ -126,21 +126,21 @@ TEST(conversions, convertsCtlrU16_16toDouble)  {
 //-----------------------------------------------------------------------------
 TEST(conversions, returns0ForNotDefinedTargetFmt)  {
   uint32_t cval = ParamInfo::doubleToCtlrFmt(-16.0, CtlrDataFmt::NotDefined);
-  ASSERT_THAT(cval, Eq(0x00000000));
+  ASSERT_THAT(cval, Eq(0x00000000U));
 }
 TEST(conversions, convertsDoubleToS32Fmt)  {
   uint32_t cval = ParamInfo::doubleToCtlrFmt(-16.0, CtlrDataFmt::S32);
-  ASSERT_THAT(cval, Eq(0xFFFFFFF0));
+  ASSERT_THAT(cval, Eq(0xFFFFFFF0U));
 }
 TEST(conversions, convertsDoubleToU32Fmt)  {
   uint32_t cval = ParamInfo::doubleToCtlrFmt(15.0, CtlrDataFmt::U32);
-  ASSERT_THAT(cval, Eq(0x0000000F));
+  ASSERT_THAT(cval, Eq(0x0000000FU));
 }
 TEST(conversions, convertsDoubleToF32Fmt)  {
   uint32_t cval = ParamInfo::doubleToCtlrFmt(1.25, CtlrDataFmt::F32);
-  ASSERT_THAT(cval, Eq(0x3FA00000));
+  ASSERT_THAT(cval, Eq(0x3FA00000U));
 }
 TEST(conversions, convertsDoubleToU16_16Fmt)  {
   uint32_t cval = ParamInfo::doubleToCtlrFmt(2.5, CtlrDataFmt::U16_16);
-  ASSERT_THAT(cval, Eq(0x00028000));
+  ASSERT_THAT(cval, Eq(0x00028000U));
 }

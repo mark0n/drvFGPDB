@@ -969,7 +969,7 @@ asynStatus drvFGPDB::sendMsg(asynUser *pComPort, vector<uint32_t> &cmdBuf)
 }
 
 //----------------------------------------------------------------------------
-int drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
+size_t drvFGPDB::readResp(asynUser *pComPort, vector<uint32_t> &respBuf)
 {
   asynStatus stat;
   int  eomReason;
