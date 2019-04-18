@@ -325,18 +325,18 @@ double ParamInfo::ctlrFmtToDouble(uint32_t ctlrVal, CtlrDataFmt ctlrFmt)
   switch (ctlrFmt)  {
     case CtlrDataFmt::NotDefined:
       break;
-
     case CtlrDataFmt::S32:
-      dval = (int32_t)ctlrVal;  break;
-
+      dval = (int32_t)ctlrVal;
+      break;
     case CtlrDataFmt::U32:
-      dval = ctlrVal;  break;
-
+      dval = ctlrVal;
+      break;
     case CtlrDataFmt::F32:
-      dval = *((epicsFloat32 *)&ctlrVal);  break;
-
+      dval = *((epicsFloat32 *)&ctlrVal);
+      break;
     case CtlrDataFmt::U16_16:
-      dval = (float)((double)ctlrVal / 65536.0);  break;
+      dval = (float)((double)ctlrVal / 65536.0);
+      break;
   }
 
   return dval;
@@ -351,19 +351,21 @@ uint32_t ParamInfo::doubleToCtlrFmt(double dval, CtlrDataFmt ctlrFmt)
   epicsFloat32  f32val = 0.0;
 
   switch (ctlrFmt)  {
-    case CtlrDataFmt::NotDefined:  break;
-
+    case CtlrDataFmt::NotDefined:
+      break;
     case CtlrDataFmt::S32:
-      ctlrVal = (int32_t)dval;  break;
-
+      ctlrVal = (int32_t)dval;
+      break;
     case CtlrDataFmt::U32:
-      ctlrVal = (uint32_t)dval;  break;
-
+      ctlrVal = (uint32_t)dval;
+      break;
     case CtlrDataFmt::F32:
-      f32val = dval;  ctlrVal = *((uint32_t *)&f32val);  break;
-
+      f32val = dval;
+      ctlrVal = *((uint32_t *)&f32val);
+      break;
     case CtlrDataFmt::U16_16:
-      ctlrVal = (uint32_t) (dval * 65536.0);  break;
+      ctlrVal = (uint32_t) (dval * 65536.0);
+      break;
   }
 
   return ctlrVal;
@@ -378,19 +380,21 @@ uint32_t ParamInfo::int32ToCtlrFmt(int32_t ival, CtlrDataFmt ctlrFmt)
   epicsFloat32  f32val = 0.0;
 
   switch (ctlrFmt)  {
-    case CtlrDataFmt::NotDefined:  break;
-
+    case CtlrDataFmt::NotDefined:
+      break;
     case CtlrDataFmt::S32:
-      ctlrVal = ival;  break;
-
+      ctlrVal = ival;
+      break;
     case CtlrDataFmt::U32:
-      ctlrVal = (uint32_t)ival;  break;
-
+      ctlrVal = (uint32_t)ival;
+      break;
     case CtlrDataFmt::F32:
-      f32val = (float)ival;  ctlrVal = *((uint32_t *)&f32val);  break;
-
+      f32val = (float)ival;
+      ctlrVal = *((uint32_t *)&f32val);
+      break;
     case CtlrDataFmt::U16_16:
-      ctlrVal = (uint32_t) ((double)ival * 65536.0);  break;
+      ctlrVal = (uint32_t) ((double)ival * 65536.0);
+      break;
   }
 
   return ctlrVal;
