@@ -461,7 +461,7 @@ class drvFGPDB : public asynPortDriver {
 
      * @return # bytes read or -1 if an error
      */
-    int  readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf);
+    size_t readResp(asynUser *pComPort, std::vector<uint32_t> &respBuf);
 
     /**
      * @brief Method that takes care of all the actions performed to the ctlr.
@@ -719,7 +719,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return size
      */
-    int procGroupSize(unsigned int groupID)  {
+    size_t procGroupSize(unsigned int groupID)  {
            return getProcGroup(groupID).paramIDs.size(); }
 
     /**

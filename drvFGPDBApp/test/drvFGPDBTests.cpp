@@ -385,7 +385,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, receivesMsgFromAsyn) {
     read(pasynUser, _, _, testDrv->readTimeout, _)
   ).WillOnce(Invoke(read_mock_helper));
 
-  int bytesRead = testDrv->readResp(pasynUser, respBuf);
+  size_t bytesRead = testDrv->readResp(pasynUser, respBuf);
 
   ASSERT_THAT(bytesRead, Eq(rd_returnData.size() * sizeof(rd_returnData[0])));
 }
@@ -397,7 +397,7 @@ TEST_F(AnFGPDBDriverUsingIOSyncMock, detectsTrunkatedMsgFromAsyn) {
     read(pasynUser, _, _, testDrv->readTimeout, _)
   ).WillOnce(Invoke(read_mock_helper));
 
-  int bytesRead = testDrv->readResp(pasynUser, respBuf);
+  size_t bytesRead = testDrv->readResp(pasynUser, respBuf);
 
   ASSERT_THAT(bytesRead, Eq(respBuf.size() * sizeof(respBuf[0])));
 }
