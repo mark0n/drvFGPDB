@@ -14,17 +14,18 @@
 
 #include <string>
 #include <vector>
-#include <list>
 #include <memory>
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 
 #include <asynPortDriver.h>
 
 #include "asynOctetSyncIOInterface.h"
 #include "ParamInfo.h"
 #include "LCPProtocol.h"
+#include "logger.h"
 #include "eventTimer.h"
 
 
@@ -96,11 +97,12 @@ class drvFGPDB : public asynPortDriver {
      * @param[in] udpPortName       name of the UPD port to communicate with
      * @param[in] startupDiagFlags  diagnostics flag
      * @param[in] resendMode        mode to handle ctlr and IOC restarts
+     * @param[in] pLog              class to use to emit log messages
      */
     drvFGPDB(const std::string &drvPortName,
              std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
              const std::string &udpPortName, uint32_t startupDiagFlags,
-             ResendMode resendMode);
+             ResendMode resendMode, std::shared_ptr<logger> pLog);
 
     /**
      * @brief Destructor of the driver instance
@@ -236,7 +238,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return number of params registered
      */
-    uint numParams(void) const { return params.size(); }
+    size_t numParams(void) const { return params.size(); }
 
     /**
      * @brief Method to update status value if no previous error
@@ -264,6 +266,8 @@ class drvFGPDB : public asynPortDriver {
 #ifndef TEST_DRVFGPDB
   private:
 #endif
+    void logScalarParam(const int list, const int index) const;
+
     /**
      * @brief Method to reset read state of all param values
      *        - @b ReadStates set to @b Undefined
@@ -387,7 +391,7 @@ class drvFGPDB : public asynPortDriver {
      * @return true/false
      */
     bool validParamID(int paramID) const {
-      return ((uint)paramID < params.size()); }
+      return ((unsigned int)paramID < params.size()); }
 
     /**
      * @brief Check if all params inside a given range belong to the same
@@ -398,7 +402,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return true/false
      */
-    bool inDefinedRegRange(uint firstReg, uint numRegs);
+    bool inDefinedRegRange(unsigned int firstReg, unsigned int numRegs);
 
 
     /**
@@ -480,7 +484,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return asynStatus
      */
-    asynStatus readRegs(epicsUInt32 firstReg, uint numRegs);
+    asynStatus readRegs(epicsUInt32 firstReg, unsigned int numRegs);
 
     /**
      * @brief Method that sends the driver's current value for one or more
@@ -491,7 +495,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return asynStatus
      */
-    asynStatus writeRegs(epicsUInt32 firstReg, uint numRegs);
+    asynStatus writeRegs(epicsUInt32 firstReg, unsigned int numRegs);
 
     /**
      * @brief Method that updates the state of the specified asyn param
@@ -581,8 +585,8 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return asynStatus
      */
-    asynStatus readBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
-                          std::vector<uint8_t> &rwBuf);
+    asynStatus readBlock(unsigned int chipNum, uint32_t blockSize,
+                         uint32_t blockNum, std::vector<uint8_t> &rwBuf);
     /**
      * @brief Method that erases a block of data in Flash or one of the EEPROMs on the ctlr
      *
@@ -596,7 +600,8 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return asynStatus
      */
-    asynStatus eraseBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum);
+    asynStatus eraseBlock(unsigned int chipNum, uint32_t blockSize,
+                          uint32_t blockNum);
 
     /**
      * @brief Method that writes a block of data to Flash or one of the EEPROMs on the ctlr
@@ -612,8 +617,8 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return asynStatus
      */
-    asynStatus writeBlock(uint chipNum, uint32_t blockSize, uint32_t blockNum,
-                          std::vector<uint8_t> &rwBuf);
+    asynStatus writeBlock(unsigned int chipNum, uint32_t blockSize,
+                          uint32_t blockNum, std::vector<uint8_t> &rwBuf);
 
     /**
      * @brief Method that reads next block of a PMEM array value from the ctlr
@@ -679,7 +684,7 @@ class drvFGPDB : public asynPortDriver {
     static const int StackSize = 0;   /*!< The stack size for the asyn port driver thread if ASYN_CANBLOCK.\n
                                        *   0 -> epicsThreadStackMedium (default value)
                                        */
-    static const uint  TimerThreadPriority = epicsThreadPriorityMedium;
+    static const unsigned int TimerThreadPriority = epicsThreadPriorityMedium;
 
     epicsTimerQueueActive  &timerQueue;  //<! queue used by timer thread to manage our timer events
 
@@ -705,7 +710,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return reference to the procGroup
      */
-    ProcGroup & getProcGroup(uint groupID);
+    ProcGroup & getProcGroup(unsigned int groupID);
 
     /**
      * @brief Method to get the procGroup's size
@@ -714,7 +719,7 @@ class drvFGPDB : public asynPortDriver {
      *
      * @return size
      */
-    int procGroupSize(uint groupID)  {
+    int procGroupSize(unsigned int groupID)  {
            return getProcGroup(groupID).paramIDs.size(); }
 
     /**
@@ -727,7 +732,7 @@ class drvFGPDB : public asynPortDriver {
 
     std::vector<ParamInfo> params;  //!< Vector with all the parameters registered in the driver
 
-    uint ParamID(ParamInfo &param)  { return (&param - params.data()); }
+    unsigned int ParamID(ParamInfo &param) { return (&param - params.data()); }
 
     asynUser *pAsynUserUDP;          //!< asynUser for UDP asyn port
 
@@ -797,6 +802,8 @@ class drvFGPDB : public asynPortDriver {
 //                                                 or readOnlyMode; }
 
     bool ShowCallbacks() const   { return diagFlags & ShowCallbacks_;  } //!< true if ShowCallbacks_ enabled
+
+    std::shared_ptr<logger> log;
 };
 
 //-----------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include <asynPortDriver.h>
-#include <errlog.h>
 
 #include "LCPProtocol.h"
 #include "ParamInfo.h"
@@ -305,12 +304,11 @@ paramDefState ParamInfo::updateParamDef(const string &context,
   m_readOnly = LCPUtil::readOnlyAddr(regAddr);
 
   if (conflict) {
-    ostringstream oss1, oss2;
-    oss1 << *this;
-    oss2 << newParam;
-    errlogSevPrintf(errlogMajor,"*** %s:%s: Conflicting parameter definitions ***\n\tcur: %s\n\tnew: %s\n\n",
-                    context.c_str(), name.c_str(), oss1.str().c_str(), oss2.str().c_str());
-    throw invalid_argument("Invalid parameter definition");
+    ostringstream oss;
+    oss << context << ":" << name
+        << ": Conflicting parameter definitions ***\n\tcur: " << *this
+        << "\n\tnew: " << newParam;
+    throw invalid_argument(oss.str());
   }
 
   return paramDef;

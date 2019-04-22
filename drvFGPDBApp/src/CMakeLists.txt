@@ -21,6 +21,7 @@ set(LIB_COMPONENTS
   drvFGPDB.cpp
   drvFGPDB_IOC.cpp
   LCPProtocol.cpp
+  logger.cpp
   ParamInfo.cpp
   asynOctetSyncIOWrapper.cpp
 )
