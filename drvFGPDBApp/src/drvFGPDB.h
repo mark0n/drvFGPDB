@@ -104,6 +104,9 @@ class drvFGPDB : public asynPortDriver {
              const std::string &udpPortName, uint32_t startupDiagFlags,
              ResendMode resendMode, std::shared_ptr<logger> pLog);
 
+    drvFGPDB(const drvFGPDB&) = delete;
+    drvFGPDB& operator=(const drvFGPDB&) = delete;
+
     /**
      * @brief Destructor of the driver instance
      */
