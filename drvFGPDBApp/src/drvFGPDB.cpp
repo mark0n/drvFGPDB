@@ -53,10 +53,10 @@ typedef  epicsFloat32   F32;
 typedef  epicsFloat64   F64;
 
 //-----------------------------------------------------------------------------
-drvFGPDB::drvFGPDB(const string &drvPortName,
-                   shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
-                   const string &udpPortName, uint32_t startupDiagFlags,
-                   ResendMode resendMode_, shared_ptr<logger> pLog) :
+drvFGPDB::drvFGPDB(const std::string &drvPortName,
+                   std::shared_ptr<asynOctetSyncIOInterface> syncIOWrapper,
+                   const std::string &udpPortName, uint32_t startupDiagFlags,
+                   ResendMode resendMode_, std::shared_ptr<logger> pLog) :
     asynPortDriver(drvPortName.c_str(), MaxAddr, InterfaceMask, InterruptMask,
                    AsynFlags, AutoConnect, Priority, StackSize),
     timerQueue(epicsTimerQueueActive::allocate(false, TimerThreadPriority)),
