@@ -1,9 +1,0 @@
-# Work around a bug (?) in googletest 1.8.0 which caused its files to be
-# installed even when build as part of another project (see RF-560 for
-# details):
-usr/lib/epics/lib/libgmock.a
-usr/lib/epics/lib/libgtest.a
-usr/lib/epics/lib/libgmock_main.a
-usr/lib/epics/lib/libgtest_main.a
-usr/lib/epics/include/gtest
-usr/lib/epics/include/gmock
