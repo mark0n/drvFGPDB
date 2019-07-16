@@ -1,3 +1,17 @@
+drvfgpdb (1.4.1) unstable; urgency=medium
+
+  * Add a few linebreaks to improve code readability
+  * Fix undefined type punning behavior
+  * Fix warnings about signed - unsigned comparisons
+  * Prevent drvFGPDB objects from being copied
+  * Silence some false Doxygen warnings
+  * Bump up standards version and debhelper version
+  * Fix wrong version number in package name
+  * Remove work around for broken GTest CMake module
+  * Enable link-time optimization
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Tue, 16 Jul 2019 08:58:35 -0400
+
 drvfgpdb (1.4.0) unstable; urgency=medium
 
   [ bernalru ]
