@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.9)
 project(drvFGPDB)
 
 set(drvFGPDB_VERSION_MAJOR 1)
-set(drvFGPDB_VERSION_MINOR 3)
-set(drvFGPDB_VERSION_PATCH 6)
+set(drvFGPDB_VERSION_MINOR 4)
+set(drvFGPDB_VERSION_PATCH 1)
 
 set(VERSION_STRING "${drvFGPDB_VERSION_MAJOR}.${drvFGPDB_VERSION_MINOR}.${drvFGPDB_VERSION_PATCH}")
 
@@ -55,6 +55,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   )
   add_dependencies(drvCoverageMerge drvFGPDBTests_coverage drvFGPDBIntegrationTests_coverage ParamInfoTests_coverage LCPProtocolTests_coverage)
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT IPO_SUPPORTED)
 
 add_subdirectory(drvFGPDBApp)
 add_subdirectory(doc)

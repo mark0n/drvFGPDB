@@ -38,5 +38,9 @@ set_target_properties(drvFGPDBStatic
   PROPERTIES OUTPUT_NAME drvfgpdb
   CLEAN_DIRECT_OUTPUT 1
 )
+if(IPO_SUPPORTED)
+  set_property(TARGET drvFGPDBShared PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  set_property(TARGET drvFGPDBStatic PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 target_link_libraries(drvFGPDBStatic ${asyn_LIBRARIES} ${EPICS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 epics_install(LIBS drvFGPDBShared drvFGPDBStatic DBDS drvFGPDB.dbd)
