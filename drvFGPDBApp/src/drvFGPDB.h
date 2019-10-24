@@ -340,16 +340,6 @@ class drvFGPDB : public asynPortDriver {
     double processScalarReads(void);
 
     /**
-     * @brief Event-timer callback func to process pending writes to scalar
-     *        values
-     *
-     * @return > 0: Use returned time until next callback
-     *           0: Use Default time until next callback
-     *         < 0: Sleep unless/until woken up
-     */
-    double processScalarWrites(void);
-
-    /**
      * @brief Event-timer callback func to process pending/ongoing reads of
      *        array values
      *
@@ -571,8 +561,11 @@ class drvFGPDB : public asynPortDriver {
      *
      * @param[in] param  param whose ctlrValSet is updated
      * @param[in] setVal new value to write to the ctlr
+     *
+     * @return asynStatus
+     *
      */
-    void applyNewParamSetting(ParamInfo &param, uint32_t setVal);
+    asynStatus applyNewParamSetting(ParamInfo &param, uint32_t setVal);
 
     /**
      * @brief Method that reads a block of data from Flash or one of the EEPROMs on the ctlr
@@ -693,7 +686,6 @@ class drvFGPDB : public asynPortDriver {
 
     eventTimer  writeAccessTimer;     //<! To manage writeAccess keep-alives
     eventTimer  scalarReadsTimer;     //<! To periodically update scalar readings
-    eventTimer  scalarWritesTimer;    //<! To process pending writes to scalar values
     eventTimer  arrayReadsTimer;      //<! To process pending reads of array values
     eventTimer  arrayWritesTimer;     //<! To process pending writes to array values
     eventTimer  postNewReadingsTimer; //<! To post the latest readings
