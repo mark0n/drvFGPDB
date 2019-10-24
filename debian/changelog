@@ -1,3 +1,10 @@
+drvfgpdb (1.4.2) unstable; urgency=medium
+
+  [ Enrique Bernal Ruiz ]
+  * Write scalar params directly to the ctlr, no scalarWriteTimer involved anymore
+
+ -- Martin Konrad <konrad@frib.msu.edu>  Thu, 24 Oct 2019 09:44:36 -0400
+
 drvfgpdb (1.4.1) unstable; urgency=medium
 
   * Add a few linebreaks to improve code readability
