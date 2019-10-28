@@ -64,8 +64,6 @@ drvFGPDB::drvFGPDB(const std::string &drvPortName,
                                 2.000, timerQueue)),
     scalarReadsTimer(eventTimer(bind(&drvFGPDB::processScalarReads, this),
                                 0.200, timerQueue)),
-    scalarWritesTimer(eventTimer(bind(&drvFGPDB::processScalarWrites, this),
-                                 0.200, timerQueue)),
     arrayReadsTimer(eventTimer(bind(&drvFGPDB::processArrayReads, this),
                                0.020, timerQueue)),
     arrayWritesTimer(eventTimer(bind(&drvFGPDB::processArrayWrites, this),
@@ -135,7 +133,6 @@ drvFGPDB::~drvFGPDB()
 
   writeAccessTimer.destroy();
   scalarReadsTimer.destroy();
-  scalarWritesTimer.destroy();
   arrayReadsTimer.destroy();
   arrayWritesTimer.destroy();
   postNewReadingsTimer.destroy();
@@ -219,61 +216,6 @@ double drvFGPDB::processScalarReads()
 
   return DefaultInterval;
 }
-
-//-----------------------------------------------------------------------------
-//  Function invoked by the eventTimer thread to process any Pending write
-//  operations for scalar values.
-//
-//  Returns DefaultInternval or the # of secs until the next call.
-//
-//  WARNING:  This function should ONLY be called by the thread that manages
-//            the eventTimer.  To cause this function to be called by that
-//            thread ASAP, call scalarWritesTimer.wakeUp()
-//-----------------------------------------------------------------------------
-double drvFGPDB::processScalarWrites(void)
-{
-  checkCallbackThread(__func__);
-
-  if (exitDriver)  return DontReschedule;
-
-  //ToDo: Use a list of scalar params with pending writes to improve efficiency
-
-  bool writeErrors = false;
-
-  for (auto &param : params)  {
-
-    if (!param.isScalarParam())  continue;
-
-    SetState setState;
-    {
-      lock_guard<drvFGPDB> asynLock(*this);
-      setState = param.setState;
-    }
-    if (setState != SetState::Pending)  continue;
-
-    // LCP reg param: Write new setting to the controller
-    if (LCPUtil::isLCPRegParam(param.getRegAddr()))  {
-      if (!connected or !writeAccess)  continue;
-      if (writeRegs(param.getRegAddr(), 1) != asynSuccess)
-        writeErrors = true;
-      else if (param.drvValue)  {  // also update local var if one specified
-        lock_guard<drvFGPDB> asynLock(*this);
-        *param.drvValue = param.ctlrValSet;
-      }
-      continue;
-    }
-
-    // Driver-only params: Write new setting to local variable
-    if (param.drvValue)  {
-      lock_guard<drvFGPDB> asynLock(*this);
-      *param.drvValue = param.ctlrValSet;
-      param.setState = SetState::Sent;
-    }
-  }
-
-  return (writeErrors ? DefaultInterval : 5.0);
-}
-
 
 //-----------------------------------------------------------------------------
 //  Function invoked by the eventTimer thread to read the next block for each
@@ -653,7 +595,6 @@ double drvFGPDB::WriteAccessHandler(void)
       log->info(" === "s + portName + ": Getting write access ===\n");
     }
     if (getWriteAccess() != asynSuccess)  return 1.0;
-    scalarWritesTimer.wakeUp();
     return DefaultInterval;
   }
   else{
@@ -993,6 +934,8 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
                                     LCPCmdBase &LCPCmd,
                                     LCPStatus &respStatus)
 {
+  lock_guard<drvFGPDB> asynLock(*this);
+
   asynStatus  stat;
   int  flushedPkts;
 
@@ -1005,7 +948,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
 
     if (exitDriver)  return asynError;
     if (stat != asynSuccess)  {
-      checkComStatus();  this_thread::sleep_for(100ms);  continue; }
+        comStatusTimer.wakeUp();  this_thread::sleep_for(100ms);  continue; }
 
     bool validResp = false;
     for (flushedPkts=0; flushedPkts<100; ++flushedPkts)  {
@@ -1036,7 +979,7 @@ asynStatus drvFGPDB::sendCmdGetResp(asynUser *pComPort,
 
     // try sending the cmd again if we did't get a valid resp
     if (!validResp)  {
-      checkComStatus();  this_thread::sleep_for(100ms);  continue; }
+        comStatusTimer.wakeUp();  this_thread::sleep_for(100ms);  continue; }
 
     U32 respSessionID = LCPCmd.getRespSessionID();
     respStatus = LCPCmd.getRespStatus();
@@ -1365,21 +1308,44 @@ bool drvFGPDB::isValidWritableParam(const char *funcName, asynUser *pasynUser)
 }
 
 //----------------------------------------------------------------------------
-void drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
+asynStatus drvFGPDB::applyNewParamSetting(ParamInfo &param, uint32_t setVal)
 {
+  asynStatus stat = asynSuccess;
   param.ctlrValSet = setVal;
 
   if (initComplete or (resendMode == ResendMode::AfterIOCRestart))
-    param.setState = SetState::Pending;
-  else   if (resendMode == ResendMode::Never)
-    param.setState = SetState::Sent;
+      param.setState = SetState::Pending;
+  else if (resendMode == ResendMode::Never)
+      param.setState = SetState::Sent;
   else
-    param.setState = SetState::Restored;
+      param.setState = SetState::Restored;
 
-  // Cause Pending writes to be processed ASAP
-  if (initComplete)  scalarWritesTimer.wakeUp();
+  if (!param.isScalarParam())  return asynError;;
 
-  //ToDo: Add param to a list of params with pending writes
+  SetState setState;
+  {
+    lock_guard<drvFGPDB> asynLock(*this);
+    setState = param.setState;
+  }
+  if (setState != SetState::Pending)  return asynSuccess;
+
+  // LCP reg param: Write new setting to the controller
+  if (LCPUtil::isLCPRegParam(param.getRegAddr()))  {
+    if (!connected or !writeAccess)  return asynError;
+    stat = writeRegs(param.getRegAddr(), 1);
+    if (param.drvValue)  {  // also update local var if one specified
+        lock_guard<drvFGPDB> asynLock(*this);
+        *param.drvValue = param.ctlrValSet;
+    }
+  }
+
+  // Driver-only params: Write new setting to local variable
+  if (param.drvValue)  {
+      lock_guard<drvFGPDB> asynLock(*this);
+      *param.drvValue = param.ctlrValSet;
+      param.setState = SetState::Sent;
+  }
+  return stat;
 }
 
 
@@ -1681,7 +1647,7 @@ asynStatus drvFGPDB::writeInt32(asynUser *pasynUser, epicsInt32 newVal)
 
   uint32_t setVal = ParamInfo::int32ToCtlrFmt(newVal, param.getCtlrFmt());
 
-  applyNewParamSetting(param, setVal);
+  stat = applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())  {
 	log->info(str(format(" === %s:%s():%d (0x%.8X) to %s ===\n") % portName %
@@ -1723,7 +1689,8 @@ asynStatus drvFGPDB::writeUInt32Digital(asynUser *pasynUser, epicsUInt32 newVal,
   }
 
   uint32_t  prevVal = param.ctlrValSet;
-  applyNewParamSetting(param, setVal);
+
+  stat = applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())  {
     log->info(str(format(" === %s:%s(): 0x%.8X  (prev:0x%.8X, new:0x%.8X, "
@@ -1754,7 +1721,7 @@ asynStatus drvFGPDB::writeFloat64(asynUser *pasynUser, epicsFloat64 newVal)
 
   uint32_t setVal = ParamInfo::doubleToCtlrFmt(newVal, param.getCtlrFmt());
 
-  applyNewParamSetting(param, setVal);
+  stat = applyNewParamSetting(param, setVal);
 
   if (ShowRegWrites())  {
     log->info(str(format(" === %s:%s():%f (0x%.8X) to %s ===\n") % portName %
@@ -1863,4 +1830,3 @@ asynStatus drvFGPDB::writeInt8Array(asynUser *pasynUser, epicsInt8 *values,
 }
 
 //-----------------------------------------------------------------------------
-
